@@ -21,6 +21,7 @@ on:
     branches:
       - main
     paths:
+      - "**"
       - "site/**"
 
 permissions:
@@ -119,9 +120,35 @@ def test_wrong_pr_base_fails() -> None:
     require(any("pull_request must target main" in item for item in errors(mutated)), "wrong PR base must fail")
 
 
-def test_missing_paths_fails() -> None:
-    mutated = VALID.replace('    paths:\n      - "site/**"\n', "", 1)
-    require(any("pull_request.paths filter is missing" in item for item in errors(mutated)), "missing paths must fail")
+def test_unfiltered_required_pr_passes() -> None:
+    mutated = VALID.replace('    paths:\n      - "**"\n      - "site/**"\n', "", 1)
+    require(not errors(mutated), "unfiltered required PR trigger must cover every changed path")
+
+
+def test_filtered_required_pr_fails() -> None:
+    mutated = VALID.replace('      - "**"\n', "", 1)
+    require(any("must include all paths" in item for item in errors(mutated)), "docs/release-only PRs must not be skipped")
+
+
+def test_required_ignore_activity_filters_fail() -> None:
+    for field in ("paths-ignore", "branches-ignore", "types"):
+        mutated = VALID.replace('    paths:\n', f'    {field}:\n      - closed\n    paths:\n', 1)
+        require(any("ignore/activity filters" in item for item in errors(mutated)), f"{field} could leave a required check pending")
+
+
+def test_commented_catchall_fails() -> None:
+    mutated = VALID.replace('      - "**"\n', '      # - "**"\n', 1)
+    require(any("must include all paths" in item for item in errors(mutated)), "a comment is not an all-path trigger")
+
+
+def test_single_quoted_catchall_passes() -> None:
+    mutated = VALID.replace('      - "**"\n', "      - '**'\n", 1)
+    require(not errors(mutated), "single-quoted all-path filter should pass")
+
+
+def test_inline_paths_filter_fails() -> None:
+    mutated = VALID.replace('    paths:\n      - "**"\n      - "site/**"\n', '    paths: ["site/**"]\n', 1)
+    require(any("auditable all-path list" in item for item in errors(mutated)), "inline filtered paths cannot bypass required coverage")
 
 
 def test_missing_concurrency_fails() -> None:
@@ -143,7 +170,7 @@ def test_write_permission_fails() -> None:
     require(any("permissions.contents must be read" in item for item in errors(mutated)), "contents: write must fail")
 
 
-def test_public_smoke_direct_python_requires_path_filter() -> None:
+def test_public_smoke_direct_python_is_covered_by_all_paths() -> None:
     relative = ".github/workflows/public-site-smoke.yml"
     mutated = VALID.replace(
         '      - run: echo ok\n',
@@ -151,16 +178,10 @@ def test_public_smoke_direct_python_requires_path_filter() -> None:
         1,
     )
     result = validate_workflow(relative, mutated)
-    require(
-        any(
-            "directly executed smoke script" in item and "smoke_fixture.py" in item
-            for item in result
-        ),
-        "public-site smoke Python script without pull_request.paths entry must fail",
-    )
+    require(not result, "all-path required trigger covers new Python scripts without enumerating each")
 
 
-def test_public_smoke_direct_node_requires_path_filter() -> None:
+def test_public_smoke_direct_node_is_covered_by_all_paths() -> None:
     relative = ".github/workflows/public-site-smoke.yml"
     mutated = VALID.replace(
         '      - run: echo ok\n',
@@ -168,13 +189,7 @@ def test_public_smoke_direct_node_requires_path_filter() -> None:
         1,
     )
     result = validate_workflow(relative, mutated)
-    require(
-        any(
-            "directly executed smoke script" in item and "smoke_fixture.mjs" in item
-            for item in result
-        ),
-        "public-site smoke Node script without pull_request.paths entry must fail",
-    )
+    require(not result, "all-path required trigger covers new Node scripts without enumerating each")
 
 
 def test_public_smoke_direct_scripts_with_paths_pass() -> None:
@@ -199,26 +214,21 @@ def test_public_smoke_direct_scripts_with_paths_pass() -> None:
     )
 
 
-def test_frontend_downloads_exclusion_is_required() -> None:
+def test_frontend_downloads_exclusion_is_forbidden() -> None:
     relative = COMBINED_BROWSER_WORKFLOW
-    missing = validate_workflow(relative, VALID)
-    require(
-        any("must exclude !site/downloads/**" in item for item in missing),
-        "front-end workflow without downloads exclusion must fail",
-    )
-
-    protected = VALID.replace(
+    require(not validate_workflow(relative, VALID), "catchall required front-end trigger should pass")
+    excluded = VALID.replace(
         '      - "site/**"\n',
         '      - "site/**"\n      - "!site/downloads/**"\n',
         1,
     )
     require(
-        not validate_workflow(relative, protected),
-        f"front-end workflow with downloads exclusion must pass: {validate_workflow(relative, protected)}",
+        any("must not exclude changed paths" in item for item in validate_workflow(relative, excluded)),
+        "binary-only PRs must not skip required front-end checks",
     )
 
 
-def test_frontend_downloads_exclusion_order_is_required() -> None:
+def test_frontend_negative_paths_fail_in_either_order() -> None:
     relative = COMBINED_BROWSER_WORKFLOW
     wrong_order = VALID.replace(
         '      - "site/**"\n',
@@ -227,8 +237,8 @@ def test_frontend_downloads_exclusion_order_is_required() -> None:
     )
     errors = validate_workflow(relative, wrong_order)
     require(
-        any("paths negation is order-sensitive" in item for item in errors),
-        "front-end downloads exclusion before site/** must fail",
+        any("must not exclude changed paths" in item for item in errors),
+        "a negative path must fail even before a later include",
     )
 
 
@@ -388,7 +398,7 @@ def test_live_pull_request_trigger_fails() -> None:
 
 def manual_browser_fixture() -> str:
     return VALID.replace(
-        '  pull_request:\n    branches:\n      - main\n    paths:\n      - "site/**"\n\n',
+        '  pull_request:\n    branches:\n      - main\n    paths:\n      - "**"\n      - "site/**"\n\n',
         "",
         1,
     )
@@ -473,15 +483,20 @@ def main() -> int:
         test_push_trigger_fails,
         test_missing_dispatch_fails,
         test_wrong_pr_base_fails,
-        test_missing_paths_fails,
+        test_unfiltered_required_pr_passes,
+        test_filtered_required_pr_fails,
+        test_required_ignore_activity_filters_fail,
+        test_commented_catchall_fails,
+        test_single_quoted_catchall_passes,
+        test_inline_paths_filter_fails,
         test_missing_concurrency_fails,
         test_cancel_false_fails,
         test_write_permission_fails,
-        test_public_smoke_direct_python_requires_path_filter,
-        test_public_smoke_direct_node_requires_path_filter,
+        test_public_smoke_direct_python_is_covered_by_all_paths,
+        test_public_smoke_direct_node_is_covered_by_all_paths,
         test_public_smoke_direct_scripts_with_paths_pass,
-        test_frontend_downloads_exclusion_is_required,
-        test_frontend_downloads_exclusion_order_is_required,
+        test_frontend_downloads_exclusion_is_forbidden,
+        test_frontend_negative_paths_fail_in_either_order,
         test_valid_live_fixture_passes,
         test_live_missing_push_fails,
         test_live_wrong_push_branch_fails,
@@ -507,7 +522,7 @@ def main() -> int:
     print("Quality gate workflow guard regression: PASS")
     print(f"  {len(tests)}/{len(tests)} synthetic tests passed")
     print("  pre-merge push/base/dispatch/paths/concurrency/cancel/permission and smoke-script path regressions fail closed")
-    print("  front-end gates require ordered site/** -> !site/downloads/** filtering for binary-only cost control")
+    print("  all required PR checks reject restrictive path/ignore/activity filters; docs/release/installer-only PRs stay covered")
     print("  live-production missing/wrong push, direct verifier trigger coverage, host/privacy run commands, provenance step and accidental PR triggers fail closed")
     print("  combined browser completeness/failure reporting and manual-only diagnostics are regression guarded")
     return 0

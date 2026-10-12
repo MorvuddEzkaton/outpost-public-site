@@ -6,6 +6,8 @@ on:
     branches:
       - main
     paths:
+      # Required checks must run for every PR, including release/docs-only changes.
+      - "**"
       - "site/**"
       - "analytics/**"
       - "wrangler.jsonc"

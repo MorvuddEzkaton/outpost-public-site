@@ -6,8 +6,9 @@ on:
     branches:
       - main
     paths:
+      # Required checks must run for every PR, including release/docs-only changes.
+      - "**"
       - "site/**"
-      - "!site/downloads/**"
       - "scripts/verify_public_asset_budget.py"
       - ".github/workflows/public-asset-budget.yml"
 permissions:

@@ -6,8 +6,9 @@ on:
     branches:
       - main
     paths:
+      # Required checks must run for every PR, including release/docs-only changes.
+      - "**"
       - "site/**"
-      - "!site/downloads/**"
       - "scripts/browser_a11y.spec.mjs"
       - "scripts/browser_keyboard.spec.mjs"
       - "scripts/browser_runtime.spec.mjs"

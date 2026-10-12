@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Guard the canonical pre-merge quality workflows against duplicate Actions triggers.
 
-These five workflows are intentionally PR-only for automatic execution. They may
+These six required workflows are PR-only for automatic execution and cannot skip
+release-, script-, installer- or docs-only PRs through path filters. They may
 also be started manually with workflow_dispatch. Production verification is owned
 by the separate live-production workflow, so automatic push triggers here would
 only rerun the same pre-merge quality gates and consume extra GitHub-hosted minutes.
@@ -18,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LIVE_PRODUCTION_WORKFLOW = ".github/workflows/live-production-verify.yml"
 
 QUALITY_WORKFLOWS = (
+    ".github/workflows/public-repository-security.yml",
     ".github/workflows/browser-guards.yml",
     ".github/workflows/first-party-resource-guard.yml",
     ".github/workflows/public-asset-budget.yml",
@@ -33,12 +35,6 @@ MANUAL_BROWSER_WORKFLOWS = (
 )
 
 COMBINED_BROWSER_WORKFLOW = ".github/workflows/browser-guards.yml"
-
-FRONTEND_QUALITY_WORKFLOWS = {
-    ".github/workflows/browser-guards.yml",
-    ".github/workflows/first-party-resource-guard.yml",
-    ".github/workflows/public-asset-budget.yml",
-}
 
 LIVE_REQUIRED_RUN_COMMANDS = (
     "python scripts/verify_live_host_normalization.py",
@@ -72,10 +68,6 @@ PULL_REQUEST_MAIN_RE = re.compile(
 
 DIRECT_PYTHON_RUN_RE = re.compile(
     r"(?m)^\s+(?:-\s+)?run:\s+python\s+(scripts/[^\s]+\.py)(?:\s+.*)?$"
-)
-
-DIRECT_NODE_RUN_RE = re.compile(
-    r"(?m)^\s+(?:-\s+)?run:\s+node\s+(scripts/[^\s]+\.mjs)(?:\s+.*)?$"
 )
 
 PUSH_MAIN_RE = re.compile(
@@ -114,42 +106,23 @@ def validate_workflow(relative: str, text: str) -> list[str]:
     ):
         errors.append(f"{relative}: permissions.contents must be read")
 
-    if not re.search(
-        r"(?ms)^  pull_request:\s*\n.*?^    paths:\s*$",
-        text,
-    ):
-        errors.append(f"{relative}: pull_request.paths filter is missing")
-
-    if relative == ".github/workflows/public-site-smoke.yml":
-        direct_script_paths = sorted(
-            set(DIRECT_PYTHON_RUN_RE.findall(text))
-            | set(DIRECT_NODE_RUN_RE.findall(text))
-        )
-        for script_path in direct_script_paths:
-            quoted = f'      - "{script_path}"'
-            if quoted not in text:
-                errors.append(
-                    f"{relative}: directly executed smoke script {script_path!r} "
-                    "must also be present in pull_request.paths"
-                )
-
-    if relative in FRONTEND_QUALITY_WORKFLOWS:
-        include_marker = '      - "site/**"'
-        exclude_marker = '      - "!site/downloads/**"'
-        include_pos = text.find(include_marker)
-        exclude_pos = text.find(exclude_marker)
-
-        if exclude_pos < 0:
-            errors.append(
-                f"{relative}: front-end quality gate must exclude !site/downloads/** "
-                "so installer/checksum-only changes do not consume browser/front-end runner minutes"
-            )
-        elif include_pos < 0:
-            errors.append(f"{relative}: front-end quality gate must include site/** before its downloads exclusion")
-        elif exclude_pos < include_pos:
-            errors.append(
-                f"{relative}: !site/downloads/** must appear after site/** because GitHub paths negation is order-sensitive"
-            )
+    pr_event = re.search(
+        r"(?m)^  pull_request:[^\S\n]*\n((?:(?:    [^\n]*|[ \t]*)\n)*)", text
+    )
+    pr_text = pr_event.group(1) if pr_event else ""
+    if re.search(r"(?m)^    (?:paths-ignore|branches-ignore|types):", pr_text):
+        errors.append(f"{relative}: required PR checks must not have ignore/activity filters")
+    path_filter = re.search(
+        r"(?m)^    paths:[^\S\n]*\n((?:(?:      [^\n]*|[ \t]*)\n)*)", pr_text
+    )
+    if re.search(r"(?m)^    paths:", pr_text) and not path_filter:
+        errors.append(f"{relative}: required PR path filter must be an auditable all-path list")
+    if path_filter:
+        entries = re.findall(r"(?m)^      - [\"']([^\"']+)[\"'][ \t]*(?:#.*)?$", path_filter.group(1))
+        if "**" not in entries:
+            errors.append(f"{relative}: required pull_request.paths must include all paths ('**')")
+        if any(entry.startswith("!") for entry in entries):
+            errors.append(f"{relative}: required PR checks must not exclude changed paths")
 
     return errors
 
@@ -180,8 +153,6 @@ def validate_combined_browser_workflow(relative: str, text: str) -> list[str]:
     for suite_id, script in required_suites.items():
         if f'npx playwright test {script} ' not in text:
             errors.append(f"{relative}: missing browser suite {suite_id} ({script})")
-        if f'      - "{script}"' not in text:
-            errors.append(f"{relative}: browser suite {script} missing from trigger paths")
         if not re.search(
             rf"(?ms)^      - name: [^\n]+\n        id: {suite_id}\n"
             r"        continue-on-error: true\n"
@@ -197,8 +168,6 @@ def validate_combined_browser_workflow(relative: str, text: str) -> list[str]:
         errors.append(f"{relative}: browser dependencies must be installed exactly once")
     if 'run: python scripts/verify_navigation_style_contract.py' not in text:
         errors.append(f"{relative}: missing navigation stylesheet contract guard")
-    if '      - "scripts/verify_navigation_style_contract.py"' not in text:
-        errors.append(f"{relative}: missing navigation guard in trigger paths")
     if not re.search(
         r"(?ms)^      - name: Fail if any browser guard did not pass\n        if: always\(\)\n",
         text,
@@ -326,8 +295,8 @@ def main() -> int:
     print("  four legacy browser workflows are manual diagnostic only")
     print("  pre-merge automatic execution: pull_request -> main only")
     print("  pre-merge duplicate automatic push triggers: none")
-    print("  public-site smoke direct Python/Node scripts are covered by pull_request.paths")
-    print("  browser/front-end gates ignore installer/checksum-only changes under site/downloads/**")
+    print("  all six required checks run on every main PR, including docs/release/installer-only changes")
+    print("  required path/activity exclusions forbidden; manual runs are diagnostic, not PR acceptance")
     print("  post-merge automatic execution: live-production push -> main only")
     print("  live-production trigger paths cover verifier/helper/manifest dependencies")
     print("  every directly executed Python verifier is also present in push.paths")
