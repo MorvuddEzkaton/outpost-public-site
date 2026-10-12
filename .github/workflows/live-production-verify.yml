@@ -10,6 +10,8 @@ on:
       - "scripts/verify_site_identity.py"
       - "scripts/verify_release_metadata.py"
       - "scripts/verify_main_push_provenance.py"
+      - "scripts/production_deployment_gate.py"
+      - "scripts/verify_cloudflare_config.py"
       - "scripts/verify_phone_ctas.py"
       - "scripts/verify_security_headers.py"
       - "scripts/verify_public_site.py"
@@ -51,13 +53,21 @@ jobs:
   verify-live-production:
     # The new repository is not a production deploy source until owner-approved cutover.
     # A skipped job is NOT evidence of a verified deployment.
-    if: vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED == '1'
+    if: >-
+      vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED == '1' &&
+      github.repository == 'MorvuddEzkaton/outpost-public-site' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner))
+    environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - name: Checkout production source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
           # Provenance guard must read actual merge parents; depth=1 hides them.
           fetch-depth: 2
 
@@ -74,6 +84,13 @@ jobs:
 
       - name: Verify source product maturity contract first
         run: python scripts/verify_public_product_maturity.py
+
+      - name: Require reviewed exact-SHA successful deployment and safe notification mode
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.OUTPOST_PAGES_DEPLOY_TOKEN }}
+          OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED: ${{ vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED }}
+        run: python scripts/production_deployment_gate.py --check --wait-seconds 300
 
       - name: Wait for Cloudflare and verify live production
         env:

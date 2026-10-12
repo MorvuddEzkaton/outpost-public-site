@@ -18,6 +18,8 @@ def verify(text: str) -> list[str]:
                "python scripts/verify_live_accounting_release.py",
                'python scripts/confirm_telegram_release.py "$RELEASE_PRODUCT" --source-sha "$GITHUB_SHA"',
                "secrets.OUTPOST_RELEASE_CONFIRM_KEY"]
+    markers += ['python scripts/production_deployment_gate.py --check',
+                'secrets.OUTPOST_PAGES_DEPLOY_TOKEN']
     errors = [f"missing confirmation guard {m}" for m in markers if m not in text]
     if re.search(r"^  (?:pull_request|pull_request_target|workflow_run|push|schedule):", text, re.M):
         errors.append("confirmation must not be triggered by PR/untrusted/automatic events")
@@ -28,6 +30,8 @@ def verify(text: str) -> list[str]:
             errors.append("untrusted expression interpolated directly into shell")
     if not text.find("Validate owner-reviewed Windows receipt") < text.find("Verify actual live installers") < text.find("secrets.OUTPOST_RELEASE_CONFIRM_KEY"):
         errors.append("receipt and full live verification must precede credential-bearing confirmation")
+    if not text.find("Validate owner-reviewed Windows receipt") < text.find('python scripts/production_deployment_gate.py --check') < text.find("Verify actual live installers"):
+        errors.append("exact reviewed deployment and safe notification mode must precede canonical live GETs")
     return errors
 
 

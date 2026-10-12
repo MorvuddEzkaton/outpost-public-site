@@ -21,7 +21,8 @@ function productionIntegrationsAllowed(url, env) {
 
 function previewIntegrationResponse(health = false) {
   return new Response(JSON.stringify(health
-    ? { ok: true, enabled: false, environment: "preview", integrations_disabled: true }
+    ? { ok: true, enabled: false, environment: "preview", integrations_disabled: true,
+      release_mode_schema: 1, confirmed_releases_enabled: false, legacy_release_notifications_enabled: false }
     : { ok: false, error: "preview_integration_disabled", message: "У тестовому середовищі надсилання звернень і Telegram вимкнено." }), {
     status: health ? 200 : 403,
     headers: {
