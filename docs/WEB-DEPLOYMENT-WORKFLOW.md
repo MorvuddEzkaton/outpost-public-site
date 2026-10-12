@@ -24,6 +24,8 @@ Infrastructure maintenance has a separate opt-in variable and protected environm
 
 Preserve cabinet/public-question destinations, license services, Director, Sync, D1 data, secrets, installer paths and customer contracts. Preview requires separate databases and no production Telegram credentials. Public and CMS preview HTML/sitemap stay noindex/nofollow.
 
+Preview integrations fail closed: noncanonical/HTTP/nonstandard-port hosts cannot forward public questions, handle Telegram setup/webhook or start release notifications/download analytics writes, even if production-style bindings are accidentally present. Preview Telegram health explicitly returns enabled=false; blocked writes return 403 and never pretend successful delivery. Set OUTPOST_PREVIEW_ONLY=1 on an isolated test deployment as an additional safeguard, including against an incorrectly attached canonical hostname. Preserve the canonical HTTPS production proxy/header contract; test it with an in-memory upstream, never with real test messages to production. Local D1 simulations are not production backups or a remote restore drill.
+
 ## Release and rollback
 
 OutPOSt and Accounting releases are independent immutable artifacts with checksums, acceptance evidence, truthful status and retained history. Complete static/browser/staging checks before deployment and exact live installer/page checks afterward. Telegram requires a confirmed release event, not merely a version change or website visit.

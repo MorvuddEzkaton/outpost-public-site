@@ -6,7 +6,8 @@ Safety model:
 - the target Accounting EXE must already exist in site/downloads;
 - SHA-256, byte size and checksum file are generated from the EXE;
 - only the Accounting release manifest, /buhgalteriya, the Accounting half of /download,
-  /buhgalteriya sitemap lastmod, and Accounting installer/checksum artifacts are changed;
+  its explicitly marked current summaries/FAQ/hash example, sitemap lastmod,
+  and Accounting installer/checksum artifacts are changed;
 - the stable OutPOSt installer/release metadata are never rewritten;
 - previous installer/checksum URLs and bytes are always retained;
 - a hash-bound, owner-reviewed Windows receipt is required, never default PASS;
@@ -48,6 +49,10 @@ ACCOUNTING_PANEL_RE = re.compile(
     r'(<section\b(?=[^>]*\bdata-download-product="accounting")[^>]*>)(.*?)(</section>)',
     re.DOTALL,
 )
+STABLE_PANEL_RE = re.compile(
+    r'<section\b(?=[^>]*\bdata-download-product="outpost")[^>]*>.*?</section>', re.DOTALL,
+)
+ACCOUNTING_SCOPES = ("hero-summary", "release-summary", "checksum", "recommendation")
 CHECKSUM_RE = re.compile(r"^([A-Fa-f0-9]{64})\s+\*?([^\s]+)\s*$")
 SITEMAP_ACCOUNTING_RE = re.compile(
     r'(<loc>https://outpost\.com\.ua/buhgalteriya</loc>\s*<lastmod>)(\d{4}-\d{2}-\d{2})(</lastmod>)'
@@ -181,10 +186,34 @@ def transform_pages(current: AccountingRelease, target: AccountingRelease) -> tu
         raise PrepareError("/download Accounting panel transformation produced no changes")
     download_new = download_original[: panel_match.start()] + panel_new + download_original[panel_match.end() :]
 
-    # Stable OutPOSt half of /download must remain byte-for-byte identical.
-    stable_before = download_original.split('data-download-product="accounting"', 1)[0]
-    stable_after = download_new.split('data-download-product="accounting"', 1)[0]
-    if stable_before != stable_after:
+    # Accounting facts outside the card also need updating, without touching
+    # unmarked copy, historical changelog entries or the other product's card.
+    for scope in ACCOUNTING_SCOPES:
+        pattern = re.compile(
+            r'<(?P<tag>p|article)\b(?=[^>]*\bdata-accounting-release="' + scope + r'")[^>]*>.*?</(?P=tag)>',
+            re.DOTALL,
+        )
+        matches = list(pattern.finditer(download_new))
+        if len(matches) != 1:
+            raise PrepareError(f"expected one Accounting download scope: {scope}")
+        def update_scope(match):
+            # A future matching product version must not rewrite OutPOSt copy.
+            protected = {}
+            def protect(outpost_match):
+                key = f"OUTPOST_UNCHANGED_VERSION_{len(protected)}"
+                protected[key] = outpost_match.group(0)
+                return key
+            scoped = re.sub(r"OutPOSt v\d+(?:\.\d+){2}", protect, match.group(0))
+            scoped = replace_release_facts(scoped, current, target)
+            for key, value in protected.items():
+                scoped = scoped.replace(key, value)
+            return scoped
+        download_new = pattern.sub(update_scope, download_new, count=1)
+
+    # Mixed-product summaries may change; the actual OutPOSt card may not.
+    stable_before = STABLE_PANEL_RE.search(download_original)
+    stable_after = STABLE_PANEL_RE.search(download_new)
+    if not stable_before or not stable_after or stable_before.group(0) != stable_after.group(0):
         raise PrepareError("Accounting updater changed the stable OutPOSt half of /download")
 
     sitemap_original = read(SITEMAP)
@@ -229,6 +258,9 @@ def transform_pages(current: AccountingRelease, target: AccountingRelease) -> tu
             raise PrepareError(f"old current Accounting marker remains on /buhgalteriya: {marker}")
         if marker in panel_new:
             raise PrepareError(f"old current Accounting marker remains in /download Accounting panel: {marker}")
+
+    if f"Pre-release v{target.version}" not in panel_new:
+        raise PrepareError("Accounting status badge does not match target version")
 
     return page_new, download_new, sitemap_new
 

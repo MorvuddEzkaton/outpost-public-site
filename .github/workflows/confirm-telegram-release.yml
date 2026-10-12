@@ -1,0 +1,61 @@
+name: Confirm verified Telegram release
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: Product from current protected-main release and Windows receipt
+        required: true
+        type: choice
+        options:
+          - outpost
+          - accounting
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outpost-confirmed-release
+  cancel-in-progress: false
+
+jobs:
+  confirm-release:
+    if: >-
+      github.repository == 'MorvuddEzkaton/outpost-public-site' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == github.repository_owner &&
+      vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED == '1' &&
+      vars.OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED == '1'
+    environment: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact trusted main event
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Verify source artifacts and truthful product metadata
+        run: |
+          python scripts/release_integrity.py
+          python scripts/verify_release_metadata.py
+          python scripts/verify_accounting_release.py
+      - name: Validate owner-reviewed Windows receipt without network
+        env:
+          RELEASE_PRODUCT: ${{ inputs.product }}
+        run: python scripts/confirm_telegram_release.py "$RELEASE_PRODUCT" --source-sha "$GITHUB_SHA"
+      - name: Verify actual live installers/pages before confirmation
+        run: |
+          python scripts/verify_live_production.py
+          python scripts/verify_live_accounting_release.py
+      - name: Confirm only the verified product; do not directly broadcast
+        env:
+          RELEASE_PRODUCT: ${{ inputs.product }}
+          OUTPOST_RELEASE_CONFIRM_KEY: ${{ secrets.OUTPOST_RELEASE_CONFIRM_KEY }}
+          OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED: ${{ vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED }}
+          OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED: ${{ vars.OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED }}
+        run: python scripts/confirm_telegram_release.py "$RELEASE_PRODUCT" --source-sha "$GITHUB_SHA" --apply

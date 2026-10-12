@@ -62,6 +62,25 @@ def stable_outpost_version(download_text: str, errors: list[str]) -> str | None:
     return match.group(1)
 
 
+def guard_download_consistency(text: str, errors: list[str]) -> None:
+    """Current download guidance must not disagree with either current artifact."""
+    plain = re.sub(r"<[^>]+>", " ", text)
+    accounting_versions = re.findall(r"(?:Бухгалтер(?:ія|ії|ію)|Accounting)\s+v(\d+(?:\.\d+){2})", plain)
+    if not accounting_versions or any(version != VERSION for version in accounting_versions):
+        errors.append("site/download.html: stale Accounting version in current guidance/FAQ/checksum")
+    for scope in ("hero-summary", "release-summary", "checksum", "recommendation"):
+        if text.count(f'data-accounting-release="{scope}"') != 1:
+            errors.append(f"site/download.html: missing/duplicate Accounting update scope {scope}")
+    if f"Pre-release v{VERSION}" not in text:
+        errors.append("site/download.html: Accounting status/version badge must match manifest")
+    stable = STABLE_PANEL_RE.search(text)
+    stable_hashes = set(re.findall(r"\b[A-Fa-f0-9]{64}\b", stable.group(0))) if stable else set()
+    allowed = {EXPECTED_SHA256, *[value.upper() for value in stable_hashes]}
+    shown = {value.upper() for value in re.findall(r"\b[A-Fa-f0-9]{64}\b", plain)}
+    if shown != allowed:
+        errors.append("site/download.html: checksum example disagrees with current installers")
+
+
 def sitemap_pages(errors: list[str]) -> list[tuple[str, Path]]:
     try:
         root = ET.fromstring(SITEMAP.read_text(encoding="utf-8"))
@@ -214,6 +233,7 @@ def main() -> int:
         errors.append("missing site/download.html")
     else:
         download_text = DOWNLOAD_PAGE.read_text(encoding="utf-8")
+        guard_download_consistency(download_text, errors)
         stable_version = stable_outpost_version(download_text, errors)
         download_markers = [
             'data-download-split-hero',

@@ -110,9 +110,19 @@ The Pages Worker schedules a background release check on ordinary GET requests t
 4. uses product-specific text and buttons so OutPOSt and Бухгалтерія cannot masquerade as one another;
 5. advances only the successfully delivered product cursor; failed product delivery is restored to pending state.
 
-Compare-and-swap cursor updates make release notifications idempotent even when parallel page requests trigger concurrent checks. Repeated deployments or repeated page requests do not send the same product version twice, and a rollback to an older release is not announced as a new version.
+Compare-and-swap cursor updates reduce parallel duplicate attempts in this legacy mode, but the cursor is claimed before sending and a lost response/recovery write cannot establish end-to-end exactly-once delivery. Do not treat this legacy behavior as confirmed-release acceptance.
 
 The release check runs through `ctx.waitUntil` and never changes the HTTP response for the public site, CMS, public-question proxy or installer download.
+
+### Prepared confirmed-release mode (OFF by default)
+
+The separately gated mode in [CONFIRMED-TELEGRAM-RELEASES.md](CONFIRMED-TELEGRAM-RELEASES.md)
+disables legacy visitor-triggered sending when deliberately enabled. Its additive
+journal requires verified live installer bytes/versions and protected confirmation,
+then advances each product cursor only after a positive Telegram acknowledgement.
+A separate disabled Cron relay can pump the journal independently of page visits.
+Uncertain delivery is quarantined rather than automatically repeated. Source/tests
+alone are not a real-bot test, production activation, or permission to broadcast.
 
 ## Bug-report flow
 

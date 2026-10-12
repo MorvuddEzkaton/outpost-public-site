@@ -1,0 +1,8 @@
+{
+  "name": "outpost-release-scheduler",
+  "main": "../scripts/telegram_release_scheduler.mjs",
+  "compatibility_date": "2026-08-22",
+  "workers_dev": false,
+  "vars": { "OUTPOST_RELEASE_SCHEDULER_ENABLED": "0" },
+  "triggers": { "crons": [] }
+}
