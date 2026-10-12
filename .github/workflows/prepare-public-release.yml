@@ -9,8 +9,7 @@ on:
         type: string
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: outpost-prepare-public-release
@@ -18,13 +17,18 @@ concurrency:
 
 jobs:
   prepare-release:
+    # Activation waits for reviewed migration and bot-authored PR support.
+    if: github.ref == 'refs/heads/main' && github.repository == 'MorvuddEzkaton/outpost-public-site' && github.actor == 'MorvuddEzkaton' && vars.OUTPOST_RELEASE_PREPARATION_ENABLED == '1'
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Checkout prepared staging
+      - name: Checkout trusted main before validating staging
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
         with:
-          ref: staging
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -51,6 +55,7 @@ jobs:
           fi
 
           git fetch origin main staging --prune
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo "Trusted main moved; rerun." >&2; exit 1; }
           MAIN_SHA="$(git rev-parse origin/main)"
           STAGING_SHA="$(git rev-parse origin/staging)"
 
@@ -66,6 +71,8 @@ jobs:
           TARGET_EXE="site/downloads/OutPOSt-Setup-v${VERSION}.exe"
           TARGET_SHA="site/downloads/OutPOSt-Setup-v${VERSION}.sha256.txt"
           CHANGELOG="site/changelog.html"
+          TARGET_EVIDENCE="release/evidence/outpost-v${VERSION}.json"
+          seen_evidence=0
 
           seen_exe=0
           seen_sha=0
@@ -90,6 +97,10 @@ jobs:
                 [ "${status}" = "A" ] || { echo "Target checksum must be newly added: ${status} ${path}" >&2; exit 1; }
                 seen_sha=1
                 ;;
+              "${TARGET_EVIDENCE}")
+                [ "${status}" = "A" ] || exit 1
+                seen_evidence=1
+                ;;
               "${CHANGELOG}")
                 [ "${status}" = "M" ] || { echo "Changelog must be modified in place: ${status} ${path}" >&2; exit 1; }
                 seen_changelog=1
@@ -101,23 +112,26 @@ jobs:
             esac
           done < <(git diff --name-status "${MAIN_SHA}" "${STAGING_SHA}")
 
-          if [ "${changed}" -ne 3 ] || [ "${seen_exe}" -ne 1 ] || [ "${seen_sha}" -ne 1 ] || [ "${seen_changelog}" -ne 1 ]; then
-            echo "staging must contain exactly three release inputs: target installer, target checksum, changelog." >&2
+          if [ "${changed}" -ne 4 ] || [ "${seen_exe}" -ne 1 ] || [ "${seen_sha}" -ne 1 ] || [ "${seen_changelog}" -ne 1 ] || [ "${seen_evidence}" -ne 1 ]; then
+            echo "staging must contain exactly four inputs: installer, checksum, changelog and reviewed Windows receipt." >&2
             exit 1
           fi
 
           echo "main_sha=${MAIN_SHA}" >> "$GITHUB_OUTPUT"
           echo "staging_sha=${STAGING_SHA}" >> "$GITHUB_OUTPUT"
           echo "target_exe=${TARGET_EXE}" >> "$GITHUB_OUTPUT"
+          echo "target_evidence=${TARGET_EVIDENCE}" >> "$GITHUB_OUTPUT"
           echo "target_sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
           echo "Validated release-input-only staging: ${MAIN_SHA}..${STAGING_SHA}"
+          # Scope proves all scripts/workflows equal trusted main before execution.
+          git switch --detach "${STAGING_SHA}"
 
       - name: Dry-run release preparation
         env:
           VERSION: ${{ inputs.version }}
         run: python scripts/prepare_public_release.py "${VERSION}"
 
-      - name: Create automatic pre-release backup and isolated release branch
+      - name: Record immutable rollback SHA and create isolated release branch
         id: branch
         shell: bash
         env:
@@ -128,13 +142,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          BACKUP_BRANCH="backup/pre-v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          RELEASE_BRANCH="release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          BACKUP_SHA="${MAIN_SHA}"
+          RELEASE_BRANCH="codex/release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
-          git push origin "${MAIN_SHA}:refs/heads/${BACKUP_BRANCH}"
+          # Immutable main SHA is the rollback point; no extra backup branch.
           git switch -c "${RELEASE_BRANCH}"
 
-          echo "backup_branch=${BACKUP_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "backup_sha=${BACKUP_SHA}" >> "$GITHUB_OUTPUT"
           echo "release_branch=${RELEASE_BRANCH}" >> "$GITHUB_OUTPUT"
 
       - name: Apply reusable release updater
@@ -148,6 +162,7 @@ jobs:
           MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
           TARGET_EXE: ${{ steps.scope.outputs.target_exe }}
           TARGET_SHA: ${{ steps.scope.outputs.target_sha }}
+          TARGET_EVIDENCE: ${{ steps.scope.outputs.target_evidence }}
         run: |
           set -euo pipefail
 
@@ -160,7 +175,7 @@ jobs:
             fi
 
             case "${path}" in
-              site/*.html|site/sitemap.xml|"${TARGET_EXE}"|"${TARGET_SHA}")
+              site/*.html|site/sitemap.xml|release/artifact-registry.json|"${TARGET_EXE}"|"${TARGET_SHA}"|"${TARGET_EVIDENCE}")
                 ;;
               *)
                 echo "Prepared release escaped the public allowlist: ${status} ${path}" >&2
@@ -220,6 +235,9 @@ jobs:
           python scripts/verify_cloudflare_config.py
           python scripts/verify_security_headers.py
           python scripts/verify_installers.py
+          python scripts/release_integrity.py --base-ref origin/main
+          python scripts/test_release_integrity.py
+          python scripts/test_release_workflow_security.py
           python scripts/verify_accounting_release.py
           python scripts/prepare_accounting_release.py --check-current
           python scripts/test_prepare_accounting_release.py
@@ -262,7 +280,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          git add site/*.html site/sitemap.xml
+          git add site/*.html site/sitemap.xml release/artifact-registry.json release/evidence
           if git diff --cached --quiet; then
             echo "Release updater produced no generated metadata changes." >&2
             exit 1
@@ -284,7 +302,7 @@ jobs:
           VERSION: ${{ inputs.version }}
           MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
           STAGING_SHA: ${{ steps.scope.outputs.staging_sha }}
-          BACKUP_BRANCH: ${{ steps.branch.outputs.backup_branch }}
+          BACKUP_SHA: ${{ steps.branch.outputs.backup_sha }}
           RELEASE_BRANCH: ${{ steps.branch.outputs.release_branch }}
         run: |
           set -euo pipefail
@@ -292,7 +310,7 @@ jobs:
             "Prepared OutPOSt public release v${VERSION}." \
             "Current main baseline: ${MAIN_SHA}" \
             "Validated staging inputs: ${STAGING_SHA}" \
-            "Automatic pre-release backup: ${BACKUP_BRANCH}" \
+            "Immutable pre-release rollback SHA: ${BACKUP_SHA}" \
             "Release branch: ${RELEASE_BRANCH}" \
             "The workflow accepted only the target installer, target checksum and changelog as staging inputs, then ran the reusable release updater plus the complete static release gate." \
             "This workflow does **not** merge the PR, push to main, deploy Cloudflare, or call Cabinet/Director/Sync/D1. Normal PR smoke and post-merge live verification remain mandatory."

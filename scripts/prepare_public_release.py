@@ -22,6 +22,9 @@ import argparse
 import hashlib
 import re
 import sys
+import json
+
+from release_integrity import IntegrityError, REGISTRY, append_target, load_receipt, verify_registry
 
 from release_sitemap import SITEMAP, prepare_release_sitemap
 
@@ -270,6 +273,7 @@ def prepare_html_changes(current: str, target: str, target_size: int, target_sha
 def check_current() -> int:
     current = current_version()
     exe_name, checksum_name, _, _, size, digest = artifact_info(current)
+    verify_registry(ROOT)
     require_changelog_current(current)
     print("OutPOSt public release tooling: CURRENT PASS")
     print(f"  current release: v{current}")
@@ -286,6 +290,7 @@ def main() -> int:
     parser.add_argument("version", nargs="?", help="target semantic version, for example 0.24.3")
     parser.add_argument("--apply", action="store_true", help="write the prepared HTML changes")
     parser.add_argument("--check-current", action="store_true", help="validate current release inputs without changing files")
+    parser.add_argument("--evidence", type=Path, help="sanitized owner-reviewed Windows receipt; defaults to release/evidence/outpost-vVERSION.json")
     args = parser.parse_args()
 
     try:
@@ -310,10 +315,13 @@ def main() -> int:
             raise ReleaseError(f"target v{target} must be newer than current v{current}")
 
         exe_name, checksum_name, _, _, target_size, target_sha = artifact_info(target)
+        receipt = load_receipt(ROOT, "outpost", target, args.evidence)
+        rows = verify_registry(ROOT, allow_new={exe_name, checksum_name})
+        registry_text = json.dumps(append_target(rows, receipt, read(DOWNLOADS / checksum_name)), ensure_ascii=False, indent=2) + "\n"
         require_changelog_current(target)
         changes = prepare_html_changes(current, target, target_size, target_sha)
         try:
-            sitemap_text, release_date, release_sitemap_urls = prepare_release_sitemap(changes.keys())
+            sitemap_text, release_date, release_sitemap_urls = prepare_release_sitemap(changes.keys(), receipt["published_date"])
         except ValueError as exc:
             raise ReleaseError(str(exc)) from exc
         if sitemap_text != read(SITEMAP):
@@ -338,12 +346,16 @@ def main() -> int:
 
         for path, text in changes.items():
             path.write_text(text, encoding="utf-8", newline="\n")
+        (ROOT / REGISTRY).write_text(registry_text, encoding="utf-8", newline="\n")
+        evidence_path = ROOT / f"release/evidence/outpost-v{target}.json"
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        evidence_path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
         print("OutPOSt public release preparation: APPLIED")
         print("  run the standard static CI/release guards before any merge to main")
         return 0
 
-    except ReleaseError as exc:
+    except (ReleaseError, IntegrityError, OSError) as exc:
         print(f"OutPOSt public release preparation: FAIL\n  - {exc}", file=sys.stderr)
         return 1
 

@@ -8,7 +8,9 @@ Keep main, staging, active PR branches and bounded rollback checkpoints. Protect
 
 Normal flow: scoped topic branch -> local checks -> staging/isolated preview -> exact-SHA CI -> reviewed PR -> approved deployment -> real production verification.
 
-The existing five quality workflows and four separate browser suites remain intact; the additional Public repository security check runs for every PR. A skipped/not-started check is not PASS. Release jobs must satisfy all applicable gates. Official Actions use full commit pins and tests use read-only tokens. Never run unreviewed PR code with production credentials.
+All six required quality/security workflows run automatically for every PR into main, including docs-, scripts-, release- and installer-only changes. Restrictive paths, negative paths and activity/ignore filters must not leave a required check pending. The four browser suites share one Chromium installation; the four legacy browser workflows remain manual diagnostics, not duplicate automatic runs. A skipped/not-started check is not PASS. Release jobs must satisfy all applicable gates. Official Actions use full commit pins and tests use read-only tokens. Never run unreviewed PR code with production credentials.
+
+Evaluate the actual PR required-check panel, not only a commit-wide list of historical successful jobs. Manual workflow_dispatch runs are useful diagnostics but do not satisfy PR required checks; GitHub documents this distinction at https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks. Do not rename contexts, synthesize success, broaden App permissions or waive protection to unblock a PR. Re-run the actual pull_request workflows after fixing a coverage gap, then verify the exact current PR head and owner review.
 
 ## Deployment authority
 

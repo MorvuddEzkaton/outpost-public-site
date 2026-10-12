@@ -33,21 +33,31 @@ def main() -> int:
     live_compile = "python -m py_compile scripts/verify_live_production.py scripts/verify_live_public_ctas.py scripts/verify_live_phone_ctas.py scripts/verify_live_indexability.py scripts/verify_live_404.py scripts/verify_live_public_links.py scripts/verify_live_sitemap.py scripts/test_live_sitemap.py scripts/verify_live_robots.py scripts/verify_live_support_discovery.py scripts/verify_live_cabinet_entry.py scripts/verify_live_security_headers.py scripts/verify_live_static_assets.py scripts/test_live_static_assets.py scripts/test_social_image_dimensions.py scripts/verify_live_url_normalization.py scripts/verify_live_host_normalization.py scripts/test_live_host_normalization.py scripts/verify_live_cloudflare_privacy.py scripts/test_live_cloudflare_privacy.py scripts/verify_live_social_metadata.py scripts/verify_live_structured_metadata.py scripts/verify_live_product_maturity.py scripts/verify_live_accounting_release.py"
 
     required = {
+        "main-only manual activation": "vars.OUTPOST_RELEASE_PREPARATION_ENABLED == '1'",
+        "trusted main job": "github.ref == 'refs/heads/main'",
+        "owner-only preparation": "github.actor == 'MorvuddEzkaton'",
+        "read-only default token": "permissions:\n  contents: read",
+        "main revision check": 'test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"',
+        "validated input switch": 'git switch --detach "${STAGING_SHA}"',
+        "hash-bound Windows receipt": 'TARGET_EVIDENCE="release/evidence/accounting-v${VERSION}.json"',
+        "immutable artifact inventory": "python scripts/release_integrity.py --base-ref origin/main",
+        "negative integrity tests": "python scripts/test_release_integrity.py",
+        "generated checksum diff visibility": 'git add --intent-to-add -- "${TARGET_SHA}"',
         "manual-only trigger": "workflow_dispatch:",
         "version input": "version:",
         "RC input": "rc_acceptance:",
         "Authenticode input": "authenticode:",
         "branch write permission": "contents: write",
         "pull request write permission": "pull-requests: write",
-        "prepared staging checkout": "ref: staging",
+        "prepared staging checkout": "ref: main",
         "full history": "fetch-depth: 0",
         "main/staging refresh": "git fetch origin main staging --prune",
         "staging ancestry": 'git merge-base --is-ancestor "${MAIN_SHA}" "${STAGING_SHA}"',
         "Accounting target EXE": 'TARGET_EXE="site/downloads/OutPOSt-Accounting-Setup-v${VERSION}.exe"',
-        "exact-one staging input": 'if [ "${changed}" -ne 1 ]',
+        "exact-one staging input": 'if [ "${changed}" -ne 3 ]',
         "dry-run updater": 'python scripts/prepare_accounting_release.py "${VERSION}"',
-        "automatic backup": 'BACKUP_BRANCH="backup/accounting-pre-v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"',
-        "isolated branch": 'RELEASE_BRANCH="accounting-release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"',
+        "immutable rollback SHA": 'BACKUP_SHA="${MAIN_SHA}"',
+        "isolated branch": 'RELEASE_BRANCH="codex/accounting-release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"',
         "apply updater": "--apply",
         "manifest allowlist": "release/accounting-release.json",
         "Accounting page allowlist": "site/buhgalteriya.html",
@@ -110,6 +120,16 @@ def main() -> int:
         if marker in text:
             fail(f"{label} is forbidden in Accounting release workflow")
 
+    if 'git push origin "${MAIN_SHA}:refs/heads/${BACKUP_BRANCH}"' in text:
+        fail("per-release backup branch creation is forbidden; retain the immutable main SHA")
+    if '"${status}" = "D"' in text:
+        fail("deletion of historical artifact URLs is forbidden")
+    trusted_checkout = text.find("ref: main")
+    scope = text.find('git diff --name-status "${MAIN_SHA}" "${STAGING_SHA}"')
+    switch = text.find('git switch --detach "${STAGING_SHA}"')
+    if not (0 <= trusted_checkout < scope < switch):
+        fail("trusted main checkout and scope validation must precede any staging execution")
+
     dangerous_pushes = [
         r"git\s+push[^\n]*refs/heads/main",
         r"git\s+push[^\n]*\bHEAD:main\b",
@@ -121,7 +141,7 @@ def main() -> int:
             fail("Accounting release workflow must never push directly to main or staging")
 
     dry = text.find('python scripts/prepare_accounting_release.py "${VERSION}"')
-    backup = text.find('BACKUP_BRANCH="backup/accounting-pre-v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"')
+    backup = text.find('BACKUP_SHA="${MAIN_SHA}"')
     apply = text.find("--apply", dry + 1)
     gate = text.find("python scripts/verify_prepare_accounting_release_workflow.py", apply)
     branch_push = text.find('git push origin "HEAD:refs/heads/${RELEASE_BRANCH}"')
@@ -129,7 +149,7 @@ def main() -> int:
     if min(dry, backup, apply, gate, branch_push, pr) < 0:
         fail("could not establish Accounting release workflow ordering")
     if not (dry < backup < apply < gate < branch_push < pr):
-        fail("required order is dry-run -> backup -> apply -> full gate -> branch push -> PR")
+        fail("required order is dry-run -> rollback SHA -> apply -> full gate -> branch push -> PR")
 
     gate_markers = (
         "python scripts/verify_automation_landing_intents.py",
@@ -162,9 +182,9 @@ def main() -> int:
 
     print("Prepare Accounting release workflow guard: PASS")
     print("  manual workflow_dispatch only")
-    print("  staging accepts exactly one newly-added Accounting EXE")
-    print("  checksum/manifest/pages are generated after dry-run and automatic backup")
-    print("  stable OutPOSt installer/checksum/changelog and protected backend files are excluded")
+    print("  staging accepts installer + reviewed Windows receipt + authored changelog")
+    print("  checksum/manifest/pages are generated after dry-run and immutable rollback SHA")
+    print("  stable OutPOSt installer/checksum/version and protected backend files are excluded")
     print("  current SEO/quality/privacy/sitemap regressions plus Accounting and stable OutPOSt guards run before PR")
     print("  direct main/staging push, auto-merge and Cloudflare deploy are forbidden")
     return 0

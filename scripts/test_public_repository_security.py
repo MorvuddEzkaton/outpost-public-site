@@ -31,6 +31,14 @@ class PublicSecurityTests(unittest.TestCase):
     def test_seed_not_implicitly_allowed(self):
         self.assertTrue(path_errors('cms/seed-real-pages.sql'))
 
+    def test_sql_cannot_hide_in_scripts_or_site(self):
+        for name in ('scripts/customers.sql', 'site/database.sql', 'docs/private-export.sql'):
+            self.assertIn('SQL outside the exact reviewed public schema allowlist is forbidden', path_errors(name))
+
+    def test_desktop_source_and_dependencies_stay_private(self):
+        for suffix in ('.cs', '.csproj', '.sln', '.dll', '.pdb'):
+            self.assertTrue(path_errors('site/OutPOSt' + suffix))
+
     def test_github_token_blocked(self):
         token = b'gh' + b'p_' + b'A' * 36
         self.assertIn('GitHub credential', content_errors(token))
@@ -69,8 +77,26 @@ class PublicSecurityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / 'screenshots/demo.png'
             file.parent.mkdir()
-            Image.new('RGB', (100, 100)).save(file)
+            picture = Image.new('RGB', (640, 480), 'white')
+            picture.paste('navy', (20, 20, 620, 160))
+            picture.save(file)
             self.assertEqual(image_errors(file, {'status': 'reviewed-public-demo', 'sha256': hashlib.sha256(file.read_bytes()).hexdigest()}), [])
+
+    def test_review_does_not_allow_blank_screenshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / 'screenshots/blank.png'
+            file.parent.mkdir()
+            Image.new('RGB', (1920, 1080), 'white').save(file)
+            reviewed = {'status': 'reviewed-public-demo', 'sha256': hashlib.sha256(file.read_bytes()).hexdigest()}
+            self.assertIn('screenshot is blank or practically uniform', image_errors(file, reviewed))
+
+    def test_review_does_not_allow_tiny_screenshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / 'screenshots/tiny.png'
+            file.parent.mkdir()
+            Image.new('RGB', (16, 16)).save(file)
+            reviewed = {'status': 'reviewed-public-demo', 'sha256': hashlib.sha256(file.read_bytes()).hexdigest()}
+            self.assertIn('screenshot is too small to demonstrate the application', image_errors(file, reviewed))
 
 if __name__ == '__main__':
     unittest.main()

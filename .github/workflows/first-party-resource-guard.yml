@@ -6,8 +6,9 @@ on:
     branches:
       - main
     paths:
+      # Required checks must run for every PR, including release/docs-only changes.
+      - "**"
       - "site/**"
-      - "!site/downloads/**"
       - "scripts/verify_first_party_resources.py"
       - ".github/workflows/first-party-resource-guard.yml"
 permissions:

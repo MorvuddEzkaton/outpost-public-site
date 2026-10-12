@@ -8,6 +8,7 @@ import hashlib
 import re
 import sys
 import xml.etree.ElementTree as ET
+from release_integrity import IntegrityError, verify_registry
 
 from accounting_release_meta import (
     authenticode_phrase,
@@ -153,12 +154,16 @@ def main() -> int:
     accounting_checksums = sorted(path.name for path in DOWNLOADS.glob("OutPOSt-Accounting-Setup-v*.sha256.txt"))
     # Keep historical release URLs for existing users and rollback, but only
     # the manifest-designated installer can be marketed as current.
-    legacy_exe = "OutPOSt-Accounting-Setup-v0.402.3.exe"
-    legacy_sum = "OutPOSt-Accounting-Setup-v0.402.3.sha256.txt"
-    retained_exes = {legacy_exe, "OutPOSt-Accounting-Setup-v1.0.0.exe", "OutPOSt-Accounting-Setup-v1.0.1.exe"}
-    retained_sums = {legacy_sum, "OutPOSt-Accounting-Setup-v1.0.0.sha256.txt", "OutPOSt-Accounting-Setup-v1.0.1.sha256.txt"}
-    expected_exes = sorted(retained_exes | {INSTALLER})
-    expected_sums = sorted(retained_sums | {CHECKSUM})
+    try:
+        registry = verify_registry(ROOT)
+    except (IntegrityError, OSError) as exc:
+        errors.append(str(exc))
+        registry = []
+    accounting_rows = [row for row in registry if row["product"] == "accounting"]
+    expected_exes = sorted(row["installer"] for row in accounting_rows)
+    expected_sums = sorted(row["checksum"] for row in accounting_rows)
+    if INSTALLER not in expected_exes:
+        errors.append("current Accounting installer must be registered immutably")
     if accounting_installers != expected_exes:
         errors.append(f"unexpected Accounting installer set; expected {expected_exes!r}, got {accounting_installers!r}")
     if accounting_checksums != expected_sums:

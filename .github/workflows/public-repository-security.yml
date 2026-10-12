@@ -22,6 +22,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
@@ -36,6 +37,19 @@ jobs:
 
       - name: Verify allowlisted files, reviewed images and exact installers
         run: python scripts/verify_public_repository_security.py
+
+      - name: Validate immutable release history against the exact PR base
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/test_release_integrity.py
+          if [ -n "$PR_BASE_SHA" ]; then
+            python scripts/release_integrity.py --base-ref "$PR_BASE_SHA"
+          else
+            python scripts/release_integrity.py
+          fi
 
       - name: Install checksum-verified portable secret scanner
         shell: bash
@@ -52,3 +66,4 @@ jobs:
         run: |
           set -euo pipefail
           "$RUNNER_TEMP/outpost-gitleaks/gitleaks" dir . --config .gitleaks.toml --redact=100 --no-banner --no-color --ignore-gitleaks-allow
+          "$RUNNER_TEMP/outpost-gitleaks/gitleaks" git . --config .gitleaks.toml --redact=100 --no-banner --no-color --ignore-gitleaks-allow

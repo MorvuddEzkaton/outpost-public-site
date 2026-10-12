@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const faqSource = fs.readFileSync(path.join(root, "site", "_telegram-faq.js"), "utf8");
 const faqUrl = `data:text/javascript;base64,${Buffer.from(faqSource).toString("base64")}`;
 const supportSource = fs

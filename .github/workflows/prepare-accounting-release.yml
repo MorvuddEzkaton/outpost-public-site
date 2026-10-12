@@ -23,8 +23,7 @@ on:
           - signed
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: outpost-prepare-accounting-release
@@ -32,13 +31,18 @@ concurrency:
 
 jobs:
   prepare-accounting-release:
+    # Activation waits for reviewed migration and bot-authored PR support.
+    if: github.ref == 'refs/heads/main' && github.repository == 'MorvuddEzkaton/outpost-public-site' && github.actor == 'MorvuddEzkaton' && vars.OUTPOST_RELEASE_PREPARATION_ENABLED == '1'
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Checkout prepared staging
+      - name: Checkout trusted main before validating staging
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
         with:
-          ref: staging
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -65,6 +69,7 @@ jobs:
           fi
 
           git fetch origin main staging --prune
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo "Trusted main moved; rerun." >&2; exit 1; }
           MAIN_SHA="$(git rev-parse origin/main)"
           STAGING_SHA="$(git rev-parse origin/staging)"
 
@@ -78,27 +83,35 @@ jobs:
           fi
 
           TARGET_EXE="site/downloads/OutPOSt-Accounting-Setup-v${VERSION}.exe"
+          TARGET_EVIDENCE="release/evidence/accounting-v${VERSION}.json"
+          CHANGELOG="site/changelog.html"
+          seen_evidence=0
+          seen_changelog=0
           changed=0
           seen_target=0
           while IFS=$'\t' read -r status path extra; do
             [ -n "${status}" ] || continue
             changed=$((changed + 1))
-            if [ "${status}" != "A" ] || [ "${path}" != "${TARGET_EXE}" ]; then
-              echo "Accounting staging must contain exactly one newly added target EXE; unexpected: ${status} ${path} ${extra:-}" >&2
-              exit 1
-            fi
-            seen_target=1
+            case "${path}" in
+              "${TARGET_EXE}") [ "${status}" = "A" ] || exit 1; seen_target=1 ;;
+              "${TARGET_EVIDENCE}") [ "${status}" = "A" ] || exit 1; seen_evidence=1 ;;
+              "${CHANGELOG}") [ "${status}" = "M" ] || exit 1; seen_changelog=1 ;;
+              *) echo "Unexpected staging input: ${status} ${path}" >&2; exit 1 ;;
+            esac
           done < <(git diff --name-status "${MAIN_SHA}" "${STAGING_SHA}")
 
-          if [ "${changed}" -ne 1 ] || [ "${seen_target}" -ne 1 ]; then
-            echo "Accounting staging must contain exactly one new target EXE." >&2
+          if [ "${changed}" -ne 3 ] || [ "${seen_target}" -ne 1 ] || [ "${seen_evidence}" -ne 1 ] || [ "${seen_changelog}" -ne 1 ]; then
+            echo "Accounting staging requires installer, reviewed Windows receipt and authored changelog." >&2
             exit 1
           fi
 
           echo "main_sha=${MAIN_SHA}" >> "$GITHUB_OUTPUT"
           echo "staging_sha=${STAGING_SHA}" >> "$GITHUB_OUTPUT"
           echo "target_exe=${TARGET_EXE}" >> "$GITHUB_OUTPUT"
+          echo "target_evidence=${TARGET_EVIDENCE}" >> "$GITHUB_OUTPUT"
           echo "Validated Accounting-installer-only staging: ${MAIN_SHA}..${STAGING_SHA}"
+          # Scope proves all scripts/workflows equal trusted main before execution.
+          git switch --detach "${STAGING_SHA}"
 
       - name: Dry-run Accounting release preparation
         env:
@@ -110,7 +123,7 @@ jobs:
           --rc-acceptance "${RC_ACCEPTANCE}"
           --authenticode "${AUTHENTICODE}"
 
-      - name: Create automatic pre-release backup and isolated Accounting branch
+      - name: Record immutable rollback SHA and create isolated Accounting branch
         id: branch
         shell: bash
         env:
@@ -121,13 +134,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          BACKUP_BRANCH="backup/accounting-pre-v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          RELEASE_BRANCH="accounting-release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          BACKUP_SHA="${MAIN_SHA}"
+          RELEASE_BRANCH="codex/accounting-release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
-          git push origin "${MAIN_SHA}:refs/heads/${BACKUP_BRANCH}"
+          # Immutable main SHA is the rollback point; no extra backup branch.
           git switch -c "${RELEASE_BRANCH}"
 
-          echo "backup_branch=${BACKUP_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "backup_sha=${BACKUP_SHA}" >> "$GITHUB_OUTPUT"
           echo "release_branch=${RELEASE_BRANCH}" >> "$GITHUB_OUTPUT"
 
       - name: Apply reusable Accounting release updater
@@ -146,10 +159,13 @@ jobs:
         env:
           MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
           TARGET_EXE: ${{ steps.scope.outputs.target_exe }}
+          TARGET_EVIDENCE: ${{ steps.scope.outputs.target_evidence }}
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           TARGET_SHA="site/downloads/OutPOSt-Accounting-Setup-v${VERSION}.sha256.txt"
+          # Include the newly generated untracked checksum in the scope diff.
+          git add --intent-to-add -- "${TARGET_SHA}"
           seen_target_exe=0
           seen_target_sha=0
           seen_manifest=0
@@ -158,7 +174,7 @@ jobs:
 
           while IFS=$'\t' read -r status path extra; do
             [ -n "${status}" ] || continue
-            if [[ "${status}" == R* || "${status}" == C* ]]; then
+            if [[ "${status}" == R* || "${status}" == C* || "${status}" == D* ]]; then
               echo "Accounting release must not rename/copy files: ${status} ${path} ${extra:-}" >&2
               exit 1
             fi
@@ -171,8 +187,11 @@ jobs:
                 [ "${status}" = "A" ] || { echo "Target Accounting checksum must be newly generated." >&2; exit 1; }
                 seen_target_sha=1
                 ;;
-              site/downloads/OutPOSt-Accounting-Setup-v*.exe|site/downloads/OutPOSt-Accounting-Setup-v*.sha256.txt)
-                [ "${status}" = "D" ] || { echo "Only previous Accounting artifacts may be deleted: ${status} ${path}" >&2; exit 1; }
+              "${TARGET_EVIDENCE}")
+                [ "${status}" = "A" ] || exit 1
+                ;;
+              release/artifact-registry.json|site/features.html|site/changelog.html)
+                [ "${status}" = "M" ] || exit 1
                 ;;
               release/accounting-release.json)
                 [ "${status}" = "M" ] || { echo "Accounting release manifest must be modified in place." >&2; exit 1; }
@@ -201,7 +220,6 @@ jobs:
           done
 
           for protected in \
-            site/changelog.html \
             site/_worker.js \
             site/_telegram-support.js \
             site/_telegram-faq.js \
@@ -261,6 +279,9 @@ jobs:
           python scripts/verify_cloudflare_config.py
           python scripts/verify_security_headers.py
           python scripts/verify_installers.py
+          python scripts/release_integrity.py --base-ref origin/main
+          python scripts/test_release_integrity.py
+          python scripts/test_release_workflow_security.py
           python scripts/verify_accounting_release.py
           python scripts/prepare_accounting_release.py --check-current
           python scripts/test_prepare_accounting_release.py
@@ -305,6 +326,10 @@ jobs:
           set -euo pipefail
           git add -A \
             release/accounting-release.json \
+            release/artifact-registry.json \
+            release/evidence \
+            site/features.html \
+            site/changelog.html \
             site/buhgalteriya.html \
             site/download.html \
             site/sitemap.xml \
@@ -331,7 +356,7 @@ jobs:
           VERSION: ${{ inputs.version }}
           MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
           STAGING_SHA: ${{ steps.scope.outputs.staging_sha }}
-          BACKUP_BRANCH: ${{ steps.branch.outputs.backup_branch }}
+          BACKUP_SHA: ${{ steps.branch.outputs.backup_sha }}
           RELEASE_BRANCH: ${{ steps.branch.outputs.release_branch }}
           RC_ACCEPTANCE: ${{ inputs.rc_acceptance }}
           AUTHENTICODE: ${{ inputs.authenticode }}
@@ -341,12 +366,12 @@ jobs:
             "Prepared OutPOSt Accounting pre-release v${VERSION}." \
             "Current main baseline: ${MAIN_SHA}" \
             "Validated staging input: ${STAGING_SHA}" \
-            "Automatic pre-release backup: ${BACKUP_BRANCH}" \
+            "Immutable pre-release rollback SHA: ${BACKUP_SHA}" \
             "Accounting release branch: ${RELEASE_BRANCH}" \
             "Windows RC acceptance: ${RC_ACCEPTANCE}" \
             "Authenticode: ${AUTHENTICODE}" \
-            "The workflow accepted only the target Accounting EXE, generated its checksum/manifest/page updates, retired the previous Accounting artifact pair, and ran the complete static release gate." \
-            "This workflow does **not** merge the PR, push to main, deploy Cloudflare, modify the stable OutPOSt installer/changelog, or call Cabinet/Director/Sync/D1. Normal PR smoke and post-merge live verification remain mandatory."
+            "The workflow accepted only the target Accounting EXE, generated its checksum/manifest/page updates, retained every historical artifact and checked the hash-bound Windows receipt, and ran the complete static release gate." \
+            "This workflow does **not** merge the PR, push to main, deploy Cloudflare, modify the stable OutPOSt installer/version, or call Cabinet/Director/Sync/D1. Normal PR smoke and post-merge live verification remain mandatory."
 
           gh pr create \
             --base main \

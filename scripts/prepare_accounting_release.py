@@ -8,20 +8,21 @@ Safety model:
 - only the Accounting release manifest, /buhgalteriya, the Accounting half of /download,
   /buhgalteriya sitemap lastmod, and Accounting installer/checksum artifacts are changed;
 - the stable OutPOSt installer/release metadata are never rewritten;
-- the previous Accounting installer/checksum are removed only with --apply;
+- previous installer/checksum URLs and bytes are always retained;
+- a hash-bound, owner-reviewed Windows receipt is required, never default PASS;
 - no Worker, Cabinet, Director, Sync, D1 or Cloudflare runtime file is touched.
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
-from datetime import date
 from pathlib import Path
 import argparse
 import hashlib
 import json
 import re
 import sys
+
+from release_integrity import IntegrityError, REGISTRY, append_target, load_receipt, verify_registry
 
 from accounting_release_meta import (
     AccountingRelease,
@@ -99,7 +100,7 @@ def verify_artifact(release: AccountingRelease, *, require_checksum: bool = True
         raise PrepareError(f"Accounting checksum does not match manifest: site/downloads/{release.checksum}")
 
 
-def build_target(current: AccountingRelease, version: str, rc: str, signed: bool) -> AccountingRelease:
+def build_target(current: AccountingRelease, version: str, receipt: dict) -> AccountingRelease:
     if version_key(version) <= version_key(current.version):
         raise PrepareError(f"target Accounting v{version} must be newer than current v{current.version}")
     installer_name = f"OutPOSt-Accounting-Setup-v{version}.exe"
@@ -119,9 +120,9 @@ def build_target(current: AccountingRelease, version: str, rc: str, signed: bool
         platform=current.platform,
         runtime=current.runtime,
         architecture=current.architecture,
-        windows_rc_acceptance=rc,
-        authenticode_signed=signed,
-        published_date=date.today().isoformat(),
+        windows_rc_acceptance=receipt["windows_acceptance"],
+        authenticode_signed=receipt["setup_authenticode"] == "Valid",
+        published_date=receipt["published_date"],
     )
 
 
@@ -235,6 +236,7 @@ def transform_pages(current: AccountingRelease, target: AccountingRelease) -> tu
 def check_current() -> int:
     current = load_accounting_release()
     verify_artifact(current)
+    verify_registry(ROOT)
     page = read(PAGE)
     download = read(DOWNLOAD_PAGE)
     for marker in (current.installer, current.checksum, f"v{current.version}", current.sha256):
@@ -264,19 +266,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Prepare an OutPOSt Accounting pre-release PR safely")
     parser.add_argument("version", nargs="?", help="target Accounting version, for example 0.403 or 0.403.1")
     parser.add_argument("--apply", action="store_true", help="write generated Accounting release changes")
-    parser.add_argument("--keep-previous", action="store_true", help="retain the previous installer and checksum for rollback")
+    parser.add_argument("--keep-previous", action="store_true", help="compatibility flag; historical artifacts are ALWAYS retained")
+    parser.add_argument("--evidence", type=Path, help="sanitized owner-reviewed Windows receipt; defaults to release/evidence/accounting-vVERSION.json")
     parser.add_argument("--check-current", action="store_true", help="validate the current Accounting manifest/artifact/pages")
     parser.add_argument(
         "--rc-acceptance",
         choices=("PASS", "NOT_VERIFIED"),
-        default="PASS",
-        help="Windows RC acceptance state for the target Accounting pre-release",
+        default=None,
+        help="optional assertion; must match verified receipt (not evidence itself)",
     )
     parser.add_argument(
         "--authenticode",
         choices=("signed", "unsigned"),
-        default="unsigned",
-        help="whether the target Accounting installer has an Authenticode signature",
+        default=None,
+        help="optional assertion; must match receipt, never establishes a signature",
     )
     args = parser.parse_args()
 
@@ -290,14 +293,40 @@ def main() -> int:
 
         current = load_accounting_release()
         verify_artifact(current)
-        target = build_target(current, args.version, args.rc_acceptance, args.authenticode == "signed")
+        if version_key(args.version) <= version_key(current.version):
+            raise PrepareError(f"target Accounting v{args.version} must be newer than current v{current.version}")
+        receipt = load_receipt(ROOT, "accounting", args.version, args.evidence)
+        if args.rc_acceptance is not None and args.rc_acceptance != receipt["windows_acceptance"]:
+            raise PrepareError("RC assertion does not match Windows receipt")
+        signed = receipt["setup_authenticode"] == "Valid"
+        if args.authenticode is not None and (args.authenticode == "signed") != signed:
+            raise PrepareError("Authenticode assertion does not match Windows receipt")
+        target = build_target(current, args.version, receipt)
+        allowed = {target.installer}
+        if (DOWNLOADS / target.checksum).exists():
+            allowed.add(target.checksum)
+        rows = verify_registry(ROOT, allow_new=allowed)
         target_checksum_path = DOWNLOADS / target.checksum
         expected_checksum = checksum_text(target)
         if target_checksum_path.exists() and read(target_checksum_path) != expected_checksum:
             raise PrepareError(f"pre-existing target checksum does not match target EXE: {target.checksum}")
 
         page_new, download_new, sitemap_new = transform_pages(current, target)
+        features = SITE / "features.html"
+        features_new = replace_release_facts(read(features), current, target)
+        changelog = read(SITE / "changelog.html")
+        if f'id="accounting-{target.version.replace(".", "")}"' not in changelog or f"Бухгалтерія {target.version}" not in changelog:
+            raise PrepareError("author the target Accounting changelog section before preparing a release; history must be retained")
+        # All changed page dates, not just /buhgalteriya, follow the explicit receipt date.
+        for slug in ("buhgalteriya", "download", "features", "changelog"):
+            pattern = re.compile(rf'(<loc>https://outpost\.com\.ua/{slug}</loc>\s*<lastmod>)(\d{{4}}-\d{{2}}-\d{{2}})(</lastmod>)')
+            matches = list(pattern.finditer(read(SITEMAP)))
+            if len(matches) != 1 or matches[0].group(2) > target.published_date:
+                raise PrepareError(f"missing/duplicate sitemap entry or approved date predates /{slug} lastmod")
+            sitemap_new = pattern.sub(lambda m: m.group(1) + target.published_date + m.group(3), sitemap_new)
         manifest_text = json.dumps(manifest_dict(target), ensure_ascii=False, indent=2) + "\n"
+        registry_text = json.dumps(append_target(rows, receipt, expected_checksum), ensure_ascii=False, indent=2) + "\n"
+        evidence_text = json.dumps(receipt, ensure_ascii=False, indent=2) + "\n"
 
         print("Accounting release preparation: PLAN PASS")
         print(f"  current: v{current.version}")
@@ -306,7 +335,8 @@ def main() -> int:
         print(f"  SHA-256: {target.sha256}")
         print(f"  RC: {target.windows_rc_acceptance}; Authenticode: {'signed' if target.authenticode_signed else 'unsigned'}")
         print(f"  /buhgalteriya sitemap lastmod: {target.published_date}")
-        print(f"  {'retain' if args.keep_previous else 'remove'} previous artifacts: {current.installer}, {current.checksum}")
+        print(f"  retain previous artifacts: {current.installer}, {current.checksum}")
+        print("  Windows receipt is hash-bound; private report comparison remains required in owner review")
 
         if not args.apply:
             print("  dry-run only; rerun with --apply after reviewing the plan")
@@ -315,21 +345,19 @@ def main() -> int:
         PAGE.write_text(page_new, encoding="utf-8", newline="\n")
         DOWNLOAD_PAGE.write_text(download_new, encoding="utf-8", newline="\n")
         SITEMAP.write_text(sitemap_new, encoding="utf-8", newline="\n")
+        features.write_text(features_new, encoding="utf-8", newline="\n")
         MANIFEST.write_text(manifest_text, encoding="utf-8", newline="\n")
         target_checksum_path.write_text(expected_checksum, encoding="utf-8", newline="\n")
-
-        old_installer = DOWNLOADS / current.installer
-        old_checksum = DOWNLOADS / current.checksum
-        if not args.keep_previous and old_installer != DOWNLOADS / target.installer:
-            old_installer.unlink()
-        if not args.keep_previous and old_checksum != target_checksum_path:
-            old_checksum.unlink()
+        (ROOT / REGISTRY).write_text(registry_text, encoding="utf-8", newline="\n")
+        evidence_path = ROOT / f"release/evidence/accounting-v{target.version}.json"
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        evidence_path.write_text(evidence_text, encoding="utf-8", newline="\n")
 
         print("Accounting release preparation: APPLIED")
         print("  stable OutPOSt installer/changelog/release metadata were not modified")
         print("  run the full site smoke gate before opening or merging any PR")
         return 0
-    except (AccountingReleaseError, OSError) as exc:
+    except (AccountingReleaseError, IntegrityError, OSError) as exc:
         print(f"Accounting release preparation: FAIL\n  - {exc}", file=sys.stderr)
         return 1
 
