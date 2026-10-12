@@ -27,6 +27,12 @@ on:
       - "scripts/test_release_gate_parity.py"
       - "scripts/accounting_release_meta.py"
       - "scripts/prepare_accounting_release.py"
+      - "scripts/release_integrity.py"
+      - "scripts/release_test_fixtures.py"
+      - "scripts/test_release_integrity.py"
+      - "scripts/test_release_workflow_security.py"
+      - "release/artifact-registry.json"
+      - "release/evidence/**"
       - "scripts/test_prepare_accounting_release.py"
       - "release/accounting-release.json"
       - ".github/workflows/prepare-accounting-release.yml"
@@ -130,6 +136,15 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
         with:
           python-version: "3.12"
+
+      - name: Verify immutable artifact registry
+        run: python scripts/release_integrity.py
+
+      - name: Test release evidence and immutable history
+        run: python scripts/test_release_integrity.py
+
+      - name: Test release workflow privilege boundaries
+        run: python scripts/test_release_workflow_security.py
 
       - name: Run static public-site validator
         run: python scripts/verify_public_site.py

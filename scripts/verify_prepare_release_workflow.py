@@ -34,23 +34,32 @@ def main() -> int:
     live_compile = "python -m py_compile scripts/verify_live_production.py scripts/verify_live_public_ctas.py scripts/verify_live_phone_ctas.py scripts/verify_live_indexability.py scripts/verify_live_404.py scripts/verify_live_public_links.py scripts/verify_live_sitemap.py scripts/test_live_sitemap.py scripts/verify_live_robots.py scripts/verify_live_support_discovery.py scripts/verify_live_cabinet_entry.py scripts/verify_live_security_headers.py scripts/verify_live_static_assets.py scripts/test_live_static_assets.py scripts/test_social_image_dimensions.py scripts/verify_live_url_normalization.py scripts/verify_live_host_normalization.py scripts/test_live_host_normalization.py scripts/verify_live_cloudflare_privacy.py scripts/test_live_cloudflare_privacy.py scripts/verify_live_social_metadata.py scripts/verify_live_structured_metadata.py scripts/verify_live_product_maturity.py scripts/verify_live_accounting_release.py"
 
     required = {
+        "main-only manual activation": "vars.OUTPOST_RELEASE_PREPARATION_ENABLED == '1'",
+        "trusted main job": "github.ref == 'refs/heads/main'",
+        "owner-only preparation": "github.actor == 'MorvuddEzkaton'",
+        "read-only default token": "permissions:\n  contents: read",
+        "main revision check": 'test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"',
+        "validated input switch": 'git switch --detach "${STAGING_SHA}"',
+        "hash-bound Windows receipt": 'TARGET_EVIDENCE="release/evidence/outpost-v${VERSION}.json"',
+        "immutable artifact inventory": "python scripts/release_integrity.py --base-ref origin/main",
+        "negative integrity tests": "python scripts/test_release_integrity.py",
         "manual-only trigger": "workflow_dispatch:",
         "target version input": "version:",
         "branch write permission": "contents: write",
         "pull request write permission": "pull-requests: write",
-        "prepared staging checkout": "ref: staging",
+        "prepared staging checkout": "ref: main",
         "full history for scope checks": "fetch-depth: 0",
         "main/staging refresh": "git fetch origin main staging --prune",
         "staging based on current main": 'git merge-base --is-ancestor "${MAIN_SHA}" "${STAGING_SHA}"',
         "target installer input": 'TARGET_EXE="site/downloads/OutPOSt-Setup-v${VERSION}.exe"',
         "target checksum input": 'TARGET_SHA="site/downloads/OutPOSt-Setup-v${VERSION}.sha256.txt"',
         "changelog-only metadata input": 'CHANGELOG="site/changelog.html"',
-        "exact-three-input gate": 'if [ "${changed}" -ne 3 ]',
+        "exact-three-input gate": 'if [ "${changed}" -ne 4 ]',
         "dry-run release preparation": 'python scripts/prepare_public_release.py "${VERSION}"',
-        "automatic pre-release backup": 'BACKUP_BRANCH="backup/pre-v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"',
-        "isolated release branch": 'RELEASE_BRANCH="release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"',
+        "immutable rollback SHA": 'BACKUP_SHA="${MAIN_SHA}"',
+        "isolated release branch": 'RELEASE_BRANCH="codex/release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"',
         "release apply": 'python scripts/prepare_public_release.py "${VERSION}" --apply',
-        "generated public allowlist": 'site/*.html|site/sitemap.xml|"${TARGET_EXE}"|"${TARGET_SHA}"',
+        "generated public allowlist": 'site/*.html|site/sitemap.xml|release/artifact-registry.json|"${TARGET_EXE}"|"${TARGET_SHA}"|"${TARGET_EVIDENCE}"',
         "Worker protection": "site/_worker.js",
         "Telegram Worker protection": "site/_telegram-support.js",
         "Telegram FAQ protection": "site/_telegram-faq.js",
@@ -116,6 +125,16 @@ def main() -> int:
         if marker in text:
             fail(f"{label} is forbidden in the release preparation workflow")
 
+    if 'git push origin "${MAIN_SHA}:refs/heads/${BACKUP_BRANCH}"' in text:
+        fail("per-release backup branch creation is forbidden; retain the immutable main SHA")
+    if '"${status}" = "D"' in text:
+        fail("deletion of historical artifact URLs is forbidden")
+    trusted_checkout = text.find("ref: main")
+    scope = text.find('git diff --name-status "${MAIN_SHA}" "${STAGING_SHA}"')
+    switch = text.find('git switch --detach "${STAGING_SHA}"')
+    if not (0 <= trusted_checkout < scope < switch):
+        fail("trusted main checkout and scope validation must precede any staging execution")
+
     dangerous_push_patterns = [
         r"git\s+push[^\n]*refs/heads/main",
         r"git\s+push[^\n]*\bHEAD:main\b",
@@ -129,13 +148,13 @@ def main() -> int:
 
     dry_run = text.find('python scripts/prepare_public_release.py "${VERSION}"')
     apply = text.find('python scripts/prepare_public_release.py "${VERSION}" --apply')
-    backup = text.find('BACKUP_BRANCH="backup/pre-v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"')
+    backup = text.find('BACKUP_SHA="${MAIN_SHA}"')
     branch_push = text.find('git push origin "HEAD:refs/heads/${RELEASE_BRANCH}"')
     pr_create = text.find("gh pr create")
     if dry_run < 0 or apply <= dry_run:
         fail("dry-run must happen before --apply")
     if backup <= dry_run or backup >= apply:
-        fail("automatic backup/isolated branch creation must happen after dry-run and before apply")
+        fail("immutable rollback SHA/isolated branch creation must happen after dry-run and before apply")
     if branch_push <= apply:
         fail("release branch push must happen only after release apply")
     if pr_create <= branch_push:
@@ -174,8 +193,8 @@ def main() -> int:
 
     print("Prepare public release workflow guard: PASS")
     print("  manual trigger only; staging is read as prepared release input")
-    print("  staging diff is constrained to installer + checksum + changelog")
-    print("  dry-run -> automatic backup -> isolated branch -> apply ordering is fixed")
+    print("  staging diff is constrained to installer + checksum + changelog + Windows receipt")
+    print("  dry-run -> immutable rollback SHA -> isolated branch -> apply ordering is fixed")
     print("  protected Worker/Telegram/headers/Cloudflare files are outside release scope")
     print("  release gate mirrors current SEO/quality/privacy/sitemap regressions and all live-verifier compile checks")
     print("  complete static release gate runs before branch push/PR")

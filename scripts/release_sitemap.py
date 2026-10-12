@@ -42,7 +42,7 @@ def _replace_lastmod(text: str, url: str, release_date: str) -> tuple[str, bool]
     return pattern.sub(rf"\g<1>{release_date}\g<3>", text, count=1), True
 
 
-def prepare_release_sitemap(changed_paths) -> tuple[str, str, tuple[str, ...]]:
+def prepare_release_sitemap(changed_paths, approved_date: str | None = None) -> tuple[str, str, tuple[str, ...]]:
     """Return updated sitemap text for release-modified public pages.
 
     `changed_paths` is the set/dict keys produced by prepare_public_release.py before
@@ -54,7 +54,7 @@ def prepare_release_sitemap(changed_paths) -> tuple[str, str, tuple[str, ...]]:
         raise ValueError("site/sitemap.xml is missing")
 
     original = SITEMAP.read_text(encoding="utf-8")
-    release_date = _release_date()
+    release_date = approved_date or _release_date()
 
     candidate_urls = {_url_for_html(Path(path)) for path in changed_paths if Path(path).suffix == ".html"}
     candidate_urls.add(f"{PUBLIC_ORIGIN}/changelog")

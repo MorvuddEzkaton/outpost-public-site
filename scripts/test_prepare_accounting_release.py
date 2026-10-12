@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from release_test_fixtures import synthetic_pe, write_synthetic_receipt
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTECTED = (
@@ -51,7 +52,7 @@ def next_version(current: str) -> str:
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="outpost-accounting-release-") as temp:
         repo = Path(temp) / "repo"
-        shutil.copytree(ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+        shutil.copytree(ROOT, repo, ignore=shutil.ignore_patterns(".git", "node_modules", "__pycache__", "*.pyc"))
 
         manifest_path = repo / "release" / "accounting-release.json"
         before_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -62,8 +63,22 @@ def main() -> int:
         target_installer = repo / "site" / "downloads" / f"OutPOSt-Accounting-Setup-v{target}.exe"
         target_checksum = repo / "site" / "downloads" / f"OutPOSt-Accounting-Setup-v{target}.sha256.txt"
 
-        # A deterministic synthetic binary is enough: the updater treats the EXE as opaque bytes.
-        target_installer.write_bytes((b"OUTPOST-ACCOUNTING-SYNTHETIC-RELEASE\n" * 4096) + b"EOF")
+        # Synthetic PE headers exercise integrity, NOT real Windows acceptance.
+        target_installer.write_bytes(synthetic_pe(128 * 1024))
+        missing_evidence = run(repo, target, expect=1)
+        assert "required release evidence" in missing_evidence.stdout
+        evidence = write_synthetic_receipt(repo, target_installer, "accounting", target)
+        evidence_original = evidence.read_text(encoding="utf-8")
+        for field, value in (("windows_acceptance", "NOT_VERIFIED"), ("approved_for_publication", False), ("product", "outpost")):
+            evidence.write_text(json.dumps(dict(json.loads(evidence_original), **{field: value})), encoding="utf-8")
+            rejected_evidence = run(repo, target, "--apply", expect=1)
+            assert "Accounting release preparation: FAIL" in rejected_evidence.stdout
+            assert json.loads(manifest_path.read_text(encoding="utf-8")) == before_manifest
+            assert not target_checksum.exists()
+        evidence.write_text(evidence_original, encoding="utf-8")
+        changelog_path = repo / "site/changelog.html"
+        changelog_path.write_text(changelog_path.read_text(encoding="utf-8").replace(
+            "</main>", f'<section id="accounting-{target.replace(".", "")}"><h2>Бухгалтерія {target}</h2><p>Синтетичний приклад тільки для тесту.</p></section></main>', 1), encoding="utf-8", newline="\n")
 
         protected_before = {name: digest(repo / name) for name in PROTECTED}
         stable_installers = sorted((repo / "site" / "downloads").glob("OutPOSt-Setup-v*.exe"))
@@ -72,13 +87,17 @@ def main() -> int:
         download_before = (repo / "site" / "download.html").read_text(encoding="utf-8")
         stable_download_half = download_before.split('data-download-product="accounting"', 1)[0]
 
-        dry = run(repo, target, "--rc-acceptance", "NOT_VERIFIED", "--authenticode", "unsigned")
+        rejected = run(repo, target, "--rc-acceptance", "NOT_VERIFIED", expect=1)
+        assert "RC assertion does not match" in rejected.stdout
+        rejected_signature = run(repo, target, "--authenticode", "signed", expect=1)
+        assert "Authenticode assertion does not match" in rejected_signature.stdout
+        dry = run(repo, target, "--authenticode", "unsigned")
         assert "PLAN PASS" in dry.stdout
         assert not target_checksum.exists(), "dry-run must not create checksum"
         assert old_installer.exists() and old_checksum.exists(), "dry-run must not remove current artifacts"
         assert json.loads(manifest_path.read_text(encoding="utf-8")) == before_manifest, "dry-run changed manifest"
 
-        # Retention mode is opt-in and must preserve exact historical bytes.
+        # Compatibility flag is harmless; retention is mandatory, including default apply.
         with tempfile.TemporaryDirectory(prefix="outpost-accounting-retained-") as retained_temp:
             retained = Path(retained_temp) / "repo"
             shutil.copytree(repo, retained)
@@ -97,7 +116,7 @@ def main() -> int:
             repo,
             target,
             "--rc-acceptance",
-            "NOT_VERIFIED",
+            "PASS",
             "--authenticode",
             "unsigned",
             "--apply",
@@ -108,12 +127,15 @@ def main() -> int:
         assert after["version"] == target
         assert after["installer"] == target_installer.name
         assert after["checksum"] == target_checksum.name
-        assert after["windows_rc_acceptance"] == "NOT_VERIFIED"
+        assert after["windows_rc_acceptance"] == "PASS"
         assert after["authenticode_signed"] is False
         assert after["size_bytes"] == target_installer.stat().st_size
         assert len(after["sha256"]) == 64
         assert target_checksum.is_file()
-        assert not old_installer.exists() and not old_checksum.exists(), "previous Accounting artifacts were not retired"
+        assert old_installer.exists() and old_checksum.exists(), "historical Accounting URLs must remain available"
+        for name, expected in historical.items():
+            assert digest(repo / "site/downloads" / name) == expected
+        assert f"Бухгалтерія v{target}" in (repo / "site/features.html").read_text(encoding="utf-8")
 
         checksum_line = target_checksum.read_text(encoding="utf-8").strip()
         assert checksum_line == f"{after['sha256']} *{target_installer.name}"
@@ -143,16 +165,16 @@ def main() -> int:
 
         missing = next_version(target)
         failed = run(repo, missing, expect=1)
-        assert "target Accounting installer is missing" in failed.stdout
+        assert "required release evidence" in failed.stdout
 
         same = run(repo, target, expect=1)
         assert "must be newer" in same.stdout
 
         print("Accounting release synthetic regression: PASS")
         print(f"  simulated v{current} -> v{target}")
-        print("  dry-run was read-only; apply generated checksum/manifest/pages and retired old Accounting artifacts")
+        print("  dry-run was read-only; apply generated checksum/manifest/pages and preserved all historical artifacts")
         print("  stable OutPOSt installer/checksum/changelog and protected Worker/Cloudflare files stayed byte-identical")
-        print("  missing and non-new target versions fail closed")
+        print("  missing/non-new versions, missing evidence and unsupported RC/signature assertions fail closed")
         return 0
 
 

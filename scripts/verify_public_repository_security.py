@@ -4,12 +4,12 @@ import hashlib
 import json
 import re
 import sys
-from PIL import Image
+from PIL import Image, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 ROOT_FILES = {'.gitignore', '.gitattributes', '.gitleaks.toml', 'README.md', 'SECURITY.md', 'NOTICE.md', 'wrangler.jsonc'}
 SCHEMAS = {'analytics/0001_installer_download_daily.sql', 'analytics/0002_telegram_update_subscribers.sql', 'cms/0001_cms.sql', 'cms/0002_cms_v02.sql'}
-BAD_SUFFIXES = {'.db', '.sqlite', '.sqlite3', '.pfx', '.p12', '.jks', '.key', '.pem', '.bak', '.zip', '.7z', '.tgz', '.log', '.map'}
+BAD_SUFFIXES = {'.db', '.sqlite', '.sqlite3', '.pfx', '.p12', '.jks', '.key', '.pem', '.bak', '.zip', '.7z', '.tgz', '.log', '.map', '.cs', '.csproj', '.sln', '.dll', '.pdb'}
 PATTERNS = {
     'GitHub credential': re.compile(rb'\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{60,})\b'),
     'Telegram credential': re.compile(rb'\b\d{7,12}:[A-Za-z0-9_-]{30,}\b'),
@@ -28,6 +28,8 @@ def path_errors(relative: str) -> list[str]:
         errors.append('private/runtime/archive file is forbidden')
     if any(part.lower() in {'private', 'backups', 'backup', '.wrangler', 'artifacts', 'diagnostics'} for part in p.parts):
         errors.append('private evidence/runtime directory is forbidden')
+    if p.suffix.lower() == '.sql' and relative not in SCHEMAS:
+        errors.append('SQL outside the exact reviewed public schema allowlist is forbidden')
     return errors
 
 def content_errors(payload: bytes) -> list[str]:
@@ -71,6 +73,13 @@ def image_errors(file: Path, reviewed: dict | None) -> list[str]:
             image.load()
             if image.getexif():
                 errors.append('unreviewed EXIF metadata')
+            if 'screenshots' in file.parts:
+                if image.width < 320 or image.height < 200:
+                    errors.append('screenshot is too small to demonstrate the application')
+                sample = image.convert('RGB')
+                sample.thumbnail((128, 128))
+                if max(ImageStat.Stat(sample).var) < 1:
+                    errors.append('screenshot is blank or practically uniform')
     except (OSError, ValueError):
         return ['image cannot be decoded']
     if 'screenshots' in file.parts:

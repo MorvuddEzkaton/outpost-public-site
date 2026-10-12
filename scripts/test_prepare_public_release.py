@@ -13,11 +13,13 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import hashlib
+import json
 import shutil
 import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
+from release_test_fixtures import fixture_row, synthetic_pe, write_synthetic_receipt
 
 ROOT = Path(__file__).resolve().parents[1]
 CURRENT = "1.2.3"
@@ -44,9 +46,10 @@ def build_fixture(root: Path, *, bad_target_checksum: bool = False, bad_changelo
     shutil.copy2(ROOT / "scripts" / "prepare_public_release.py", scripts / "prepare_public_release.py")
     shutil.copy2(ROOT / "scripts" / "release_sitemap.py", scripts / "release_sitemap.py")
     shutil.copy2(ROOT / "scripts" / "verify_release_metadata.py", scripts / "verify_release_metadata.py")
+    shutil.copy2(ROOT / "scripts" / "release_integrity.py", scripts / "release_integrity.py")
 
-    current_bytes = b"fixture-current-installer\n"
-    target_bytes = b"x" * 1_234_567
+    current_bytes = synthetic_pe(4096)
+    target_bytes = synthetic_pe(1_234_567)
     current_sha = digest(current_bytes)
     target_sha = digest(target_bytes)
 
@@ -60,6 +63,8 @@ def build_fixture(root: Path, *, bad_target_checksum: bool = False, bad_changelo
     write(downloads / current_sum, f"{current_sha} *{current_exe}\n")
     published_target_sha = "0" * 64 if bad_target_checksum else target_sha
     write(downloads / target_sum, f"{published_target_sha} *{target_exe}\n")
+    write(root / "release/artifact-registry.json", json.dumps({"schema_version": 1, "artifacts": [fixture_row(downloads / current_exe, "outpost", CURRENT)]}))
+    write_synthetic_receipt(root, downloads / target_exe, "outpost", TARGET)
 
     write(
         site / "download.html",
@@ -546,6 +551,25 @@ def test_bad_changelog_fails_closed() -> None:
         require(snapshot_public_payload(root) == before, "bad-changelog dry-run modified fixture payload")
 
 
+def test_missing_or_unverified_windows_receipt_blocks_apply() -> None:
+    with tempfile.TemporaryDirectory(prefix="outpost-release-windows-evidence-") as tmp:
+        root = Path(tmp)
+        build_fixture(root)
+        evidence = root / f"release/evidence/outpost-v{TARGET}.json"
+        original = evidence.read_text(encoding="utf-8")
+        for receipt in (None, dict(json.loads(original), windows_acceptance="NOT_VERIFIED"),
+                        dict(json.loads(original), approved_for_publication=False),
+                        dict(json.loads(original), product="accounting")):
+            if receipt is None:
+                evidence.unlink()
+            else:
+                evidence.write_text(json.dumps(receipt), encoding="utf-8")
+            before = snapshot_public_payload(root)
+            result = run_release(root, TARGET, "--apply")
+            require(result.returncode != 0, "unverified Windows evidence unexpectedly allowed apply")
+            require(snapshot_public_payload(root) == before, "rejected Windows evidence modified public pages/artifacts")
+
+
 def main() -> int:
     try:
         test_success_path()
@@ -558,6 +582,7 @@ def main() -> int:
         test_tampered_current_installer_fails_metadata_guard()
         test_bad_checksum_fails_closed()
         test_bad_changelog_fails_closed()
+        test_missing_or_unverified_windows_receipt_blocks_apply()
     except AssertionError as exc:
         print("Public release tooling regression: FAIL", file=sys.stderr)
         print(f"  - {exc}", file=sys.stderr)
