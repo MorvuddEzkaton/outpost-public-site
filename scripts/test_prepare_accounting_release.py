@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -85,7 +86,21 @@ def main() -> int:
         stable_checksums = sorted((repo / "site" / "downloads").glob("OutPOSt-Setup-v*.sha256.txt"))
         stable_before = {str(path.relative_to(repo)): digest(path) for path in stable_installers + stable_checksums}
         download_before = (repo / "site" / "download.html").read_text(encoding="utf-8")
-        stable_download_half = download_before.split('data-download-product="accounting"', 1)[0]
+        stable_pattern = re.compile(r'<section\b(?=[^>]*data-download-product="outpost")[^>]*>.*?</section>', re.DOTALL)
+        stable_download_card = stable_pattern.search(download_before).group(0)
+
+        # The guard must reject contradictory current guidance even when the
+        # installer card itself and binary checksum are otherwise correct.
+        download_path = repo / "site/download.html"
+        for broken in (
+            download_before.replace(f"Accounting v{current}", "Accounting v0.0.0", 1),
+            download_before.replace(str(before_manifest["sha256"]), "A" * 64),
+            download_before.replace(f"Pre-release v{current}", "Pre-release v0.0.0", 1),
+        ):
+            download_path.write_text(broken, encoding="utf-8")
+            rejected_copy = subprocess.run([sys.executable, "scripts/verify_accounting_release.py"], cwd=repo, text=True, capture_output=True)
+            assert rejected_copy.returncode != 0, "contradictory current download facts accepted"
+        download_path.write_text(download_before, encoding="utf-8")
 
         rejected = run(repo, target, "--rc-acceptance", "NOT_VERIFIED", expect=1)
         assert "RC assertion does not match" in rejected.stdout
@@ -145,7 +160,10 @@ def main() -> int:
         assert f"v{target}" in accounting_page and f"v{current}" not in accounting_page
         assert target_installer.name in accounting_page and target_checksum.name in accounting_page
         assert f"Бухгалтерію v{target}" in download_after
-        assert stable_download_half == download_after.split('data-download-product="accounting"', 1)[0]
+        assert stable_download_card == stable_pattern.search(download_after).group(0)
+        assert f"Accounting v{target}" in download_after and f"Pre-release v{target}" in download_after
+        assert f"v{current}" not in download_after
+        assert before_manifest["sha256"] not in download_after
 
         for name, expected in protected_before.items():
             assert digest(repo / name) == expected, f"protected file changed: {name}"
