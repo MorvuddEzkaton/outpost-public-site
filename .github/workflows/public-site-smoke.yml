@@ -318,6 +318,9 @@ jobs:
       - name: Test static preview indexability isolation
         run: node scripts/test_static_preview_privacy.mjs
 
+      - name: Test preview outbound and Telegram isolation offline
+        run: node scripts/test_preview_integration_isolation.mjs
+
       - name: Guard generated Support Center against Telegram FAQ
         run: node scripts/generate_support_center.mjs --check
 
@@ -325,6 +328,7 @@ jobs:
         run: |
           node --check scripts/generate_support_center.mjs
           node --check scripts/test_static_preview_privacy.mjs
+          node --check scripts/test_preview_integration_isolation.mjs
           node --check site/script.js
           node --check site/_worker.js
           node --check site/_cms-runtime.js

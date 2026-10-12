@@ -260,9 +260,11 @@ jobs:
           node scripts/test_telegram_support.mjs
           node scripts/test_cms_preview_privacy.mjs
           node scripts/test_static_preview_privacy.mjs
+          node scripts/test_preview_integration_isolation.mjs
           node scripts/generate_support_center.mjs --check
           node --check scripts/generate_support_center.mjs
           node --check scripts/test_static_preview_privacy.mjs
+          node --check scripts/test_preview_integration_isolation.mjs
           node --check site/assets/outpost-demo-v1.js
           node --check site/assets/outpost-demo-modules-v1.js
           node --check site/assets/outpost-demo-returns-v1.js
