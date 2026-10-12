@@ -149,7 +149,7 @@ function updatesKeyboard() {
   };
 }
 
-function releaseLinksKeyboard(productKey = "outpost", includeUnsubscribe = false) {
+export function releaseLinksKeyboard(productKey = "outpost", includeUnsubscribe = false) {
   const product = RELEASE_PRODUCTS[productKey] || RELEASE_PRODUCTS.outpost;
   const rows = [
     [
@@ -229,7 +229,7 @@ function releaseVersionFromHtml(html, pattern, label, required = true) {
   return [...versions][0];
 }
 
-async function currentReleaseVersions(env) {
+export async function currentReleaseVersions(env) {
   if (!env?.ASSETS?.fetch) throw new Error("assets_binding_unavailable");
   const response = await env.ASSETS.fetch(new Request("https://outpost.com.ua/download.html"));
   if (!response.ok) throw new Error("download_page_unavailable");
@@ -250,7 +250,7 @@ function versionTuple(value) {
   return parts.map(Number);
 }
 
-function isNewerRelease(current, previous) {
+export function isNewerRelease(current, previous) {
   const next = versionTuple(current);
   const prior = versionTuple(previous);
   if (!next) return false;
@@ -262,7 +262,7 @@ function isNewerRelease(current, previous) {
   return false;
 }
 
-function releaseCursorFromStorage(raw, current) {
+export function releaseCursorFromStorage(raw, current) {
   const text = String(raw || "").trim();
   if (versionTuple(text)) {
     return { outpost: text, accounting: current.accounting || null };
@@ -278,7 +278,7 @@ function releaseCursorFromStorage(raw, current) {
   }
 }
 
-function serializeReleaseCursor(cursor) {
+export function serializeReleaseCursor(cursor) {
   return JSON.stringify({
     outpost: versionTuple(cursor?.outpost) ? cursor.outpost : null,
     accounting: versionTuple(cursor?.accounting) ? cursor.accounting : null
@@ -292,7 +292,7 @@ function pendingReleaseProducts(current, previous) {
   });
 }
 
-function releaseNotificationText(productKey, version) {
+export function releaseNotificationText(productKey, version) {
   if (productKey === "accounting") {
     return `📊 Вийшла нова версія OutPOSt Бухгалтерія v${version}.\n\nОновлення Бухгалтерії вже опубліковане на офіційному сайті. Бухгалтерія має власну версію та поки встановлюється окремо від основного OutPOSt. Перед важливим оновленням рекомендуємо мати актуальну резервну копію даних.`;
   }
@@ -373,6 +373,11 @@ async function unsubscribeFromUpdates(env, chatId) {
     DELETE FROM telegram_update_subscribers
     WHERE chat_id = ?
   `).bind(String(chatId)).run();
+  if (String(env?.TELEGRAM_CONFIRMED_RELEASES_ENABLED || "") === "1") {
+    // Remove delivery identifiers as well; never recreate the subscription.
+    // The additive journal may not exist before the first confirmation.
+    try { await env.ANALYTICS_DB.prepare("DELETE FROM telegram_release_deliveries WHERE chat_id = ?").bind(String(chatId)).run(); } catch {}
+  }
 }
 
 async function sendUpdatesMenu(env, chatId) {
@@ -575,7 +580,14 @@ async function handleCallback(env, callback) {
   }
 
   if (data === "updates:unsubscribe") {
-    try { await unsubscribeFromUpdates(env, chatId); } catch {}
+    try { await unsubscribeFromUpdates(env, chatId); }
+    catch {
+      return telegramApi(env, "sendMessage", {
+        chat_id: chatId,
+        text: "Не вдалося вимкнути підписку. Спробуйте ще раз пізніше або напишіть у підтримку.",
+        reply_markup: updatesKeyboard()
+      });
+    }
     return telegramApi(env, "sendMessage", {
       chat_id: chatId,
       text: "🔕 Підписку на повідомлення про нові версії вимкнено. Telegram chat ID видалено зі списку підписників.",
@@ -618,6 +630,8 @@ async function handleCallback(env, callback) {
 }
 
 export async function maybeNotifyTelegramRelease(env) {
+  // Never let the legacy visitor-triggered sender race the confirmed journal.
+  if (String(env?.TELEGRAM_CONFIRMED_RELEASES_ENABLED || "") === "1") return { ok: true, skipped: true };
   if (!env?.ANALYTICS_DB || !env?.ASSETS?.fetch || !env?.TELEGRAM_BOT_TOKEN) return { ok: true, skipped: true };
   if (String(env?.TELEGRAM_PUBLIC_ENABLED || "") !== "1") return { ok: true, skipped: true };
 

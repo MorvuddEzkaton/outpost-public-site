@@ -39,7 +39,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Validate staging contains release inputs only
         id: scope
@@ -261,10 +261,17 @@ jobs:
           node scripts/test_cms_preview_privacy.mjs
           node scripts/test_static_preview_privacy.mjs
           node scripts/test_preview_integration_isolation.mjs
+          node scripts/test_telegram_release_journal.mjs
+          python scripts/verify_confirmed_release_workflow.py
+          python scripts/test_confirmed_release_security.py
+          python -m py_compile scripts/confirm_telegram_release.py scripts/verify_confirmed_release_workflow.py scripts/test_confirmed_release_security.py
           node scripts/generate_support_center.mjs --check
           node --check scripts/generate_support_center.mjs
           node --check scripts/test_static_preview_privacy.mjs
           node --check scripts/test_preview_integration_isolation.mjs
+          node --check scripts/test_telegram_release_journal.mjs
+          node --check scripts/telegram_release_scheduler.mjs
+          node --check site/_telegram-release-journal.js
           node --check site/assets/outpost-demo-v1.js
           node --check site/assets/outpost-demo-modules-v1.js
           node --check site/assets/outpost-demo-returns-v1.js

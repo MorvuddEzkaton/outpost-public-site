@@ -13,6 +13,9 @@ const poisonedPreviewEnv={
   TELEGRAM_ADMIN_CHAT_ID:'synthetic-admin',
   TELEGRAM_SETUP_KEY:'synthetic-setup',
   TELEGRAM_PUBLIC_ENABLED:'1',
+  TELEGRAM_CONFIRMED_RELEASES_ENABLED:'1',
+  TELEGRAM_RELEASE_CONFIRM_KEY:'synthetic-confirm-key'.padEnd(40,'x'),
+  TELEGRAM_RELEASE_PUMP_KEY:'synthetic-pump-key'.padEnd(40,'y'),
   ANALYTICS_DB:{prepare(){databaseWrites++;throw new Error('Preview touched analytics DB');}},
   ASSETS:{async fetch(request){
     const p=new URL(request.url).pathname;
@@ -24,7 +27,7 @@ const ctx={waitUntil(){scheduled++;}};
 try {
   const previews=['https://outpost-public-preview.pages.dev','https://staging.outpost-web.pages.dev','http://localhost:8788','https://outpost.com.ua.example.invalid','http://outpost.com.ua','https://outpost.com.ua:444'];
   for(const origin of previews){
-    for(const pathname of ['/api/public-question','/api/telegram/setup','/api/telegram/webhook','/api/telegram/unknown']){
+    for(const pathname of ['/api/public-question','/api/telegram/setup','/api/telegram/webhook','/api/telegram/unknown','/api/telegram/releases/dispatch']){
       for(const method of ['GET','POST']){
         const r=await worker.fetch(new Request(origin+pathname,{method,body:method==='POST'?'demo request':undefined}),poisonedPreviewEnv,ctx);
         check(r.status===403,origin+pathname+' must be disabled');
@@ -46,7 +49,7 @@ try {
     }
   }
   // Explicit fail-closed flag also protects a mistakenly attached canonical host.
-  for(const pathname of ['/api/public-question','/api/telegram/setup','/api/telegram/webhook']){
+  for(const pathname of ['/api/public-question','/api/telegram/setup','/api/telegram/webhook','/api/telegram/releases/dispatch']){
     const r=await worker.fetch(new Request('https://outpost.com.ua'+pathname,{method:'POST',body:'demo'}),{...poisonedPreviewEnv,OUTPOST_PREVIEW_ONLY:'1'},ctx);
     check(r.status===403,'Explicit preview-only flag must block production integrations');checks++;
   }

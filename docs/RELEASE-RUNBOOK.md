@@ -103,8 +103,9 @@ its own release. A human PR author cannot supply their own required approving re
 
 All six actual required checks must pass on the exact final commit: source security,
 public smoke, combined browser suites, resources, asset budget, sitemap freshness.
-Path-filtered workflows that did not run remain pending, **not PASS**: dispatch those
-workflows for the exact topic branch and verify head SHA, job execution and conclusion.
+Required workflows run on every main PR. A workflow that did not run remains pending,
+**not PASS**: repair its PR trigger and verify the actual pull_request run on the exact
+head. A workflow_dispatch diagnostic run does not substitute for required PR checks.
 No fabricated check statuses, renamed required contexts, or reduced review rules.
 
 ## Publication remains gated
@@ -112,8 +113,11 @@ No fabricated check statuses, renamed required contexts, or reduced review rules
 Next gates: isolated Cloudflare preview, private D1 backups/restore drill, approved
 deployment provenance, explicit owner cutover, actual installer/page re-download and
 live PASS. Only then may a confirmed `release_published` event trigger the future
-delivery journal. Existing visitor-triggered production Telegram logic is unchanged
-during preparation; never test it against real subscribers or reset their cursors.
+delivery journal. The journal/disabled Cron relay and protected confirmation workflow
+are now prepared in CONFIRMED-TELEGRAM-RELEASES.md, not activated. Existing visitor-
+triggered production Telegram logic is unchanged during preparation; never test it
+against real subscribers or reset their cursors. Deliberate journal activation
+disables that legacy sender, preventing two concurrent sending engines.
 
 Preparation is not idempotent publication: repeat apply to an already-current version
 fails closed rather than making another release. An interrupted/partially applied

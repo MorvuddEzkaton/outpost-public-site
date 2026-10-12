@@ -11,10 +11,12 @@ SCRIPT = SITE / "script.js"
 STYLES = SITE / "styles.css"
 WORKFLOW = ROOT / ".github" / "workflows" / "public-site-smoke.yml"
 DOCS = ROOT / "docs" / "TELEGRAM-SUPPORT.md"
+JOURNAL = SITE / "_telegram-release-journal.js"
+SCHEDULER = ROOT / "scripts" / "telegram_release_scheduler.mjs"
 
 errors = []
 
-for path in (MODULE, FAQ, WORKER, SCRIPT, STYLES, WORKFLOW, DOCS):
+for path in (MODULE, FAQ, WORKER, SCRIPT, STYLES, WORKFLOW, DOCS, JOURNAL, SCHEDULER):
     if not path.exists():
         errors.append(f"missing required file: {path.relative_to(ROOT)}")
 
@@ -31,10 +33,12 @@ script = SCRIPT.read_text(encoding="utf-8")
 styles = STYLES.read_text(encoding="utf-8")
 workflow = WORKFLOW.read_text(encoding="utf-8")
 docs = DOCS.read_text(encoding="utf-8")
+journal = JOURNAL.read_text(encoding="utf-8")
+scheduler = SCHEDULER.read_text(encoding="utf-8")
 
 # Never allow a real-looking Bot API token in source-controlled integration files.
 token_pattern = re.compile(r"\b\d{7,12}:[A-Za-z0-9_-]{30,}\b")
-for path, text in ((MODULE, module), (FAQ, faq), (WORKER, worker), (SCRIPT, script), (WORKFLOW, workflow), (DOCS, docs)):
+for path, text in ((MODULE, module), (FAQ, faq), (WORKER, worker), (SCRIPT, script), (WORKFLOW, workflow), (DOCS, docs), (JOURNAL, journal), (SCHEDULER, scheduler)):
     if token_pattern.search(text):
         errors.append(f"possible Telegram bot token committed in {path.relative_to(ROOT)}")
 
@@ -147,6 +151,11 @@ workflow_markers = [
     'node scripts/test_telegram_support.mjs',
     'node --check site/_telegram-support.js',
     'node --check site/_telegram-faq.js',
+    'node scripts/test_telegram_release_journal.mjs',
+    'python scripts/verify_confirmed_release_workflow.py',
+    'python scripts/test_confirmed_release_security.py',
+    'node --check site/_telegram-release-journal.js',
+    'node --check scripts/telegram_release_scheduler.mjs',
 ]
 for marker in workflow_markers:
     if marker not in workflow:
@@ -155,7 +164,7 @@ for marker in workflow_markers:
 # Telegram may use only the privacy-minimal ANALYTICS_DB table for release subscriptions.
 # It must remain isolated from CMS, Customer Portal, Director/Sync and customer/store data.
 for forbidden in ('CMS_DB', 'CUSTOMER_PORTAL_ORIGIN', 'cabinet.outpost.com.ua', 'SyncOutbox', 'customer_store', 'sales_total'):
-    if forbidden in module or forbidden in faq:
+    if forbidden in module or forbidden in faq or forbidden in journal or forbidden in scheduler:
         errors.append(f"Telegram integration must not depend on protected backend/data: {forbidden}")
 
 if 'CREATE TABLE IF NOT EXISTS telegram_update_subscribers' not in module:

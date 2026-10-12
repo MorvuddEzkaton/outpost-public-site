@@ -1,5 +1,6 @@
 import { cmsPageResponse, cmsRedirectResponse, cmsSitemapResponse } from "./_cms-runtime.js";
 import { isTelegramPath, telegramPathResponse, maybeNotifyTelegramRelease } from "./_telegram-support.js";
+import { RELEASE_DISPATCH_PATH, handleReleaseDispatch } from "./_telegram-release-journal.js";
 
 // OutPOSt Pages Worker
 // Hotfix v0.24.5.3 — public-question proxy header allowlist.
@@ -158,6 +159,8 @@ export default {
       return previewIntegrationResponse(url.pathname === "/api/telegram/health" && request.method === "GET");
     }
 
+    if (url.pathname === RELEASE_DISPATCH_PATH) return handleReleaseDispatch(request, env);
+
     if (isTelegramPath(url.pathname)) {
       return telegramPathResponse(request, env);
     }
@@ -176,6 +179,7 @@ export default {
       env.ANALYTICS_DB &&
       env.TELEGRAM_BOT_TOKEN &&
       String(env.TELEGRAM_PUBLIC_ENABLED || "") === "1"
+      && String(env.TELEGRAM_CONFIRMED_RELEASES_ENABLED || "") !== "1"
     ) {
       ctx.waitUntil(
         maybeNotifyTelegramRelease(env).catch((error) => {
