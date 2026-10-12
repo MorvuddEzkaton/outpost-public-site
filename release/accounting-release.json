@@ -1,0 +1,15 @@
+{
+  "version": "1.0.2",
+  "status": "Pre-release",
+  "installer": "OutPOSt-Accounting-Setup-v1.0.2.exe",
+  "checksum": "OutPOSt-Accounting-Setup-v1.0.2.sha256.txt",
+  "size_bytes": 4409255,
+  "sha256": "372B1A6B97A53FCF5656658B53E205F4B8D97ECE6EEDA85BD391A76B934F495F",
+  "display_size_mb": "4,4",
+  "platform": "Windows 10/11",
+  "runtime": ".NET Framework 4.8",
+  "architecture": "x86",
+  "windows_rc_acceptance": "PASS",
+  "authenticode_signed": false,
+  "published_date": "2026-10-10"
+}

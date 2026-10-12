@@ -1,0 +1,77 @@
+name: IndexNow notifications
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/submit_indexnow.py"
+      - "scripts/test_submit_indexnow.py"
+      - "site/0e9134a8bef16d4343aa1a75d8be5ecd.txt"
+      - ".github/workflows/indexnow.yml"
+  push:
+    branches:
+      - staging
+    paths:
+      - "scripts/submit_indexnow.py"
+      - "scripts/test_submit_indexnow.py"
+      - "site/0e9134a8bef16d4343aa1a75d8be5ecd.txt"
+      - ".github/workflows/indexnow.yml"
+  workflow_run:
+    workflows:
+      - "Verify live production"
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outpost-indexnow-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  verify-offline:
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Test IndexNow logic offline
+        run: python scripts/test_submit_indexnow.py
+
+      - name: Compile IndexNow tooling
+        run: python -m py_compile scripts/submit_indexnow.py scripts/test_submit_indexnow.py
+
+  submit-after-production:
+    if: >-
+      vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED == '1' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout verified production source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Test IndexNow logic offline
+        run: python scripts/test_submit_indexnow.py
+
+      - name: Submit changed public URLs to IndexNow
+        run: python scripts/submit_indexnow.py

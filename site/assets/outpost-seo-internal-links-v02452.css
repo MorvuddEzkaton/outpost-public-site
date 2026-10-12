@@ -1,0 +1,18 @@
+/* OUTPOST-SEO-INTERNAL-LINKS-0.24.5.2 */
+.seo-context-links{padding:42px 0;border-top:1px solid #e6edf4;border-bottom:1px solid #e6edf4;background:linear-gradient(180deg,#fafcff,#f5f9fd)}
+.seo-context-links .seo-context-wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.seo-context-head{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:18px}
+.seo-context-head span{display:block;color:#2563c7;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.seo-context-head h2{margin:7px 0 0;color:#101927;font-size:clamp(24px,3vw,34px);line-height:1.12;letter-spacing:-.035em}
+.seo-context-head p{max-width:520px;margin:0;color:#687789;font-size:14px;line-height:1.55;text-align:right}
+.seo-context-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.seo-context-grid.is-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.seo-context-grid a{display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:72px;padding:16px 17px;border:1px solid #dce5ee;border-radius:13px;background:#fff;color:#24384e;font-size:14px;font-weight:800;line-height:1.35;text-decoration:none;transition:.17s ease}
+.seo-context-grid a span{flex:0 0 auto;color:#2563c7;font-size:18px}
+.seo-context-grid a:hover,.seo-context-grid a:focus{transform:translateY(-2px);border-color:#a9c8ee;box-shadow:0 13px 30px rgba(16,25,39,.07);color:#236fd7}
+.seo-link-strip{display:flex;align-items:center;gap:9px;flex-wrap:wrap;max-width:1180px;margin:24px auto;padding:0 24px}
+.seo-link-strip>span{margin-right:2px;color:#687789;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.seo-link-strip a{padding:8px 11px;border:1px solid #dce5ee;border-radius:999px;background:#fff;color:#40556c;font-size:12px;font-weight:800;text-decoration:none}
+.seo-link-strip a:hover,.seo-link-strip a:focus{border-color:#a9c8ee;background:#f7fbff;color:#236fd7}
+@media(max-width:980px){.seo-context-grid,.seo-context-grid.is-3{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-context-head{align-items:start;flex-direction:column}.seo-context-head p{text-align:left}}
+@media(max-width:620px){.seo-context-links{padding:32px 0}.seo-context-grid,.seo-context-grid.is-3{grid-template-columns:1fr}.seo-context-links .seo-context-wrap,.seo-link-strip{padding-left:18px;padding-right:18px}}

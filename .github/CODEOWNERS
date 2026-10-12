@@ -1,0 +1,9 @@
+# Review sensitive source and workflows with the project owner.
+* @MorvuddEzkaton
+/.github/ @MorvuddEzkaton
+/scripts/ @MorvuddEzkaton
+/wrangler.jsonc @MorvuddEzkaton
+/release/ @MorvuddEzkaton
+/site/_worker.js @MorvuddEzkaton
+/site/_telegram-support.js @MorvuddEzkaton
+/site/_cms-runtime.js @MorvuddEzkaton

@@ -1,0 +1,36 @@
+# Local/private environment
+.env
+.env.*
+!.env.example
+.wrangler/
+.dev.vars
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+*.crt
+
+# Temporary / recovery
+Recovered-*/
+OutPOSt-Web-Canonical-Reconstruction-*/
+*.log
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+__pycache__/
+*.py[cod]
+
+# Local test dependencies and diagnostic output (never public source)
+node_modules/
+test-results/
+playwright-report/
+browser-ui-artifacts/
+browser-runtime-artifacts/
+browser-keyboard-artifacts/
+private/
+backups/
+artifacts/

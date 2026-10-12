@@ -1,0 +1,456 @@
+{
+  "review_date": "2026-10-12",
+  "scope": "Published demonstration screenshots; manual visual review plus owner confirmation for debt-sale demo data",
+  "images": [
+    {
+      "file": "site/assets/screenshots/02410/checkbox/01-settings-entry.webp",
+      "sha256": "0bca64ffec1c7b9a97ba75c9f4407292e8a4c4c2e94d52f5589a001505d450fc",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/checkbox/02-control-center.webp",
+      "sha256": "015bfc51f855da81ab0604f0c0b05383e0565df8101ee06bbbb4c1f6061d4f5e",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/customers.webp",
+      "sha256": "ef7c90a0a818a0a978f1a8d94b4e4b00e2ad047e44e2a7d853f1a259e1d9cbb1",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/debt-sale/01-cart.webp",
+      "sha256": "00774b6e84941d9269f840423c6992f8bc0f46642706b49f0afeb43242a5c76b",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/debt-sale/02-customer.webp",
+      "sha256": "4e87c00e9826b173b43864cce8bd34e661fb5096e749c86e781892edd60b9ace",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/debt-sale/03-debt-dialog.webp",
+      "sha256": "2ef14aac15895d048ddba4e7ebb4705dd32465c23891378293c3a67373085558",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/debt-sale/04-confirmation.webp",
+      "sha256": "be2e727f72d3f947847c1d78f26ded8a44cf4dd6d62eda64d6c78aea1df6e4b9",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/debt-sale/05-debt-history.webp",
+      "sha256": "120cd9478910cabb288dcdf4c368ad8fd4b9479a57cf1e30377fdb238571c612",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/debt-sale/06-repayment-dialog.webp",
+      "sha256": "3d74881c9efeab68c722abccf6809cd419822965bd9a20baa6f63d3ca1d6f341",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/debt-sale/07-after-repayment.webp",
+      "sha256": "6915e0f6c5f2df5d9f403ee001312a8b1d17b77817c11d9781eaeb76d1bd8f88",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/eakcyz/01-control-center.webp",
+      "sha256": "20eda2b7315dce8b74b198e09910c05b3d0dd3d7ec28ec5329817e55f7dfdafc",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/eakcyz/02-excise-marks.webp",
+      "sha256": "9f356dd1addc72654f0b2e591025ce385821c8c29dbae4841ad9d3c6b3f2076a",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/finance.webp",
+      "sha256": "1c0aee410ebb2caefbb1f60a6d747ff8bc2569449a6f167c729b6e6523c1f053",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/inventory.webp",
+      "sha256": "8bfe676efaf2720e7d5de92b4e1a668ceb2e854b924b011dddcb2565fed9bb34",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/mini-t400/01-connection-wizard.webp",
+      "sha256": "453835a766f267afb2cbbdb595eb3300a67d138afc3b33249a307fd519757586",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/mini-t400/02-control-center.webp",
+      "sha256": "9ca7cae50779f4f1f7d2baaef18217af043e674c6c9b479ddb9c6f23fdbe9153",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/mini-t400/03-history.webp",
+      "sha256": "8c32d625f030651d12d59dca8fb8a1deee444fd74023e73b6bb46f2b80f5401d",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/overview.png",
+      "sha256": "7bf35b58c0322c0df4cdacdfe5623a95060a6ebf3ac8edeee0132cdbc5f03c13",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/overview.webp",
+      "sha256": "06e5e931741b2f10978685ef756d2bb5807b67dc6e2afe60a55fd99e0c8b98ae",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/products.webp",
+      "sha256": "4ce03bd007dc12f92a9ff3fef064a419d6bea0ad2f3e87c8b1778772c55f8b83",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/prro/01-control-center.webp",
+      "sha256": "015bfc51f855da81ab0604f0c0b05383e0565df8101ee06bbbb4c1f6061d4f5e",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/prro/02-routing.webp",
+      "sha256": "0eaeca0de17886e9c429b57569344f251434841410c6b80e56d2ab2290360d0b",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/prro/03-cashier-preflight.webp",
+      "sha256": "8e96326ba1c9df54d97ecc020c71ad7e806600ba552a02fc34d0ec7fbe241000",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/purchase-item.webp",
+      "sha256": "1043f9e7949e66ae694f0fd9d9a22766510b2844db5ba23bd5eda3b8a81ec3cb",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/purchase-session.webp",
+      "sha256": "98a6ac78576cc1afefad92858922fc794c87961c93666f652ab9f7e5aa92abf9",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/purchases.webp",
+      "sha256": "386af09fe07f73b3b4320a2c2097759fbedb06cc1b86969fd84b617150ac69a5",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/reports.webp",
+      "sha256": "839460df367a4c3a3ba89c8b6f6069112eda8acda8d7cb3c5192398db5b17b78",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/sales.png",
+      "sha256": "7faea5b1e4e522aa1edcaf69997806f50363924db81546aba63840c3081985f6",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/sales.webp",
+      "sha256": "dca557609483fb828fab2bfe02c82fee7c7f3483c74e81b7ed2f428c4797f818",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02412/pos-sale/01-empty-sale.webp",
+      "sha256": "a24c2f65a7a09572bda322e9411c16b1b998ffa353045a31d2749f814e2673d5",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02412/pos-sale/02-product-search.webp",
+      "sha256": "7cad20a431444929751a40210cd03ea4e09d2d3e78855893f20738c9836dffe5",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02412/pos-sale/03-items-in-cart.webp",
+      "sha256": "243e319975563fece156ffe7f4b891271233bc40a79c3cb2d73d1f167de017b7",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02412/pos-sale/04-cash-payment.webp",
+      "sha256": "c299f55ae41382cd3004dd99e357822bcb046b0369a81c85685b0b6b5591da31",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02412/pos-sale/05-card-payment.webp",
+      "sha256": "36fd6b380e79e2600e8ce6b2233551719accc722604a66bf0740fa657158d39d",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02412/pos-sale/06-mixed-payment.webp",
+      "sha256": "67118bc0ae3cc7261866db6915a7b4124318ae99f4eb357ea425f7f832fbda76",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02414/labels/01-editor.webp",
+      "sha256": "8266777200d7fba1906240c2f5780c95f73a5f16b49849aa474850aa2e1563cd",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02414/labels/02-library.webp",
+      "sha256": "cf6db3eff220e19c3a7508260e034e5f72ee6a77beb0bb3b6213ecc619e84737",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02414/labels/03-purchase-print.webp",
+      "sha256": "10b57f7e97b9d1dc49799503e50b84ee360a1791e5736afe44acac6f34a4dce5",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02415/inventory/03-filtered-count.webp",
+      "sha256": "360bf4a7865372fd8b8d919ccdae708ee6f71f04a093db155fe76cb53ee40720",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02415/inventory/04-filter-warning.webp",
+      "sha256": "5cfa801f105240d18374e76b5a9d807980d213cdabd557ce489a8a106b3164d7",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02415/inventory/05-uncounted-warning.webp",
+      "sha256": "4cc8bce758e0f20b4e20f760fc64fdb4b3fedd04d1ee7e194844598d60813bd8",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02415/inventory/06-post-result.webp",
+      "sha256": "b0858bb0635d6523997a68bb0a34ac9bd566049af4587a60f063a73ce64b9175",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02415/inventory/07-posted-document.webp",
+      "sha256": "5fab354925844f98d82af99062d0e04c3199320010aba895c1962fcc242b75d4",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02418/purchasing/01-plan-popovnennia.webp",
+      "sha256": "9d4994b3c7a3c82fef7811d404cd79f1508f7367ef348179207476bf4c820d58",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02418/purchasing/02-perevirka-planu.webp",
+      "sha256": "72b2b961667cec90bba4b5f195e72d3c11451bc7d5092eb80e3bf974b8ca0720",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02418/purchasing/03-zamovlennia-postachalnykam.webp",
+      "sha256": "84b4c3da08860b458005207097024e9d61bb3100043be6f080350b47b6db068b",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02418/purchasing/04-redahuvannia-chernetky.webp",
+      "sha256": "608e6e6d40e216a54e966f26118e1435596a95ebb59ef4928be0b98ca2b052a3",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02418/purchasing/05-chastkove-pryimannia.png",
+      "sha256": "f62d4e04358b672db8c0bc52ad74d1ef7635cee42206725e44c2b09d60e43e95",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02418/purchasing/06-stan-pislia-pryimannia.png",
+      "sha256": "0b991c8924376b38b1de213084cd73352e0245db89ab42bc194e7b3588575e78",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02419/batch-expiry/01-reiestr-partii.webp",
+      "sha256": "36184dbb0783e902e8729ff6918eed50df1f973baea55d20281998bc85485e8b",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02419/batch-expiry/02-filtry-reiestru.webp",
+      "sha256": "0b82c94ba9d4f87b871016e8135967ea68c6a7549310d1a1c9e02ba714d2871f",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02419/batch-expiry/03-redahuvannia-partii.webp",
+      "sha256": "984644de3075500331b2a48e0a2514a8a92334fa487a6ab80dba47254afe0617",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02419/batch-expiry/04-zvirka-vsikh-partii.webp",
+      "sha256": "3fad1cb75ec648e94cb123f7ee258b6a8cc08fb17a8e8d7b5160dfd65058b89c",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02419/batch-expiry/05-pislia-zvirky.webp",
+      "sha256": "e0de20e754e0ddb8c9a1f569d5b580c9bf3764b6ae1407c01098617a3bcb7992",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02419/batch-expiry/06-istoriia-partii.webp",
+      "sha256": "5585f1b80a23368f2903aee9460c8af2e14727573c2da567aa68d4e5786aa116",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02419/batch-expiry/07-arkhiv-nulovoi-partii.webp",
+      "sha256": "ba49c397466d9f0c01e4142efc88db98ded5f54fb0558a2a965c39ca0c3ebee2",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02420/loyalty/01-aktsii-ta-umovy.webp",
+      "sha256": "7cf1427674e319f06c480e1ce1612d8225e71549734bd44a9efcc8d37e21dde8",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02420/loyalty/02-redahuvannia-aktsii.webp",
+      "sha256": "28d88f435e66bee073f5e024dfc46ae245b605ac6e1d14d7fc6b2b1b347c4995",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02420/loyalty/03-pravyla-bonusiv.webp",
+      "sha256": "36834bac7dbc7916aafcea75187a0a060ba629d64936231826a74597023b7a19",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02420/loyalty/04-promokod-i-vykorystannia-bonusiv.webp",
+      "sha256": "2f9b6f077af8c849ac88bc5a1f6759c06b3dc51404d152d639db325f510d16f9",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02420/loyalty/05-istoriia-prodazhiv-i-povernen.webp",
+      "sha256": "cd1db96b38582d056d30968da8278cec5ce6fdf3617f54132ec8eac88630a05e",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02420/loyalty/06-statystyka-aktsii.webp",
+      "sha256": "c51cadb00db8c136c5d208207c964f6245a8187e4141ca5c0638a65ced75309d",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02421/multiwarehouse/01-reiestr-peremishchen.webp",
+      "sha256": "7744155874de326c2f291447ecab436fb554aaba5773ce0c4fc510f32ad1dfa9",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02421/multiwarehouse/02-redahuvannia-chernetky.webp",
+      "sha256": "71215fa48025173a0d2fd94eb487f0e8dc7220ef4f2a0eaa06a70eb21173b981",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02421/multiwarehouse/03-pidtverdzhennia-vidpravlennia.webp",
+      "sha256": "944abc20d30d5f805a2bf2d6c0991a53d18d78941d755986ffc798861c5ee717",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02421/multiwarehouse/04-chastkove-pryimannia.webp",
+      "sha256": "1fcc90181fe937daff28920fa0368ff72f05ce0a621f6558c1335acd9156b852",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02421/multiwarehouse/05-pislia-chastkovoho-pryimannia.webp",
+      "sha256": "71bcdc1933cdad7f48f81a3e28e80ece0c8e80f3f581eeb2b549efcab0c245d4",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02421/multiwarehouse/06-istoriia-peremishchennia.webp",
+      "sha256": "4c766631411cc089ab5ffa34b77bff5100af5c07ac7f1ddf3231b3fae260a5a7",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02422/director-payroll/01-ohliad-dyrektora.webp",
+      "sha256": "c6c547bbf8511acdb032ae940f57ed40d523beb348d5205e7422bd2df8078287",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02422/director-payroll/02-dynamika-prodazhiv.webp",
+      "sha256": "0f5dd494facfa81bb95c7e8ac537f90e578db38c41e00d3ba303b434a866ffd8",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02422/director-payroll/03-prodazh-prodavtsiv.webp",
+      "sha256": "6174484677b673d03e82b258e2d17c9ca6cff4f94c4c64722635a2978ef53782",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02422/director-payroll/04-umovy-zarplatni.webp",
+      "sha256": "4badc4823773b4d2ac19134315b563813592d43ac0c0eff9ea5f994c05d8a451",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02422/director-payroll/05-rozrakhunok-za-den.webp",
+      "sha256": "00b744b24fbcff0119b53db31bac7001840afe3be63e8bc254f7c57c924bc8bf",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02422/director-payroll/06-vyluchennia-zarplatni.webp",
+      "sha256": "5614a9a572c2d799101984cb027402fb40b9e622c4fd8cedfc4c3888f88099a5",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02422/director-payroll/07-pidtverdzhennia-vyplaty.webp",
+      "sha256": "3c34cd4a24b27b7c1866757cfef46f465c2b3ae476c271ab2c3cf94c455e569d",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02422/director-payroll/08-istoriia-zarplatni.webp",
+      "sha256": "8b995d6f2c0bb26bd7c8b0332aee2b51e7fc5c635d30525a26a4e14a55149615",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02423/batch-fefo/01-novi-partii-z-zakupivli.webp",
+      "sha256": "4c258e4ae09cbaf30e595b76b4e9c8f366c7217afb4bc3021615f4585b84d184",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02423/batch-fefo/02-termin-ta-dzherelo.webp",
+      "sha256": "789f63aef6ef3015587e574e8c852eadc2690f840e670dba4b1c738c1db63877",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02423/batch-fefo/03-nalashtuvannia-fefo.webp",
+      "sha256": "0a54063691c1e9c7a9e8a38a34cc3eed06fbcab750f492ce61e7f97261b22efa",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02423/batch-fefo/04-pislia-prodazhu-fefo.webp",
+      "sha256": "b6a4cab7bbd3e3fefebad0d76b9e4de5ebf5f98ff38d48e5aa4bd1cc8573b415",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02423/batch-fefo/05-nestacha-prydatnykh-partii.webp",
+      "sha256": "0599a900881cf28b73ee3bf3265a621f611d441f3b91faee971557018dc1a1ce",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02423/batch-fefo/06-istoriia-prodazhu.webp",
+      "sha256": "6879bfcaac8b4420d926c69c497e71bec1dc8fc50d7fbe680d9d5910cbe0fbe5",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02423/batch-fefo/07-istoriia-povernennia.webp",
+      "sha256": "b6d92ab1951a59e84b700d962ea55f323b86234fa15cf00dd81aedde2b56a46d",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02423/batch-fefo/08-spravka-modulia.webp",
+      "sha256": "d5532fcfc0ffb3e6ec3e6dbea2db73d250c66de6af1e015c70277e0813d35fd1",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02426/writeoff/01-dokument-spysannia.webp",
+      "sha256": "a3f4d39033c0c7925c19f52e77848302734abc397f25a252761564a29a2b2f81",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02426/writeoff/02-vybir-konkretnykh-partii.webp",
+      "sha256": "450cc7c150a06bb430f8797a68ff884dbffe912852b15141ec884d78bb762f8c",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02426/writeoff/03-provedene-partiine-spysannia.webp",
+      "sha256": "e963e55a7d2563374469b0b8cab7f77d64007325db12182cf940d5abc5834f20",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02426/writeoff/04-istoriia-spysannia.webp",
+      "sha256": "0e3f3084eb821544dd131bc84f403c0c9952e8c152de8cc2b2e78ef7420467a3",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02426/writeoff/05-pidtverdzhennia-skasuvannia.webp",
+      "sha256": "f4ad657387fb706b4f276d7a818e706b98f5f9b72bac9a16f60be6d3945ce51e",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02426/writeoff/06-skasovane-spysannia-ta-reiestr.webp",
+      "sha256": "83eb2362e90ccae62f9df499577153e1119f84a63246376d963a2a62abdf65f7",
+      "status": "reviewed-public-demo"
+    }
+  ]
+}

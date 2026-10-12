@@ -1,0 +1,319 @@
+name: Public site smoke checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "site/**"
+      - "analytics/**"
+      - "wrangler.jsonc"
+      - "scripts/verify_public_site.py"
+      - "scripts/verify_debt_screenshot_tour.py"
+      - "scripts/verify_automation_landing_intents.py"
+      - "scripts/verify_public_seo_uniqueness.py"
+      - "scripts/verify_public_contextual_links.py"
+      - "scripts/test_demo_dialog_contract.py"
+      - "scripts/test_public_faq_schema.py"
+      - "scripts/verify_removed_public_pages.py"
+      - "scripts/verify_404_page.py"
+      - "scripts/verify_public_ctas.py"
+      - "scripts/verify_support_discovery.py"
+      - "scripts/verify_safe_rollback_workflow.py"
+      - "scripts/verify_prepare_release_workflow.py"
+      - "scripts/verify_prepare_accounting_release_workflow.py"
+      - "scripts/verify_release_gate_parity.py"
+      - "scripts/test_release_gate_parity.py"
+      - "scripts/accounting_release_meta.py"
+      - "scripts/prepare_accounting_release.py"
+      - "scripts/test_prepare_accounting_release.py"
+      - "release/accounting-release.json"
+      - ".github/workflows/prepare-accounting-release.yml"
+      - "scripts/verify_internal_anchors.py"
+      - "scripts/verify_license_activation_path.py"
+      - "scripts/verify_public_license_terms.py"
+      - "scripts/verify_public_product_maturity.py"
+      - "scripts/verify_client_copy_no_release_history.py"
+      - "scripts/verify_live_product_maturity.py"
+      - "scripts/test_product_maturity_guard.py"
+      - "scripts/verify_cabinet_entry.py"
+      - "scripts/verify_accessibility.py"
+      - "scripts/verify_color_contrast.py"
+      - "scripts/verify_cloudflare_config.py"
+      - "scripts/verify_installers.py"
+      - "scripts/verify_accounting_release.py"
+      - "scripts/verify_security_headers.py"
+      - "scripts/verify_site_identity.py"
+      - "scripts/verify_live_site_identity.py"
+      - "scripts/verify_site_identity_workflows.py"
+      - "scripts/verify_quality_gate_workflows.py"
+      - "scripts/test_quality_gate_workflows.py"
+      - "scripts/verify_main_push_provenance.py"
+      - "scripts/test_main_push_provenance.py"
+      - ".github/workflows/browser-guards.yml"
+      - ".github/workflows/browser-a11y-guard.yml"
+      - ".github/workflows/browser-keyboard-guard.yml"
+      - ".github/workflows/browser-runtime-guard.yml"
+      - ".github/workflows/browser-ui-guard.yml"
+      - ".github/workflows/first-party-resource-guard.yml"
+      - ".github/workflows/public-asset-budget.yml"
+      - ".github/workflows/sitemap-freshness-guard.yml"
+      - "scripts/verify_live_security_headers.py"
+      - "scripts/verify_live_static_assets.py"
+      - "scripts/test_live_static_assets.py"
+      - "scripts/test_social_image_dimensions.py"
+      - "scripts/verify_live_url_normalization.py"
+      - "scripts/verify_live_host_normalization.py"
+      - "scripts/verify_live_cloudflare_privacy.py"
+      - "scripts/test_live_cloudflare_privacy.py"
+      - "scripts/test_live_host_normalization.py"
+      - "scripts/verify_live_social_metadata.py"
+      - "scripts/verify_live_structured_metadata.py"
+      - "scripts/verify_live_accounting_release.py"
+      - "scripts/verify_release_metadata.py"
+      - "scripts/test_release_changelog_counts.py"
+      - "scripts/verify_release_sitemap.py"
+      - "scripts/release_sitemap.py"
+      - "scripts/verify_live_production.py"
+      - "scripts/verify_live_public_ctas.py"
+      - "scripts/verify_live_phone_ctas.py"
+      - "scripts/verify_live_indexability.py"
+      - "scripts/verify_live_404.py"
+      - "scripts/verify_live_public_links.py"
+      - "scripts/verify_live_sitemap.py"
+      - "scripts/test_live_sitemap.py"
+      - "scripts/verify_live_robots.py"
+      - "scripts/verify_live_support_discovery.py"
+      - "scripts/verify_live_cabinet_entry.py"
+      - "scripts/prepare_public_release.py"
+      - "scripts/test_prepare_public_release.py"
+      - "scripts/verify_telegram_support.py"
+      - "scripts/verify_public_contacts.py"
+      - "scripts/verify_phone_ctas.py"
+      - "scripts/test_telegram_support.mjs"
+      - "scripts/test_cms_preview_privacy.mjs"
+      - "scripts/test_static_preview_privacy.mjs"
+      - "scripts/generate_support_center.mjs"
+      - ".github/workflows/public-site-smoke.yml"
+      - ".github/workflows/live-production-verify.yml"
+      - ".github/workflows/prepare-safe-rollback.yml"
+      - ".github/workflows/prepare-public-release.yml"
+      - "docs/PUBLIC-RELEASE-RUNBOOK.md"
+      - "docs/TELEGRAM-SUPPORT.md"
+      - "docs/HOST-NORMALIZATION-RUNBOOK.md"
+      - ".release-hold"
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-public-site:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+
+      - name: Refuse explicit production release hold
+        run: |
+          if [ -f .release-hold ]; then
+            echo "::error::Production release is explicitly on hold."
+            cat .release-hold
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Run static public-site validator
+        run: python scripts/verify_public_site.py
+
+      - name: Verify real debt-sale screenshot journey
+        run: python scripts/verify_debt_screenshot_tour.py
+
+      - name: Guard automation landing page search intent
+        run: python scripts/verify_automation_landing_intents.py
+
+      - name: Guard unique public SEO metadata
+        run: python scripts/verify_public_seo_uniqueness.py
+
+      - name: Guard public contextual-link coverage
+        run: python scripts/verify_public_contextual_links.py
+
+      - name: Test demo dialog modal-isolation guard
+        run: python scripts/test_demo_dialog_contract.py
+
+      - name: Test public FAQ JSON-LD uniqueness
+        run: python scripts/test_public_faq_schema.py
+
+      - name: Guard browser/site identity assets
+        run: python scripts/verify_site_identity.py
+
+      - name: Guard site identity workflow wiring
+        run: python scripts/verify_site_identity_workflows.py
+
+      - name: Guard PR-only quality workflow triggers
+        run: python scripts/verify_quality_gate_workflows.py
+
+      - name: Test quality workflow trigger guard
+        run: python scripts/test_quality_gate_workflows.py
+
+      - name: Test main push provenance guard
+        run: python scripts/test_main_push_provenance.py
+
+      - name: Guard intentionally removed public pages
+        run: python scripts/verify_removed_public_pages.py
+
+      - name: Guard static 404 error page
+        run: python scripts/verify_404_page.py
+
+      - name: Guard public conversion paths
+        run: python scripts/verify_public_ctas.py
+
+      - name: Guard Support Center discovery
+        run: python scripts/verify_support_discovery.py
+
+      - name: Guard safe rollback workflow
+        run: python scripts/verify_safe_rollback_workflow.py
+
+      - name: Guard public release PR workflow
+        run: python scripts/verify_prepare_release_workflow.py
+
+      - name: Guard Accounting release PR workflow
+        run: python scripts/verify_prepare_accounting_release_workflow.py
+
+      - name: Guard manual release gates against smoke drift
+        run: python scripts/verify_release_gate_parity.py
+
+      - name: Test release gate parity guard
+        run: python scripts/test_release_gate_parity.py
+
+      - name: Guard internal hash links
+        run: python scripts/verify_internal_anchors.py
+
+      - name: Guard license activation path
+        run: python scripts/verify_license_activation_path.py
+
+      - name: Guard public license terms
+        run: python scripts/verify_public_license_terms.py
+
+      - name: Guard public product maturity status
+        run: python scripts/verify_public_product_maturity.py
+
+      - name: Guard customer copy against release-history leakage
+        run: python scripts/verify_client_copy_no_release_history.py
+
+      - name: Guard customer Cabinet entry
+        run: python scripts/verify_cabinet_entry.py
+
+      - name: Guard accessibility and HTML structure
+        run: python scripts/verify_accessibility.py
+
+      - name: Guard accessible public text colors
+        run: python scripts/verify_color_contrast.py
+
+      - name: Guard official public contact details
+        run: python scripts/verify_public_contacts.py
+
+      - name: Guard phone call CTAs
+        run: python scripts/verify_phone_ctas.py
+
+      - name: Guard Cloudflare Pages configuration
+        run: python scripts/verify_cloudflare_config.py
+
+      - name: Guard public security headers
+        run: python scripts/verify_security_headers.py
+
+      - name: Verify installer SHA-256 pairs
+        run: python scripts/verify_installers.py
+
+      - name: Guard Accounting pre-release artifact
+        run: python scripts/verify_accounting_release.py
+
+      - name: Check reusable Accounting release tooling against current pre-release
+        run: python scripts/prepare_accounting_release.py --check-current
+
+      - name: Simulate a future Accounting pre-release
+        run: python scripts/test_prepare_accounting_release.py
+
+      - name: Guard current release metadata
+        run: python scripts/verify_release_metadata.py
+
+      - name: Test release changelog change counts
+        run: python scripts/test_release_changelog_counts.py
+
+      - name: Guard release sitemap lastmod
+        run: python scripts/verify_release_sitemap.py
+
+      - name: Check reusable release tooling against current release
+        run: python scripts/prepare_public_release.py --check-current
+
+      - name: Simulate a future public release
+        run: python scripts/test_prepare_public_release.py
+
+      - name: Test host normalization verifier offline
+        run: python scripts/test_live_host_normalization.py
+
+      - name: Test Cloudflare privacy verifier offline
+        run: python scripts/test_live_cloudflare_privacy.py
+
+      - name: Test live sitemap parity verifier offline
+        run: python scripts/test_live_sitemap.py
+
+      - name: Test live demo static-asset cache contract offline
+        run: python scripts/test_live_static_assets.py
+
+      - name: Test Open Graph image dimension guards offline
+        run: python scripts/test_social_image_dimensions.py
+
+      - name: Test product maturity guard offline
+        run: python scripts/test_product_maturity_guard.py
+
+      - name: Compile Accounting release tooling
+        run: python -m py_compile scripts/accounting_release_meta.py scripts/prepare_accounting_release.py scripts/test_prepare_accounting_release.py scripts/verify_prepare_accounting_release_workflow.py
+
+      - name: Compile site identity and workflow guards
+        run: python -m py_compile scripts/verify_site_identity.py scripts/verify_live_site_identity.py scripts/verify_site_identity_workflows.py scripts/verify_quality_gate_workflows.py scripts/test_quality_gate_workflows.py scripts/verify_main_push_provenance.py scripts/test_main_push_provenance.py scripts/verify_release_gate_parity.py scripts/test_release_gate_parity.py
+
+      - name: Compile live production verifiers
+        run: python -m py_compile scripts/verify_live_production.py scripts/verify_live_public_ctas.py scripts/verify_live_phone_ctas.py scripts/verify_live_indexability.py scripts/verify_live_404.py scripts/verify_live_public_links.py scripts/verify_live_security_headers.py scripts/verify_live_sitemap.py scripts/test_live_sitemap.py scripts/verify_live_robots.py scripts/verify_live_support_discovery.py scripts/verify_live_cabinet_entry.py scripts/verify_live_static_assets.py scripts/test_live_static_assets.py scripts/test_social_image_dimensions.py scripts/verify_live_url_normalization.py scripts/verify_live_host_normalization.py scripts/test_live_host_normalization.py scripts/verify_live_cloudflare_privacy.py scripts/test_live_cloudflare_privacy.py scripts/verify_public_product_maturity.py scripts/verify_client_copy_no_release_history.py scripts/verify_live_product_maturity.py scripts/test_product_maturity_guard.py scripts/verify_live_social_metadata.py scripts/verify_live_structured_metadata.py scripts/verify_live_accounting_release.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Guard Telegram support integration
+        run: python scripts/verify_telegram_support.py
+
+      - name: Test Telegram support routing and FAQ
+        run: node scripts/test_telegram_support.mjs
+
+      - name: Test CMS preview indexability isolation
+        run: node scripts/test_cms_preview_privacy.mjs
+
+      - name: Test static preview indexability isolation
+        run: node scripts/test_static_preview_privacy.mjs
+
+      - name: Guard generated Support Center against Telegram FAQ
+        run: node scripts/generate_support_center.mjs --check
+
+      - name: Check shared JavaScript syntax
+        run: |
+          node --check scripts/generate_support_center.mjs
+          node --check scripts/test_static_preview_privacy.mjs
+          node --check site/script.js
+          node --check site/_worker.js
+          node --check site/_cms-runtime.js
+          node --check site/_telegram-support.js
+          node --check site/_telegram-faq.js
+          node --check site/assets/outpost-demo-v1.js
+          node --check site/assets/outpost-demo-modules-v1.js
+          node --check site/assets/outpost-demo-returns-v1.js
+          node --check site/assets/outpost-demo-products-v1.js

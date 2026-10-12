@@ -1,0 +1,33 @@
+name: Browser accessibility guard
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-a11y:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Install pinned Playwright and axe runners
+        run: npm install --no-save --no-package-lock @playwright/test@1.55.0 @axe-core/playwright@4.10.2
+
+      - name: Install Chromium for accessibility checks
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser WCAG A/AA guard
+        run: npx playwright test scripts/browser_a11y.spec.mjs --reporter=line --workers=1

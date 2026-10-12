@@ -1,0 +1,119 @@
+name: Combined browser quality guards
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "site/**"
+      - "!site/downloads/**"
+      - "scripts/browser_a11y.spec.mjs"
+      - "scripts/browser_keyboard.spec.mjs"
+      - "scripts/browser_runtime.spec.mjs"
+      - "scripts/browser_ui.spec.mjs"
+      - "scripts/verify_navigation_style_contract.py"
+      - ".github/workflows/browser-guards.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-guards:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Guard shared navigation stylesheet contract
+        run: python scripts/verify_navigation_style_contract.py
+
+      - name: Compile navigation contract guard
+        run: python -m py_compile scripts/verify_navigation_style_contract.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      # One installation shared across four independent browser test suites.
+      # Deliberately avoid Playwright browser cache: restore costs can offset download time.
+      - name: Install pinned Playwright and axe runners
+        run: npm install --no-save --no-package-lock @playwright/test@1.55.0 @axe-core/playwright@4.10.2
+
+      - name: Install Chromium once for all browser suites
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser WCAG A/AA guard
+        id: a11y
+        continue-on-error: true
+        run: npx playwright test scripts/browser_a11y.spec.mjs --reporter=line --workers=1
+
+      - name: Run keyboard navigation guard
+        id: keyboard
+        continue-on-error: true
+        run: npx playwright test scripts/browser_keyboard.spec.mjs --reporter=line --workers=1
+
+      - name: Run browser runtime/static-resource guard
+        id: runtime
+        continue-on-error: true
+        run: npx playwright test scripts/browser_runtime.spec.mjs --reporter=line --workers=1
+
+      - name: Run responsive Chromium guard
+        id: ui
+        continue-on-error: true
+        run: npx playwright test scripts/browser_ui.spec.mjs --reporter=line --workers=1
+
+      - name: Upload keyboard failure screenshots
+        if: ${{ always() && steps.keyboard.outcome == 'failure' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
+        with:
+          name: browser-keyboard-failures-${{ github.run_id }}
+          path: browser-keyboard-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload runtime failure screenshots
+        if: ${{ always() && steps.runtime.outcome == 'failure' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
+        with:
+          name: browser-runtime-failures-${{ github.run_id }}
+          path: browser-runtime-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload UI failure screenshots
+        if: ${{ always() && steps.ui.outcome == 'failure' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
+        with:
+          name: browser-ui-failures-${{ github.run_id }}
+          path: browser-ui-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # continue-on-error above keeps all four suites running; this restores
+      # fail-closed PR status if any suite failed or was skipped during setup.
+      - name: Fail if any browser guard did not pass
+        if: always()
+        run: |
+          echo "a11y=${{ steps.a11y.outcome }}"
+          echo "keyboard=${{ steps.keyboard.outcome }}"
+          echo "runtime=${{ steps.runtime.outcome }}"
+          echo "ui=${{ steps.ui.outcome }}"
+          if [[ "${{ steps.a11y.outcome }}" != "success" ||
+                "${{ steps.keyboard.outcome }}" != "success" ||
+                "${{ steps.runtime.outcome }}" != "success" ||
+                "${{ steps.ui.outcome }}" != "success" ]]; then
+            echo "::error::One or more browser quality gates failed or did not execute."
+            exit 1
+          fi

@@ -1,0 +1,248 @@
+/* Feature screenshot tours. Scoped to functional landing pages; no cabinet/worker JS. */
+.feature-tour {padding:clamp(52px,6vw,92px) 0;background:linear-gradient(160deg,#101f30,#142b41 60%,#101e30);color:#f3f7fb}
+.feature-tour .tour-intro {max-width:770px;margin-bottom:30px}
+.feature-tour .tour-eyebrow {display:inline-block;color:#9fd4ee;font-size:.79rem;font-weight:750;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+.feature-tour h2 {color:#fff;line-height:1.17;max-width:850px;margin:0 0 15px}
+.feature-tour .tour-intro p {color:#d1dee9;line-height:1.65}
+.feature-tour .tour-shots {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;align-items:stretch}
+.feature-tour .tour-shots[data-count="3"] {grid-template-columns:repeat(3,minmax(0,1fr))}
+.feature-tour .tour-shot {min-width:0;display:flex;flex-direction:column;margin:0;border:1px solid #36516b;background:#192e43;border-radius:18px;overflow:hidden}
+.feature-tour .tour-shot > a {display:block;background:#eaf0f6;padding:9px;line-height:0;outline-offset:-5px}
+.feature-tour .tour-shot img {display:block;width:100%;height:auto;border-radius:9px;aspect-ratio:1150/750;object-fit:contain}
+.feature-tour .tour-shot img[data-dialog] {aspect-ratio:800/520}
+.feature-tour .tour-shot figcaption {padding:20px 20px 22px;line-height:1.6;color:#d1e0ec;flex:1}
+.feature-tour .tour-shot h3 {font-size:1.08rem;color:#fff;margin:0 0 7px}
+.feature-tour .tour-shot figcaption p {margin:0;color:#e0eaf4}
+.feature-tour .tour-shot figcaption a {color:#b9e9ff;font-weight:750;text-underline-offset:3px}
+.feature-tour .tour-shot figcaption a:hover {color:#fff}
+.feature-tour .tour-shot figcaption a:focus-visible {outline:3px solid #bce7ff;outline-offset:3px;border-radius:3px}
+.feature-tour .tour-step {display:inline-flex;align-items:center;justify-content:center;min-width:29px;height:29px;border-radius:9px;color:#102438;background:#ade1f7;font-size:.87rem;font-weight:800;margin-bottom:11px}
+.feature-tour .tour-steps {list-style:none;margin:23px 0 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.feature-tour .tour-steps li {border:1px solid #36516b;background:#1b3249;border-radius:13px;padding:15px;color:#dbe8f2;line-height:1.5}
+.feature-tour .tour-steps strong {display:block;color:#fff;margin-bottom:5px}
+.feature-tour .tour-note {margin:19px 0 0;color:#b8ccd9;font-size:.89rem;line-height:1.6}
+.feature-tour .tour-shot > a:focus-visible {outline:3px solid #bce7ff}
+@media(max-width:900px) {.feature-tour .tour-shots[data-count="3"] {grid-template-columns:repeat(2,minmax(0,1fr))}.feature-tour .tour-steps {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px) {.feature-tour .tour-shots,.feature-tour .tour-shots[data-count="3"] {grid-template-columns:1fr}.feature-tour .tour-steps {grid-template-columns:1fr}.feature-tour .tour-shot figcaption {padding:18px}}
+
+/* Debt-sale journey: substantial screenshots stay readable on desktop, stack on mobile. */
+.debt-story .debt-story-nav {display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+.debt-story .debt-story-nav a {display:inline-block;padding:11px 16px;border:1px solid #769dbb;border-radius:12px;background:#22405a;color:#f2f9ff;font-weight:700;text-decoration:none}
+.debt-story .debt-story-nav a:hover,.debt-story .debt-story-zoom:hover {text-decoration:underline}
+.debt-story a:focus-visible {outline:3px solid #bce7ff;outline-offset:4px}
+.debt-story .debt-story-chapter {scroll-margin-top:85px}
+.debt-story .debt-story-chapter + .debt-story-chapter {margin-top:64px;padding-top:54px;border-top:1px solid #47617a}
+.debt-story .debt-story-chapter-head {margin:0 0 22px;max-width:780px}
+.debt-story .debt-story-chapter-head > span {color:#a5d9f4;font-weight:800;font-size:.82rem;letter-spacing:.08em}
+.debt-story .debt-story-chapter-head h3 {color:#fff;font-size:clamp(1.35rem,2.4vw,1.9rem);line-height:1.24;margin:10px 0}
+.debt-story .debt-story-chapter-head p {color:#e0eaf4;margin:0;line-height:1.6}
+.debt-story .debt-story-sequence {display:grid;gap:20px}
+.debt-story .debt-story-item {display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);min-width:0;margin:0;overflow:hidden;background:#172e42;border:1px solid #52738c;border-radius:20px;align-items:center}
+.debt-story .debt-story-item:nth-child(even) .debt-story-image {order:2}
+.debt-story .debt-story-image {display:block;min-width:0;padding:12px;line-height:0;background:#e9eff5;outline-offset:-4px}
+.debt-story .debt-story-image img {display:block;width:100%;height:auto;aspect-ratio:1431/816;object-fit:contain;border-radius:9px}
+.debt-story .debt-story-copy {min-width:0;padding:clamp(20px,3vw,35px);font-size:1rem;line-height:1.62;color:#e0eaf4}
+.debt-story .debt-story-copy h4 {color:#fff;font-size:clamp(1.12rem,1.5vw,1.32rem);line-height:1.32;margin:6px 0 12px}
+.debt-story .debt-story-copy p {color:#e4eef7;line-height:1.67;margin:0 0 20px}
+.debt-story .debt-story-zoom {color:#b9e9ff;font-weight:750;text-underline-offset:3px;line-height:1.4}
+.debt-story .tour-note {margin-top:28px;color:#e0eaf4;max-width:930px}
+@media(max-width:880px) {.debt-story .debt-story-item {grid-template-columns:1fr}.debt-story .debt-story-item:nth-child(even) .debt-story-image {order:0}.debt-story .debt-story-copy {padding:20px 22px 25px}}
+@media(max-width:540px) {.debt-story .debt-story-image {padding:5px}.debt-story .debt-story-item {border-radius:14px}.debt-story .debt-story-nav a {width:100%}}
+
+/* Universal live screenshot carousel. Same sized panels across functional pages. */
+.feature-tour .live-shot-carousel {max-width:1160px;margin:0 auto}
+.feature-tour .live-shot-ready .tour-shots,.feature-tour .live-shot-ready .tour-shots[data-count="3"],.feature-tour .live-shot-ready .debt-story-sequence {display:block}
+.feature-tour .live-shot-ready [hidden] {display:none!important}
+.feature-tour .live-shot-ready figure {width:100%;height:var(--live-shot-stage-height,auto);min-height:465px;margin:0;display:grid;grid-template-columns:minmax(0,1.42fr) minmax(260px,.74fr);align-items:center;background:#192f43;border:1px solid #53728b;border-radius:18px;overflow:hidden}
+.feature-tour .live-shot-ready .tour-shot > a,.feature-tour .live-shot-ready .debt-story-image {width:100%;height:100%;min-height:465px;display:flex;align-items:center;justify-content:center;padding:14px;background:#e9eef3;overflow:hidden;outline-offset:-5px}
+.feature-tour .live-shot-ready .tour-shot img,.feature-tour .live-shot-ready .tour-shot img[data-dialog],.feature-tour .live-shot-ready .debt-story-image img {aspect-ratio:auto;width:100%;height:100%;max-height:465px;object-fit:contain;display:block;border-radius:6px}
+.feature-tour .live-shot-ready .tour-shot figcaption,.feature-tour .live-shot-ready .debt-story-copy {padding:clamp(22px,3vw,38px);color:#e6eef7;font-size:1rem;line-height:1.65;min-width:0;background:transparent}
+.feature-tour .live-shot-ready figcaption p {color:#e6eef7;font-size:1rem;line-height:1.65}
+.feature-tour .live-shot-controls {display:flex;align-items:center;justify-content:center;gap:19px;margin-top:20px}
+.feature-tour .live-shot-prev,.feature-tour .live-shot-next {display:inline-grid;place-items:center;background:#ceeefe;color:#102438;border:1px solid #aacddd;border-radius:12px;width:49px;height:44px;font-size:1.45rem;cursor:pointer}
+.feature-tour .live-shot-prev:disabled,.feature-tour .live-shot-next:disabled {opacity:.38;cursor:not-allowed}
+.feature-tour .live-shot-counter {color:#e4eff8;font-weight:750;min-width:112px;text-align:center}
+.feature-tour .live-shot-dots {display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:13px}
+.feature-tour .live-shot-dot {width:35px;height:35px;display:inline-grid;place-items:center;color:#e5f2fa;background:#26445f;border:1px solid #7497b3;border-radius:9px;cursor:pointer}
+.feature-tour .live-shot-dot[aria-current="step"] {background:#c5eaff;color:#132c42;border-color:#c5eaff;font-weight:850}
+.feature-tour .live-shot-carousel button:focus-visible {outline:3px solid #bce7ff;outline-offset:3px}
+.feature-tour .live-shot-carousel .tour-shots > figure {max-width:none}
+@media(max-width:820px) {
+  .feature-tour .live-shot-ready figure {grid-template-columns:1fr;min-height:0}
+  .feature-tour .live-shot-ready .tour-shot > a,.feature-tour .live-shot-ready .debt-story-image {height:clamp(220px,50vw,460px);min-height:220px}
+  .feature-tour .live-shot-ready .tour-shot img,.feature-tour .live-shot-ready .tour-shot img[data-dialog],.feature-tour .live-shot-ready .debt-story-image img {max-height:100%}
+  .feature-tour .live-shot-ready .tour-shot figcaption,.feature-tour .live-shot-ready .debt-story-copy {min-height:178px;padding:19px 22px 22px}
+}
+.live-shot-dialog {padding:0;border:1px solid #53728b;border-radius:17px;background:#12283c;color:#eef6fe;width:min(96vw,1520px);max-width:96vw;max-height:96vh;box-shadow:0 28px 90px #0009}
+.live-shot-dialog::backdrop {background:#06111ee6}
+.live-shot-dialog-inner {display:flex;flex-direction:column;max-height:95vh}
+.live-shot-dialog-toolbar {display:flex;align-items:center;gap:15px;padding:12px 18px;min-height:62px}
+.live-shot-dialog-title {flex:1;margin:0;color:#f3f8ff;font-weight:720}
+.live-shot-dialog-count {color:#bce7ff;white-space:nowrap}
+.live-shot-dialog-close {color:#142c40;background:#e0f4ff;border:0;border-radius:9px;padding:9px 14px;cursor:pointer;font-weight:750}
+.live-shot-dialog-stage {min-height:0;display:flex;align-items:center;gap:10px;padding:0 14px 15px}
+.live-shot-dialog-stage img {display:block;min-width:0;max-width:100%;max-height:calc(95vh - 100px);object-fit:contain;flex:1}
+.live-shot-modal-prev,.live-shot-modal-next {flex:0 0 43px;display:grid;place-items:center;background:#d9f0fc;color:#102438;border:0;border-radius:12px;height:57px;font-size:1.55rem;cursor:pointer}
+.live-shot-dialog button:focus-visible {outline:3px solid #bce7ff;outline-offset:3px}
+@media(max-width:600px) {
+  .live-shot-dialog-toolbar {flex-wrap:wrap}
+  .live-shot-dialog-stage {gap:5px;padding:0 6px 10px}
+  .live-shot-modal-prev,.live-shot-modal-next {flex-basis:30px;height:44px}
+}
+
+.feature-tour .live-shot-ready .debt-story-item:nth-child(even) .debt-story-image {order:0}
+
+/* Single 7-step debt showcase: one image, on-image translucent arrows and caption below. */
+.feature-tour.debt-single-slider {padding:clamp(55px,6vw,85px) 0}
+.debt-single-slider .tour-intro {max-width:850px;margin:0 auto 25px;text-align:center}
+.debt-single-slider .live-shot-carousel {max-width:980px}
+.feature-tour.debt-single-slider .live-shot-ready .debt-story-sequence {display:block;position:relative}
+.feature-tour.debt-single-slider .live-shot-ready figure.debt-story-item {
+  display:flex;flex-direction:column;align-items:stretch;min-height:0;height:auto;
+  overflow:hidden;border:1px solid #59778d;background:#193045;border-radius:20px
+}
+.feature-tour.debt-single-slider .live-shot-ready .debt-story-image {
+  width:100%;height:auto;min-height:0;aspect-ratio:1431 / 817;
+  padding:10px;display:flex;align-items:center;justify-content:center;
+  background:#edf2f6;line-height:0
+}
+.feature-tour.debt-single-slider .live-shot-ready .debt-story-image img {
+  display:block;width:100%;height:100%;max-height:none;aspect-ratio:1431 / 817;
+  object-fit:contain;border-radius:10px
+}
+.feature-tour.debt-single-slider .live-shot-ready .debt-story-copy {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  width:100%;height:225px;min-height:225px;max-width:none;text-align:center;padding:23px 30px 27px;overflow-y:auto;
+  background:#193045;color:#edf5fc;gap:4px
+}
+.debt-single-slider .live-shot-ready .debt-story-copy .tour-step {margin:0 0 7px}
+.debt-single-slider .live-shot-ready .debt-story-copy h4 {font-size:clamp(1.12rem,2vw,1.4rem);margin:0 0 5px;color:#fff}
+.debt-single-slider .live-shot-ready .debt-story-copy p {font-size:1rem;color:#e5eef7;margin:0;max-width:750px;line-height:1.65}
+.feature-tour.debt-single-slider .debt-overlay-carousel .live-shot-controls {
+  position:absolute;left:0;right:0;top:0;z-index:2;width:100%;
+  aspect-ratio:1431 / 817;height:auto;min-height:0;max-height:none;
+  margin:0;padding:0 clamp(7px,1.4vw,15px);
+  display:flex;align-items:center;justify-content:space-between;
+  pointer-events:none
+}
+.feature-tour.debt-single-slider .live-shot-prev,
+.feature-tour.debt-single-slider .live-shot-next {
+  pointer-events:auto;border:1px solid #ffffff85;
+  background:rgba(6,27,46,.68);color:#fff;
+  width:clamp(39px,5vw,54px);height:clamp(48px,6vw,72px);
+  border-radius:13px;font-size:clamp(1.7rem,3vw,2.3rem);
+  line-height:1;transition:background .2s ease,opacity .2s ease
+}
+.feature-tour.debt-single-slider .live-shot-prev:hover,
+.feature-tour.debt-single-slider .live-shot-next:hover {background:rgba(7,42,72,.94)}
+.feature-tour.debt-single-slider .live-shot-prev:disabled,
+.feature-tour.debt-single-slider .live-shot-next:disabled {opacity:.22}
+.feature-tour.debt-single-slider .debt-overlay-carousel > .live-shot-counter {
+  display:block;margin:14px auto 0;text-align:center;color:#eaf4fd;
+  font-size:.92rem;letter-spacing:.03em
+}
+.debt-single-slider .tour-note {max-width:850px;margin:20px auto 0;text-align:center}
+@media(max-width:700px) {
+  .feature-tour.debt-single-slider .live-shot-ready .debt-story-image {padding:5px;min-height:0;height:auto}
+  .feature-tour.debt-single-slider .live-shot-ready .debt-story-copy {min-height:330px;height:330px;padding:18px 17px 23px}
+  .feature-tour.debt-single-slider .debt-overlay-carousel .live-shot-controls {padding:0 4px}
+  .feature-tour.debt-single-slider .live-shot-prev,
+  .feature-tour.debt-single-slider .live-shot-next {width:37px;height:49px;border-radius:9px}
+}
+
+/* Final shared screenshot viewer template: centered headings at every slide. */
+.live-shot-dialog-toolbar {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr);
+  align-items:center;
+  column-gap:10px;
+}
+.live-shot-dialog-toolbar::before {content:"";grid-column:1}
+.live-shot-dialog-title {
+  grid-column:2;
+  min-width:0;
+  margin:0;
+  flex:none;
+  text-align:center;
+  justify-self:center;
+  line-height:1.4;
+}
+.live-shot-dialog-toolbar-actions {
+  grid-column:3;
+  display:flex;
+  gap:14px;
+  align-items:center;
+  justify-content:flex-end;
+}
+.feature-tour.debt-single-slider .live-shot-ready .debt-story-copy h4,
+.feature-tour.debt-single-slider .live-shot-ready .debt-story-copy p {
+  margin-left:auto;
+  margin-right:auto;
+  text-align:center;
+}
+@media(max-width:600px) {
+  .live-shot-dialog-toolbar {grid-template-columns:minmax(0,1fr);row-gap:10px}
+  .live-shot-dialog-toolbar::before {display:none}
+  .live-shot-dialog-title {grid-column:1;grid-row:1;width:100%}
+  .live-shot-dialog-toolbar-actions {grid-column:1;grid-row:2;justify-content:center}
+}
+
+/* Reusable single-stage screenshot story: one image, overlay arrows, centered caption below. */
+.feature-tour.single-shot-slider {padding:clamp(55px,6vw,85px) 0}
+.single-shot-slider .tour-intro {max-width:860px;margin:0 auto 25px;text-align:center}
+.single-shot-slider .live-shot-carousel {max-width:1080px}
+.feature-tour.single-shot-slider .live-shot-ready .tour-shots {display:block;position:relative}
+.feature-tour.single-shot-slider .live-shot-ready figure.tour-shot {
+  display:flex;flex-direction:column;align-items:stretch;min-height:0;height:auto;
+  overflow:hidden;border:1px solid #59778d;background:#193045;border-radius:20px
+}
+.feature-tour.single-shot-slider .live-shot-ready .tour-shot > a {
+  width:100%;height:auto;min-height:0;aspect-ratio:1920 / 1027;
+  padding:10px;display:flex;align-items:center;justify-content:center;
+  background:#edf2f6;line-height:0
+}
+.feature-tour.single-shot-slider .live-shot-ready .tour-shot > a img {
+  display:block;width:100%;height:100%;max-height:none;aspect-ratio:1920 / 1027;
+  object-fit:contain;border-radius:10px
+}
+.feature-tour.single-shot-slider .live-shot-ready .tour-shot figcaption {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  width:100%;height:205px;min-height:205px;max-width:none;text-align:center;
+  padding:22px 30px 26px;overflow-y:auto;background:#193045;color:#edf5fc;gap:4px
+}
+.single-shot-slider .live-shot-ready .tour-shot figcaption .tour-step {margin:0 0 7px}
+.single-shot-slider .live-shot-ready .tour-shot figcaption h3 {
+  font-size:clamp(1.12rem,2vw,1.4rem);margin:0 0 5px;color:#fff;text-align:center
+}
+.single-shot-slider .live-shot-ready .tour-shot figcaption p {
+  font-size:1rem;color:#e5eef7;margin:0 auto;max-width:790px;line-height:1.65;text-align:center
+}
+.feature-tour.single-shot-slider .single-overlay-carousel .live-shot-controls {
+  position:absolute;left:0;right:0;top:0;z-index:2;width:100%;
+  aspect-ratio:1920 / 1027;height:auto;min-height:0;max-height:none;
+  margin:0;padding:0 clamp(7px,1.4vw,15px);
+  display:flex;align-items:center;justify-content:space-between;pointer-events:none
+}
+.feature-tour.single-shot-slider .live-shot-prev,
+.feature-tour.single-shot-slider .live-shot-next {
+  pointer-events:auto;border:1px solid #ffffff85;background:rgba(6,27,46,.68);color:#fff;
+  width:clamp(39px,5vw,54px);height:clamp(48px,6vw,72px);border-radius:13px;
+  font-size:clamp(1.7rem,3vw,2.3rem);line-height:1;transition:background .2s ease,opacity .2s ease
+}
+.feature-tour.single-shot-slider .live-shot-prev:hover,
+.feature-tour.single-shot-slider .live-shot-next:hover {background:rgba(7,42,72,.94)}
+.feature-tour.single-shot-slider .live-shot-prev:disabled,
+.feature-tour.single-shot-slider .live-shot-next:disabled {opacity:.22}
+.feature-tour.single-shot-slider .single-overlay-carousel > .live-shot-counter {
+  display:block;margin:14px auto 0;text-align:center;color:#eaf4fd;font-size:.92rem;letter-spacing:.03em
+}
+.single-shot-slider .tour-note {max-width:860px;margin:20px auto 0;text-align:center}
+@media(max-width:700px) {
+  .feature-tour.single-shot-slider .live-shot-ready .tour-shot > a {padding:5px}
+  .feature-tour.single-shot-slider .live-shot-ready .tour-shot figcaption {
+    min-height:290px;height:290px;padding:18px 17px 23px
+  }
+  .feature-tour.single-shot-slider .single-overlay-carousel .live-shot-controls {padding:0 4px}
+  .feature-tour.single-shot-slider .live-shot-prev,
+  .feature-tour.single-shot-slider .live-shot-next {width:37px;height:49px;border-radius:9px}
+}

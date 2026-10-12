@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<meta name="theme-color" content="#17232d"/>
+<meta name="description" content="Інтерактивне онлайн-демо OutPOSt на тестових даних."/>
+<link rel="canonical" href="https://outpost.com.ua/demo"/>
+<title>OutPOSt — онлайн-демо</title>
+<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png"/>
+<link rel="stylesheet" href="/assets/outpost-demo-v1.css?v=desktop-ui-10"/>
+</head>
+<body>
+<a class="skip-link" href="#demo-main">До демо</a>
+
+<div class="demo-webbar">
+  <span><strong>Онлайн-демо OutPOSt</strong> · preview, не версія Windows · анонімізований зріз ≈5% бази · зміни зберігаються тільки у браузері</span>
+  <div>
+    <a href="/">На сайт</a>
+    <button type="button" data-reset-demo>Скинути демо</button>
+  </div>
+</div>
+
+<div class="demo-stability-notice" role="note" aria-label="Обмеження онлайн-демо">
+  <strong>Зверніть увагу:</strong>
+  <span>Це онлайн-демо є окремим приблизним preview зі спрощеним функціоналом і не відтворює всі можливості та зовнішній вигляд повної Windows-версії.</span>
+</div>
+
+<div class="outpost-window">
+  <aside class="demo-sidebar" aria-label="Головне меню OutPOSt">
+    <div class="sidebar-brand">
+      <img src="/assets/outpost-logo.png" alt="" width="30" height="30"/>
+      <div>
+        <div class="sidebar-title">OutPOSt</div>
+        <div class="sidebar-store">Магазин</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="demo-nav" type="button" data-view="home">Головна</button>
+      <button class="demo-nav is-active" type="button" data-view="sale">Продаж</button>
+      <button class="demo-nav" type="button" data-view="purchases">Закупівлі</button>
+      <button class="demo-nav" type="button" data-view="stockops">Списання / Інвентаризація</button>
+      <button class="demo-nav" type="button" data-view="products">Товари / Склад</button>
+      <button class="demo-nav" type="button" data-view="customers">Повернення боргу</button>
+      <button class="demo-nav" type="button" data-view="finance">Фінанси</button>
+      <button class="demo-nav" type="button" data-view="reports">Звіти</button>
+      <button class="demo-nav" type="button" data-view="settings">Налаштування</button>
+    </nav>
+
+    <div class="sidebar-demo-note">
+      <strong>ДЕМО</strong>
+      <span>F1 — довідка продавця</span>
+      <span>F2 — готівка</span>
+      <span>F3 — картка</span>
+      <span>F4 — комбіновано</span>
+      <span>F5 — у борг</span>
+      <span>F6 — закупівлі</span>
+      <span>F7 — пошук товару</span>
+    </div>
+  </aside>
+
+  <main class="demo-main" id="demo-main">
+    <section class="demo-view" data-view-panel="home" aria-labelledby="home-title">
+      <div class="app-page-head dark-titlebar">
+        <h1 id="home-title">Головна</h1>
+        <span class="app-version">web demo · preview</span>
+      </div>
+
+      <div class="workday-wrap">
+        <h2 class="workday-title">Контроль робочого дня</h2>
+
+        <div class="shift-banner">
+          <div>
+            <span>КАСОВА ЗМІНА</span>
+            <strong id="home-shift-status">Відкрита</strong>
+            <small id="home-shift-meta">Зміна #1 · демонстраційна</small>
+          </div>
+          <button class="yellow-btn" type="button" id="home-shift-action">Закрити зміну</button>
+        </div>
+
+        <div class="workday-tabs">
+          <button type="button" class="workday-tab is-active">Робочий день</button>
+          <button type="button" class="workday-tab">Скоро закінчиться (<span id="home-low-tab">0</span>)</button>
+        </div>
+
+        <div class="workday-metrics">
+          <div class="metric"><span>Сума в касі</span><strong id="home-cash">—</strong><small>поточний відомий залишок</small></div>
+          <div class="metric"><span>Надійшло сьогодні в касу</span><strong id="home-cash-sales">—</strong><small>тільки готівка з продажів</small></div>
+          <div class="metric"><span>Надійшло сьогодні на картку</span><strong id="home-card-sales">—</strong><small>тільки карткові продажі</small></div>
+          <div class="metric"><span>Чеків сьогодні</span><strong id="home-checks">—</strong></div>
+          <div class="metric"><span>Виручка сьогодні</span><strong id="home-sales">—</strong></div>
+          <div class="metric"><span>Повернення сьогодні</span><strong id="home-returns">0,00 грн</strong></div>
+          <div class="metric"><span>Вартість залишку</span><strong id="home-stock-value">—</strong></div>
+          <div class="metric"><span>Скоро закінчиться</span><strong id="home-low-stock">—</strong><small>менше 5 одиниць</small></div>
+        </div>
+
+        <button class="yellow-btn workday-cashout" type="button" id="home-show-withdrawals">Вилучені кошти сьогодні</button>
+
+        <div class="extra-info-bar">
+          <div>
+            <strong>Додаткова інформація</strong>
+            <span>Товари, категорії, приходи, борги та технічний очікуваний залишок каси.</span>
+          </div>
+          <button class="yellow-btn" type="button" id="open-extra-info">Відкрити</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-view is-active" data-view-panel="sale" aria-labelledby="sale-title">
+      <div class="app-page-head sale-title-row">
+        <h1 id="sale-title">Продаж</h1>
+        <span class="app-version">web demo · preview</span>
+      </div>
+
+      <div class="client-tabs" aria-label="Вкладки клієнтів">
+        <button type="button" class="client-tab is-active">Клієнт 1</button>
+        <button type="button" class="client-tab" data-demo-info="Кілька паралельних чеків у веб-демо поки не реалізовані. Поточний чек працює у вкладці «Клієнт 1».">Клієнт 2</button>
+        <button type="button" class="client-tab" data-demo-info="Кілька паралельних чеків у веб-демо поки не реалізовані. Поточний чек працює у вкладці «Клієнт 1».">Клієнт 3</button>
+        <button type="button" class="client-tab" data-demo-info="Кілька паралельних чеків у веб-демо поки не реалізовані. Поточний чек працює у вкладці «Клієнт 1».">Клієнт 4</button>
+        <button type="button" class="client-tab-add" aria-label="Додати клієнта" data-demo-info="Кілька паралельних чеків у веб-демо поки не реалізовані. Поточний чек працює у вкладці «Клієнт 1».">+</button>
+      </div>
+
+      <div class="barcode-panel">
+        <div class="barcode-main">
+          <label for="product-search">Штрих-код / код:</label>
+          <input id="product-search" class="barcode-input" type="search" autocomplete="off" autofocus/>
+        </div>
+        <div class="barcode-actions">
+          <button class="win-btn win-btn-primary" type="button" id="focus-product-search">Пошук товару (F7)</button>
+          <button class="win-btn" type="button" data-view-link="history">Історія продажів</button>
+          <button class="win-btn" type="button" data-view-link="customers">Обрати клієнта</button>
+        </div>
+        <div class="selected-client-line">Клієнт: <strong id="selected-client-label">не вибрано</strong></div>
+        <div class="product-grid" id="product-grid" aria-live="polite"></div>
+      </div>
+
+      <div class="check-header">
+        <h2>Поточний чек</h2>
+        <span id="cart-count">0 поз.</span>
+      </div>
+
+      <div class="check-table-wrap">
+        <table class="check-table">
+          <thead>
+            <tr>
+              <th>Штрих-код</th>
+              <th>Код</th>
+              <th>Найменування</th>
+              <th>К-сть</th>
+              <th>Од.</th>
+              <th>Ціна</th>
+              <th>%</th>
+              <th>Ціна зі зн.</th>
+              <th>Сума</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cart-lines"></tbody>
+        </table>
+        <div class="cart-empty" id="cart-empty">Чек порожній. Відскануйте штрих-код або знайдіть товар через F7.</div>
+      </div>
+
+      <div class="sale-footer">
+        <div class="sale-total-block">
+          <span>РАЗОМ</span>
+          <strong id="cart-total">0,00 грн</strong>
+          <small id="cart-last-item">Додано: —</small>
+        </div>
+
+        <div class="check-tools">
+          <button class="win-btn small-btn" type="button" id="cart-dec-selected" disabled aria-label="Зменшити кількість вибраної позиції">−</button>
+          <button class="win-btn small-btn" type="button" id="cart-inc-selected" disabled aria-label="Збільшити кількість вибраної позиції">+</button>
+          <button class="win-btn" type="button" id="cart-discount-selected" disabled>Знижка</button>
+          <button class="win-btn" type="button" id="cart-delete-selected" disabled>Видалити (Delete)</button>
+          <button class="win-btn" type="button" data-clear-cart>Очистити чек</button>
+        </div>
+
+        <div class="payment-grid">
+          <button class="win-btn win-btn-primary pay-btn" type="button" data-pay="cash">Готівка</button>
+          <button class="win-btn win-btn-primary pay-btn" type="button" data-pay="card">Картка</button>
+          <button class="win-btn win-btn-primary pay-btn" type="button" data-pay="mixed">Комбіновано</button>
+          <button class="win-btn win-btn-primary pay-btn" type="button" data-pay="debt">Продати в борг</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-view" data-view-panel="products" aria-labelledby="products-title">
+      <div class="app-page-head">
+        <h1 id="products-title">Товари / Склад</h1>
+        <span class="app-version">тестова база</span>
+      </div>
+      <div class="toolbar-line product-stock-toolbar">
+        <input class="win-input" id="product-stock-search" type="search" aria-label="Пошук товару" placeholder="Пошук за кодом, штрих-кодом або назвою..." autocomplete="off"/>
+        <button class="win-btn win-btn-primary" type="button" id="new-product">Додати товар</button>
+        <button class="win-btn" type="button" id="product-movements" disabled>Рух товару</button>
+        <span class="toolbar-count" id="product-stock-count"></span>
+      </div>
+      <div class="desktop-table-wrap">
+        <table class="desktop-table">
+          <thead><tr><th>Код</th><th>Штрих-код</th><th>Найменування</th><th>Ціна</th><th>Собівартість</th><th>Залишок</th></tr></thead>
+          <tbody id="products-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="demo-view" data-view-panel="customers" aria-labelledby="customers-title">
+      <div class="app-page-head">
+        <h1 id="customers-title">Повернення боргу</h1>
+        <span class="app-version">клієнти</span>
+      </div>
+      <div class="desktop-split">
+        <div class="desktop-pane">
+          <div class="pane-head"><h2>Клієнти</h2></div>
+          <div id="customer-list" class="customer-list"></div>
+        </div>
+        <div class="desktop-pane" id="customer-detail">
+          <div class="empty-detail">Оберіть клієнта зі списку.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-view" data-view-panel="purchases" aria-labelledby="purchases-title">
+      <div class="app-page-head">
+        <h1 id="purchases-title">Закупівлі</h1>
+        <span class="app-version">сесії приходу</span>
+      </div>
+
+      <div class="purchase-session-head">
+        <div>
+          <span class="session-caption">ПОТОЧНА СЕСІЯ</span>
+          <strong id="purchase-session-id">SES-000204</strong>
+          <small>Чернетка · зміни зберігаються автоматично</small>
+        </div>
+        <div class="purchase-session-controls">
+          <label><span>Постачальник</span><select id="purchase-supplier"></select></label>
+          <button class="win-btn win-btn-primary" type="button" id="open-purchase-item">+ Додати товар</button>
+          <button class="win-btn win-btn-primary" type="button" id="post-purchase-session">Провести сесію</button>
+        </div>
+      </div>
+
+      <div class="purchase-draft-wrap">
+        <div class="check-header">
+          <h2>Позиції сесії</h2>
+          <span id="purchase-draft-count">0 поз.</span>
+        </div>
+        <div class="desktop-table-wrap purchase-draft-table-wrap">
+          <table class="desktop-table purchase-draft-table">
+            <thead><tr><th>Код</th><th>Найменування</th><th>К-сть</th><th>Од.</th><th>Закуп. ціна</th><th>Нова ціна</th><th>Сума</th><th></th></tr></thead>
+            <tbody id="purchase-draft-lines"></tbody>
+          </table>
+          <div class="cart-empty" id="purchase-draft-empty">У чернетці ще немає товарів. Натисніть «+ Додати товар».</div>
+        </div>
+        <div class="purchase-draft-total">
+          <span>Сума закупівлі</span>
+          <strong id="purchase-draft-total">0,00 грн</strong>
+        </div>
+      </div>
+
+      <div class="desktop-pane purchase-history-pane">
+        <div class="pane-head"><h2>Історія проведених сесій</h2></div>
+        <div id="purchase-history"></div>
+      </div>
+    </section>
+
+    <section class="demo-view" data-view-panel="history" aria-labelledby="history-title">
+      <div class="app-page-head">
+        <h1 id="history-title">Історія продажів</h1>
+      </div>
+      <div class="desktop-table-wrap">
+        <table class="desktop-table">
+          <thead><tr><th>№</th><th>Дата</th><th>Оплата</th><th>Позицій</th><th>Сума</th><th>Повернено</th><th></th></tr></thead>
+          <tbody id="sales-history"></tbody>
+        </table>
+      </div>
+
+      <div class="desktop-pane returns-history-pane">
+        <div class="pane-head">
+          <div><h2>Останні повернення</h2><small>Початковий продаж залишається в історії без змін.</small></div>
+          <span id="returns-history-count"></span>
+        </div>
+        <div class="desktop-table-wrap returns-history-wrap">
+          <table class="desktop-table">
+            <thead><tr><th>№</th><th>Чек</th><th>Дата</th><th>Сума</th><th>Клієнт</th><th>Спосіб</th><th>Статус</th></tr></thead>
+            <tbody id="returns-history"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-view" data-view-panel="reports" aria-labelledby="reports-title">
+      <div class="app-page-head"><h1 id="reports-title">Звіти</h1></div>
+      <div class="dashboard-grid" id="stats-grid"></div>
+      <div class="desktop-split reports-bottom">
+        <div class="desktop-pane">
+          <div class="pane-head"><h2>Оплати</h2></div>
+          <div id="payment-breakdown" class="breakdown"></div>
+        </div>
+        <div class="desktop-pane">
+          <div class="pane-head"><h2>Контроль залишків</h2></div>
+          <div id="stock-alerts" class="stock-alerts"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-view" data-view-panel="stockops" aria-labelledby="stockops-title">
+      <div class="app-page-head">
+        <div>
+          <h1 id="stockops-title">Списання / Інвентаризація</h1>
+          <p class="page-subtitle">Списуйте втрати окремим документом або рахуйте фактичні залишки без зупинки продажів.</p>
+        </div>
+      </div>
+
+      <div class="module-tabs" role="tablist" aria-label="Списання та інвентаризація">
+        <button class="module-tab is-active" type="button" data-stock-tab="writeoffs">Списання</button>
+        <button class="module-tab" type="button" data-stock-tab="inventory">Інвентаризація</button>
+      </div>
+
+      <section class="stock-tab-panel is-active" data-stock-panel="writeoffs">
+        <div class="module-toolbar">
+          <div>
+            <h2>Документи списання</h2>
+            <p>Брак, пошкодження, термін придатності, власні потреби та інші втрати.</p>
+          </div>
+          <div class="module-actions">
+            <button class="win-btn win-btn-primary" type="button" id="new-writeoff">+ Нове списання</button>
+            <button class="win-btn" type="button" id="refresh-writeoffs">Оновити</button>
+          </div>
+        </div>
+        <div class="desktop-table-wrap module-table-wrap">
+          <table class="desktop-table">
+            <thead><tr><th>№</th><th>Дата</th><th>Причина</th><th>Позицій</th><th>Собівартість</th><th>Коментар</th><th>Користувач</th></tr></thead>
+            <tbody id="writeoffs-table"></tbody>
+          </table>
+        </div>
+        <div class="module-footer"><span id="writeoff-count">0 документів</span></div>
+      </section>
+
+      <section class="stock-tab-panel" data-stock-panel="inventory">
+        <div class="module-toolbar">
+          <div>
+            <h2>Інвентаризації</h2>
+            <p>При створенні фіксується контрольний snapshot. Чернетку можна закривати й продовжувати пізніше.</p>
+          </div>
+          <div class="module-actions">
+            <button class="win-btn win-btn-primary" type="button" id="new-inventory">+ Нова інвентаризація</button>
+            <button class="win-btn" type="button" id="refresh-inventories">Оновити</button>
+          </div>
+        </div>
+        <div class="desktop-table-wrap module-table-wrap">
+          <table class="desktop-table">
+            <thead><tr><th>№</th><th>Статус</th><th>Початок</th><th>Склад</th><th>Пораховано</th><th>Всього</th><th>Розбіжностей</th><th>Коментар</th><th>Користувач</th></tr></thead>
+            <tbody id="inventories-table"></tbody>
+          </table>
+        </div>
+        <div class="module-footer">
+          <span id="inventory-count">0 інвентаризацій</span>
+          <button class="win-btn" type="button" id="open-selected-inventory" disabled>Відкрити інвентаризацію</button>
+        </div>
+      </section>
+    </section>
+
+    <section class="demo-view" data-view-panel="finance" aria-labelledby="finance-title">
+      <div class="app-page-head">
+        <div>
+          <h1 id="finance-title">Фінанси</h1>
+          <p class="page-subtitle">Касова зміна, внесення, вилучення та журнал рухів готівки.</p>
+        </div>
+      </div>
+
+      <div class="finance-shift-card">
+        <div>
+          <span class="session-caption">КАСОВА ЗМІНА</span>
+          <strong class="finance-open" id="finance-shift-status">Відкрита</strong>
+          <small id="finance-shift-meta">Демонстраційна зміна #1</small>
+        </div>
+        <div class="finance-balance">
+          <span id="finance-balance-label">Очікується в касі</span>
+          <strong id="finance-expected">0,00 грн</strong>
+        </div>
+      </div>
+
+      <div class="finance-metrics">
+        <div><span>Початковий залишок</span><strong id="finance-opening">1 000,00 грн</strong></div>
+        <div><span>Готівкові продажі</span><strong id="finance-sales">0,00 грн</strong></div>
+        <div><span>Внесення</span><strong id="finance-in">0,00 грн</strong></div>
+        <div><span>Вилучення</span><strong id="finance-out">0,00 грн</strong></div>
+      </div>
+
+      <div class="finance-actions">
+        <button class="win-btn win-btn-primary" type="button" data-cash-action="in">Внести кошти</button>
+        <button class="win-btn win-btn-primary" type="button" data-cash-action="out">Вилучити кошти</button>
+        <button class="win-btn" type="button" id="show-withdrawals">Вилучені кошти сьогодні</button>
+        <button class="win-btn" type="button" id="finance-shift-action">Закрити зміну</button>
+      </div>
+
+      <div class="desktop-pane finance-journal">
+        <div class="pane-head"><h2>Журнал рухів каси</h2><span id="finance-movement-count"></span></div>
+        <div class="desktop-table-wrap finance-table-wrap">
+          <table class="desktop-table">
+            <thead><tr><th>Дата / час</th><th>Тип</th><th>Сума</th><th>Постачальник</th><th>Коментар</th></tr></thead>
+            <tbody id="finance-movements"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="desktop-pane finance-shifts-history">
+        <div class="pane-head"><h2>Останні касові зміни</h2><span id="finance-shift-count"></span></div>
+        <div class="desktop-table-wrap finance-table-wrap">
+          <table class="desktop-table">
+            <thead><tr><th>№</th><th>Відкрито</th><th>Закрито</th><th>Початковий</th><th>Очікується</th><th>Фактично</th><th>Різниця</th></tr></thead>
+            <tbody id="finance-shifts"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-view" data-view-panel="settings">
+      <div class="app-page-head dark-titlebar">
+        <h1>Налаштування</h1>
+        <span class="app-version">web demo · preview</span>
+      </div>
+
+      <div class="settings-scroll">
+        <section class="settings-panel">
+          <div>
+            <h2>Інтерфейс і тема</h2>
+            <p>В онлайн-демо тема, акцент і шрифт зберігаються в цьому браузері. У Windows-версії ці параметри зберігаються для поточного користувача.</p>
+            <div class="settings-controls">
+              <label for="appearance-theme">Тема
+                <select id="appearance-theme">
+                  <option value="light">Світла</option>
+                  <option value="dark">Темна</option>
+                  <option value="contrast">Контрастна</option>
+                </select>
+              </label>
+              <label for="appearance-accent">Акцент
+                <select id="appearance-accent">
+                  <option value="blue">Синій</option>
+                  <option value="green">Зелений</option>
+                  <option value="purple">Фіолетовий</option>
+                  <option value="orange">Помаранчевий</option>
+                </select>
+              </label>
+              <label for="appearance-font">Основний шрифт
+                <select id="appearance-font">
+                  <option value="11">11</option>
+                  <option value="13">13</option>
+                  <option value="14">14</option>
+                  <option value="16">16</option>
+                  <option value="18">18</option>
+                </select>
+              </label>
+              <label class="settings-check" for="appearance-bold"><input id="appearance-bold" type="checkbox"/> Жирний основний текст</label>
+            </div>
+            <small id="appearance-summary">Застосовано: світла тема, синій акцент, шрифт 13, звичайний текст.</small>
+          </div>
+          <button class="win-btn win-btn-primary" type="button" id="appearance-apply">Застосувати</button>
+        </section>
+
+        <section class="settings-panel compact-panel">
+          <div><h2>Користувачі та права</h2><p>Логіни кирилицею, 4-значний PIN, ролі Адмін / Гість / Кастом та індивідуальні дозволи.</p></div>
+          <button class="win-btn win-btn-primary" type="button" data-demo-info="Керування користувачами доступне у Windows-версії.">Керувати користувачами</button>
+        </section>
+
+        <section class="settings-panel compact-panel">
+          <div><h2>Перенесення з Client-Shop</h2><p>Імпорт GBK / ZUP / FDB та повторна синхронізація свіжої бази без дублювання товарів і контрагентів.</p></div>
+          <div class="settings-actions">
+            <button class="win-btn win-btn-primary" type="button" data-demo-info="Імпортер не запускається в браузері.">Відкрити імпортер</button>
+            <button class="win-btn" type="button" data-demo-info="Очищення БД вимкнено в онлайн-демо.">Повна очистка БД</button>
+          </div>
+        </section>
+
+        <section class="settings-panel compact-panel">
+          <div><h2>Виправлення аномальних залишків</h2><p>Інструмент знаходить залишки за межами −999…999 і коригує їх до максимально тризначного значення. Історичні документи не переписуються.</p></div>
+          <button class="win-btn" type="button" data-demo-info="Сервісна корекція доступна лише у Windows-версії.">Обрізати залишки до ±999</button>
+        </section>
+
+        <section class="settings-panel about-panel">
+          <div>
+            <h2>Про OutPOSt</h2>
+            <p>Онлайн-демо OutPOSt · preview</p>
+            <p><strong>Повна Windows-версія:</strong> окрема настільна програма</p>
+            <p><strong>Автор:</strong> Сапожніков Роман</p>
+            <p>Система обліку, продажу та керування магазином. Дані магазину зберігаються локально.</p>
+          </div>
+        </section>
+
+        <h2 class="settings-section-title">Захист даних</h2>
+        <p class="settings-section-note">Локальна база + перевірені ZIP-копії + віддалене дублювання. У реальній програмі використовується SQLite WAL та перевірка після аварійного завершення.</p>
+
+        <section class="settings-panel compact-panel">
+          <div><h2>Папка даних OutPOSt</h2><p>C:\Users\Demo\RetailPOS_Data</p><p>Database\outpost.db містить товари, контрагентів, продажі, закупівлі, борги, касу та іншу облікову інформацію.</p></div>
+          <button class="win-btn" type="button" data-demo-info="Онлайн-демо не має доступу до файлової системи Windows.">Відкрити папку даних</button>
+        </section>
+
+        <section class="settings-panel compact-panel">
+          <div><h2>Локальний стан онлайн-демо</h2><p>Тестові зміни зберігаються у localStorage цього браузера. Скидання повертає початковий демо-набір, а налаштування інтерфейсу зберігаються окремо.</p></div>
+          <button class="win-btn" type="button" data-reset-demo>Скинути демо-дані</button>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog class="demo-dialog writeoff-dialog" id="writeoff-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Нове списання</h2>
+    <p class="dialog-note">Створіть окремий документ на втрати. Після збереження кількість буде списана зі складу.</p>
+    <div class="writeoff-form-grid">
+      <label><span>Причина</span>
+        <select id="writeoff-reason">
+          <option>Брак / пошкодження</option>
+          <option>Термін придатності</option>
+          <option>Власні потреби</option>
+          <option>Інше</option>
+        </select>
+      </label>
+      <label><span>Коментар</span><input id="writeoff-comment" type="text" maxlength="160"/></label>
+    </div>
+    <div class="writeoff-add-line">
+      <label><span>Товар</span><select id="writeoff-product"></select></label>
+      <label><span>Кількість</span><input id="writeoff-qty" type="number" min="0.001" step="0.001" value="1"/></label>
+      <button class="win-btn" type="button" id="add-writeoff-line">+ Додати позицію</button>
+    </div>
+    <div class="search-results-wrap writeoff-draft-wrap">
+      <table class="desktop-table"><thead><tr><th>Код</th><th>Товар</th><th>К-сть</th><th>Од.</th><th>Собівартість</th><th>Сума</th><th></th></tr></thead><tbody id="writeoff-draft-lines"></tbody></table>
+    </div>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="save-writeoff">Зберегти списання</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog new-inventory-dialog" id="new-inventory-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Нова інвентаризація</h2>
+    <p class="dialog-note">Програма зафіксує контрольний залишок усіх активних товарів на момент створення.</p>
+    <label><span>Склад</span><select id="inventory-warehouse"><option value="1">Основний склад</option></select></label>
+    <label><span>Коментар</span><textarea id="inventory-comment" rows="3"></textarea></label>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="create-inventory">Створити</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog inventory-count-dialog" id="inventory-count-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="button" id="inventory-close-x" aria-label="Закрити">×</button>
+    <div class="inventory-dialog-head">
+      <div><h2 id="inventory-dialog-title">Інвентаризація</h2><p id="inventory-dialog-meta" class="dialog-note"></p></div>
+      <span class="inventory-status-badge" id="inventory-status-badge">Чернетка</span>
+    </div>
+    <div class="inventory-scan-row">
+      <label for="inventory-scan">Штрих-код / код:</label>
+      <input id="inventory-scan" type="search" autocomplete="off"/>
+      <button class="win-btn win-btn-primary" type="button" id="inventory-count-scan">+ Порахувати</button>
+      <button class="win-btn" type="button" id="inventory-search-product">Пошук товару (F7)</button>
+    </div>
+    <div class="inventory-filter-row">
+      <label for="inventory-filter">Фільтр:</label>
+      <input id="inventory-filter" type="search" autocomplete="off"/>
+      <span id="inventory-progress"></span>
+    </div>
+    <div class="search-results-wrap inventory-items-wrap">
+      <table class="desktop-table inventory-items-table">
+        <thead><tr><th>Код</th><th>Штрих-код</th><th>Товар</th><th>Од.</th><th>Очікується</th><th>Фактично</th><th>Різниця</th><th>Пораховано</th></tr></thead>
+        <tbody id="inventory-items"></tbody>
+      </table>
+    </div>
+    <div class="inventory-summary-row">
+      <span>Сканування збільшує фактичну кількість на 1. Для ваги/метрів введіть точну кількість вручну.</span>
+      <strong id="inventory-difference-summary"></strong>
+    </div>
+    <label><span>Коментар</span><input id="inventory-count-comment" type="text" maxlength="180"/></label>
+    <div class="dialog-actions">
+      <button class="win-btn" type="button" id="inventory-save-close">Зберегти і закрити</button>
+      <button class="win-btn win-btn-primary" type="button" id="inventory-post">Провести інвентаризацію</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog product-new-dialog" id="product-new-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Новий товар</h2>
+    <p class="dialog-note">Тестовий товар буде додано лише до локального стану онлайн-демо.</p>
+    <div class="product-new-grid">
+      <label class="wide-field"><span>Назва *</span><input id="product-new-name" type="text" maxlength="180"/></label>
+      <label><span>Код</span><input id="product-new-code" type="text" readonly/></label>
+      <label><span>Штрих-код</span><input id="product-new-barcode" type="text" maxlength="64"/></label>
+      <label><span>Категорія</span><select id="product-new-category"></select></label>
+      <label><span>Одиниця</span><select id="product-new-unit"><option>шт</option><option>кг</option><option>л</option><option>м</option></select></label>
+      <label><span>Собівартість</span><input id="product-new-cost" type="number" min="0" step="0.01" value="0"/></label>
+      <label><span>Роздрібна ціна</span><input id="product-new-price" type="number" min="0" step="0.01" value="0"/></label>
+      <label><span>Мінімальна ціна</span><input id="product-new-min-price" type="number" min="0" step="0.01" value="0"/></label>
+      <label><span>Мін. залишок</span><input id="product-new-min-stock" type="number" min="0" step="0.001" value="0"/></label>
+    </div>
+    <strong class="product-new-error" id="product-new-error"></strong>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="save-new-product">Зберегти</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog stock-movements-dialog" id="stock-movements-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2 id="stock-movements-title">Рух товару</h2>
+    <div class="search-results-wrap stock-movements-wrap">
+      <table class="desktop-table">
+        <thead><tr><th>Дата</th><th>Товар</th><th>Операція</th><th>Кількість</th><th>Собівартість</th><th>Документ</th><th>ID</th><th>Користувач</th></tr></thead>
+        <tbody id="stock-movements-table"></tbody>
+      </table>
+    </div>
+    <div class="dialog-actions movement-footer">
+      <span id="stock-movements-count"></span>
+      <button class="win-btn win-btn-primary" type="submit" value="cancel">Закрити</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog sale-return-dialog" id="sale-return-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2 id="sale-return-title">Повернення товару</h2>
+    <p class="dialog-note" id="sale-return-meta"></p>
+    <p class="dialog-note">Закритий початковий чек не видаляється і не редагується. Повернення створюється окремим документом.</p>
+    <div class="search-results-wrap return-items-wrap">
+      <table class="desktop-table">
+        <thead><tr><th>Товар</th><th>Продано</th><th>Вже поверн.</th><th>Доступно</th><th>Повернути</th><th>Ціна</th></tr></thead>
+        <tbody id="sale-return-items"></tbody>
+      </table>
+    </div>
+    <div class="return-total-row">
+      <button class="win-btn" type="button" id="return-all-available">Повернути все доступне</button>
+      <div><span>Сума повернення</span><strong id="sale-return-total">0,00 грн</strong></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="open-return-payment">Далі — повернення коштів</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog return-payment-dialog" id="return-payment-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Розподіл повернення</h2>
+    <p class="dialog-note" id="return-payment-total">До повернення: 0,00 грн</p>
+    <label><span>Готівка</span><input id="return-payment-cash" type="number" min="0" step="0.01"/></label>
+    <label><span>Картка</span><input id="return-payment-card" type="number" min="0" step="0.01" value="0"/></label>
+    <label><span>Зменшення боргу</span><input id="return-payment-debt" type="number" min="0" step="0.01" value="0"/></label>
+    <p class="dialog-note" id="return-debt-hint"></p>
+    <strong class="return-payment-status" id="return-payment-status"></strong>
+    <div class="dialog-actions">
+      <button class="win-btn" type="button" id="back-to-return-items">Назад</button>
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="confirm-sale-return">Підтвердити</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog cash-shift-dialog" id="close-shift-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Закрити касову зміну</h2>
+    <p class="dialog-note">Вкажіть фактичну суму готівки в касі. OutPOSt збереже очікуваний залишок, фактичний залишок і різницю.</p>
+    <div class="shift-dialog-summary">
+      <div><span>Очікується</span><strong id="close-shift-expected">0,00 грн</strong></div>
+      <div><span>Різниця</span><strong id="close-shift-difference">0,00 грн</strong></div>
+    </div>
+    <label><span>Фактичний залишок</span><input id="close-shift-actual" type="number" min="0" step="0.01"/></label>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="confirm-close-shift">Закрити зміну</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog cash-shift-dialog" id="open-shift-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Відкрити касову зміну</h2>
+    <p class="dialog-note" id="open-shift-info">Початковий залишок автоматично підставляється з фактичного закриття попередньої зміни й залишається редагованим.</p>
+    <label><span>Початковий залишок</span><input id="open-shift-opening" type="number" min="0" step="0.01"/></label>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="confirm-open-shift">Відкрити зміну</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog cash-action-dialog" id="cash-action-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2 id="cash-action-title">Внести кошти</h2>
+    <p id="cash-action-info" class="dialog-note"></p>
+    <label><span>Сума</span><input id="cash-action-amount" type="number" min="0.01" step="0.01"/></label>
+    <label><span>Коментар</span><textarea id="cash-action-comment" rows="3"></textarea></label>
+    <label id="cash-supplier-row"><span>Постачальник</span><select id="cash-action-supplier"></select><small>Якщо вибрати постачальника, вилучення буде показане як оплата постачальнику в демо-журналі.</small></label>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="confirm-cash-action">Підтвердити</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog withdrawals-dialog" id="withdrawals-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <div class="withdrawals-head">
+      <div><h2>Вилучені кошти</h2><p class="dialog-note" id="withdrawals-date"></p></div>
+      <div><span>Разом вилучено</span><strong id="withdrawals-total">0,00 грн</strong></div>
+    </div>
+    <div class="search-results-wrap">
+      <table class="desktop-table"><thead><tr><th>Час</th><th>Сума</th><th>Постачальник</th><th>Коментар</th><th>Користувач</th></tr></thead><tbody id="withdrawals-table"></tbody></table>
+    </div>
+    <div class="dialog-actions"><button class="win-btn win-btn-primary" type="submit" value="cancel">Закрити</button></div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog purchase-item-dialog" id="purchase-item-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Додавання товару в сесію</h2>
+    <p class="dialog-note" id="purchase-item-note">Існуючий товар · виберіть позицію зі своєї тестової бази.</p>
+
+    <div class="purchase-item-form">
+      <label class="wide-field"><span>Скан / штрих-код</span>
+        <div class="inline-field"><input id="purchase-item-barcode" type="search" autocomplete="off"/><button class="win-btn win-btn-primary" type="button" id="purchase-find-product">... знайти товар</button></div>
+      </label>
+      <label><span>Код товару</span><input id="purchase-item-code" type="text" readonly/></label>
+      <label><span>Назва *</span><input id="purchase-item-name" type="text" readonly/></label>
+      <label><span>Артикул / SKU</span><input type="text" value="" readonly/></label>
+      <label><span>Група</span><select disabled><option>— без групи —</option></select></label>
+      <label><span>Кількість / одиниця *</span><div class="inline-field"><input id="purchase-item-qty" type="number" min="0.001" step="0.001" value="1"/><input id="purchase-item-unit" type="text" readonly/></div></label>
+      <label><span>Сума закупівлі</span><input id="purchase-item-sum" type="text" readonly/></label>
+      <label><span>Закупівельна ціна / од.</span><input id="purchase-item-cost" type="number" min="0.01" step="0.01"/></label>
+      <label><span>Поточна ціна</span><input id="purchase-item-current-price" type="text" readonly/></label>
+      <label><span>Нова ціна *</span><input id="purchase-item-new-price" type="number" min="0.01" step="0.01"/></label>
+      <label><span>Націнка</span><div class="inline-field markup-field"><input id="purchase-item-markup" type="number" step="0.1" value="30"/><span>%</span></div></label>
+    </div>
+
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="add-purchase-draft-line">Додати в сесію</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog confirm-session-dialog" id="purchase-post-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2 id="purchase-post-title">Провести сесію?</h2>
+    <p>Після проведення всі позиції будуть зараховані на склад, а нові ціни застосовані. Проведену сесію редагувати не можна.</p>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Ні</button>
+      <button class="win-btn win-btn-primary" type="button" id="confirm-post-purchase-session">Так</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog search-dialog" id="product-search-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Пошук товару</h2>
+    <p class="dialog-note">Пошук нечутливий до регістру. Оберіть товар подвійним кліком або кнопкою «Додати в чек».</p>
+    <div class="search-form-grid">
+      <label><span>Код товару</span><input id="f7-code" type="search" autocomplete="off"/></label>
+      <label><span>Назва товару</span><input id="f7-name" type="search" autocomplete="off"/></label>
+      <label><span>Штрих-код</span><input id="f7-barcode" type="search" autocomplete="off"/></label>
+      <label><span>Залишок від</span><input id="f7-stock" type="number" step="1"/></label>
+    </div>
+    <div class="search-results-wrap">
+      <table class="desktop-table search-results-table">
+        <thead><tr><th>Код</th><th>Штрих-код</th><th>Найменування</th><th>Ціна</th><th>Залишок</th></tr></thead>
+        <tbody id="f7-results"></tbody>
+      </table>
+    </div>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="f7-add-selected">Додати в чек</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog extra-info-dialog" id="extra-info-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Додаткова інформація</h2>
+    <p class="dialog-note">Довідкові показники магазину, які не потрібні на головному екрані щодня.</p>
+    <div class="extra-info-grid">
+      <div><span>Товарів</span><strong id="extra-products">—</strong></div>
+      <div><span>Активних товарів</span><strong id="extra-active-products">—</strong></div>
+      <div><span>Категорій</span><strong>6</strong></div>
+      <div><span>Проведених приходів</span><strong id="extra-purchases">—</strong></div>
+      <div><span>Очікується в касі</span><strong id="extra-cash">—</strong></div>
+      <div><span>Прострочений борг</span><strong>0,00 грн</strong></div>
+      <div><span>Боржників</span><strong id="extra-debtors">—</strong></div>
+      <div><span>Борг покупців</span><strong id="extra-debt">—</strong></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="win-btn win-btn-primary" type="submit" value="cancel">Закрити</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog discount-dialog" id="discount-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Знижка</h2>
+    <p class="dialog-note" id="discount-product-name"></p>
+    <p class="dialog-note" id="discount-price-info"></p>
+    <div class="discount-box">
+      <label><span>Знижка, %</span><input id="discount-percent" type="number" min="0" max="100" step="0.01"/></label>
+      <small id="discount-limit">Мінімальна ціна для товару не задана.</small>
+      <strong id="discount-error" class="discount-error"></strong>
+    </div>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="apply-discount">Застосувати</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog" id="seller-help-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Довідка продавця</h2>
+    <p class="dialog-note">Короткі клавіатурні підказки для касового сценарію онлайн-демо. У настільному OutPOSt довідка містить більше робочих інструкцій.</p>
+    <div class="search-results-wrap">
+      <table class="desktop-table">
+        <thead><tr><th>Клавіша</th><th>Дія</th></tr></thead>
+        <tbody>
+          <tr><td><strong>F1</strong></td><td>Відкрити довідку продавця</td></tr>
+          <tr><td><strong>F2</strong></td><td>Оплата готівкою</td></tr>
+          <tr><td><strong>F3</strong></td><td>Оплата карткою</td></tr>
+          <tr><td><strong>F4</strong></td><td>Комбінована оплата</td></tr>
+          <tr><td><strong>F5</strong></td><td>Продати в борг</td></tr>
+          <tr><td><strong>F6</strong></td><td>Перейти до закупівель</td></tr>
+          <tr><td><strong>F7</strong></td><td>Пошук товару</td></tr>
+          <tr><td><strong>↑ / ↓</strong></td><td>Переміщати вибір у результатах F7</td></tr>
+          <tr><td><strong>Enter</strong></td><td>Підтвердити вибрану дію або товар</td></tr>
+          <tr><td><strong>Delete</strong></td><td>Видалити вибрану позицію чека</td></tr>
+          <tr><td><strong>+ / −</strong></td><td>Змінити кількість вибраної позиції</td></tr>
+          <tr><td><strong>Esc</strong></td><td>Закрити відкрите діалогове вікно</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="dialog-actions">
+      <button class="win-btn win-btn-primary" type="submit" value="cancel">Закрити</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog" id="cash-payment-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Оплата готівкою</h2>
+    <p>До сплати: <strong id="cash-payment-total">0,00 ₴</strong></p>
+    <label><span>Отримано, грн</span><input id="cash-payment-received" type="number" min="0" step="0.01" inputmode="decimal"/></label>
+    <p>Решта: <strong id="cash-payment-change">0,00 ₴</strong></p>
+    <strong id="cash-payment-error" class="discount-error" role="status"></strong>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="confirm-cash-payment">Провести продаж</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog" id="mixed-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Комбінована оплата</h2>
+    <p>До сплати: <strong id="mixed-total">0,00 ₴</strong></p>
+    <label><span>Готівка, грн</span><input id="mixed-cash" type="number" min="0" step="0.01"/></label>
+    <p>Карткою: <strong id="mixed-card">0,00 ₴</strong></p>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="confirm-mixed">Провести продаж</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="demo-dialog" id="debt-dialog">
+  <form method="dialog">
+    <button class="dialog-close" type="submit" value="cancel" aria-label="Закрити">×</button>
+    <h2>Продати в борг</h2>
+    <p>Сума боргу: <strong id="debt-total">0,00 ₴</strong></p>
+    <label><span>Клієнт</span><select id="debt-customer"></select></label>
+    <div class="dialog-actions">
+      <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn win-btn-primary" type="button" id="confirm-debt">Продати в борг</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/assets/demo-products-v2-1.js?v=20260912-a" defer></script>
+<script src="/assets/demo-products-v2-2.js?v=20260912-a" defer></script>
+<script src="/assets/demo-products-v2-3.js?v=20260912-a" defer></script>
+<script src="/assets/demo-products-v2-4.js?v=20260912-a" defer></script>
+<script src="/assets/demo-profile-v2.js?v=20260912-a" defer></script>
+<script src="/assets/outpost-demo-v1.js?v=desktop-ui-15" defer></script>
+<script src="/assets/outpost-demo-modules-v1.js?v=finance-inventory-4" defer></script>
+<script src="/assets/outpost-demo-returns-v1.js?v=sale-returns-1" defer></script>
+<script src="/assets/outpost-demo-products-v1.js?v=products-stock-2" defer></script>
+</body>
+</html>

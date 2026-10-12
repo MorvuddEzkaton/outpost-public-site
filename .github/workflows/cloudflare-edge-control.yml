@@ -1,0 +1,138 @@
+name: Cloudflare edge control
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/cloudflare_edge_control.py"
+      - "scripts/test_cloudflare_edge_control.py"
+      - ".github/workflows/cloudflare-edge-control.yml"
+  push:
+    branches:
+      - staging
+    paths:
+      - "scripts/cloudflare_edge_control.py"
+      - "scripts/test_cloudflare_edge_control.py"
+      - ".github/workflows/cloudflare-edge-control.yml"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Read-only plan or apply exact OutPOSt edge state"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+      confirmation:
+        description: "For apply only: type APPLY-OUTPOST-CLOUDFLARE"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outpost-cloudflare-edge-control-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Compile control tooling
+        run: python -m py_compile scripts/cloudflare_edge_control.py scripts/test_cloudflare_edge_control.py
+
+      - name: Run offline edge-control tests
+        run: python scripts/test_cloudflare_edge_control.py
+
+  live:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.OUTPOST_INFRASTRUCTURE_MAINTENANCE_ENABLED == '1'
+    needs: offline
+    environment: infrastructure-maintenance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout verified production branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Require scoped Cloudflare token
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "CLOUDFLARE_API_TOKEN is not configured in repository secrets." >&2
+            exit 2
+          fi
+
+      - name: Plan exact Cloudflare edge state
+        if: inputs.mode == 'plan'
+        run: python scripts/cloudflare_edge_control.py --json
+
+      - name: Validate apply confirmation
+        if: inputs.mode == 'apply'
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = "APPLY-OUTPOST-CLOUDFLARE"
+
+      - name: Apply exact Cloudflare edge state
+        if: inputs.mode == 'apply'
+        run: python scripts/cloudflare_edge_control.py --apply --confirm APPLY-OUTPOST-CLOUDFLARE --json
+
+      - name: Verify host normalization
+        if: inputs.mode == 'apply'
+        env:
+          OUTPOST_LIVE_HOST_NORMALIZATION_ATTEMPTS: "12"
+          OUTPOST_LIVE_HOST_NORMALIZATION_DELAY_SECONDS: "5"
+          OUTPOST_LIVE_HOST_NORMALIZATION_WORKERS: "8"
+        run: python scripts/verify_live_host_normalization.py
+
+      - name: Verify Cloudflare RUM is absent
+        if: inputs.mode == 'apply'
+        env:
+          OUTPOST_LIVE_CLOUDFLARE_PRIVACY_ATTEMPTS: "12"
+          OUTPOST_LIVE_CLOUDFLARE_PRIVACY_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_cloudflare_privacy.py
+
+      - name: Verify live security headers
+        if: inputs.mode == 'apply'
+        run: python scripts/verify_live_security_headers.py
+
+      - name: Verify live product maturity
+        if: inputs.mode == 'apply'
+        run: python scripts/verify_live_product_maturity.py
+
+      - name: Verify live Accounting pre-release
+        if: inputs.mode == 'apply'
+        run: python scripts/verify_live_accounting_release.py
+
+      - name: Verify live Support Center discovery
+        if: inputs.mode == 'apply'
+        run: python scripts/verify_live_support_discovery.py
+
+      - name: Verify live customer Cabinet entry
+        if: inputs.mode == 'apply'
+        run: python scripts/verify_live_cabinet_entry.py

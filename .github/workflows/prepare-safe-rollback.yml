@@ -1,0 +1,142 @@
+name: Prepare safe public-site rollback PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Known-good commit SHA or backup branch"
+        required: true
+        type: string
+      reason:
+        description: "Why the rollback is needed"
+        required: false
+        default: "Emergency public-site rollback"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: outpost-prepare-safe-rollback
+  cancel-in-progress: false
+
+jobs:
+  prepare-rollback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve and validate known-good target
+        id: resolve
+        shell: bash
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+
+          CURRENT_SHA="$(git rev-parse HEAD)"
+          if git rev-parse --verify "${TARGET_REF}^{commit}" >/dev/null 2>&1; then
+            TARGET_SHA="$(git rev-parse "${TARGET_REF}^{commit}")"
+          elif git rev-parse --verify "origin/${TARGET_REF}^{commit}" >/dev/null 2>&1; then
+            TARGET_SHA="$(git rev-parse "origin/${TARGET_REF}^{commit}")"
+          else
+            echo "Target ref cannot be resolved: ${TARGET_REF}" >&2
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "${TARGET_SHA}" "${CURRENT_SHA}"; then
+            echo "Rollback target must be an ancestor of current main." >&2
+            exit 1
+          fi
+          if [ "${TARGET_SHA}" = "${CURRENT_SHA}" ]; then
+            echo "Rollback target is already current main." >&2
+            exit 1
+          fi
+
+          extract_release_version() {
+            local ref="$1"
+            git show "${ref}:site/download.html" | python -c 'import re,sys; versions=sorted(set(re.findall(r"OutPOSt-Setup-v(\d+\.\d+\.\d+)\.exe", sys.stdin.read()))); len(versions)==1 or sys.exit(f"expected exactly one installer release, got {versions!r}"); print(versions[0])'
+          }
+
+          CURRENT_RELEASE="$(extract_release_version "${CURRENT_SHA}")"
+          TARGET_RELEASE="$(extract_release_version "${TARGET_SHA}")"
+          if [ "${CURRENT_RELEASE}" != "${TARGET_RELEASE}" ]; then
+            echo "Public-site rollback cannot cross release boundary: current v${CURRENT_RELEASE}, target v${TARGET_RELEASE}." >&2
+            echo "Choose a known-good backup from the same release. Installer downgrade requires explicit release rollback." >&2
+            exit 1
+          fi
+
+          echo "current_sha=${CURRENT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "target_sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "current_release=${CURRENT_RELEASE}" >> "$GITHUB_OUTPUT"
+          echo "Resolved rollback target: ${TARGET_SHA} (v${TARGET_RELEASE})"
+
+      - name: Create backup and rollback branch
+        id: prepare
+        shell: bash
+        env:
+          CURRENT_SHA: ${{ steps.resolve.outputs.current_sha }}
+          TARGET_SHA: ${{ steps.resolve.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BACKUP_BRANCH="backup/rollback-pre-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ROLLBACK_BRANCH="rollback/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          git push origin "${CURRENT_SHA}:refs/heads/${BACKUP_BRANCH}"
+          git switch -c "${ROLLBACK_BRANCH}"
+
+          # Restore only the public deploy payload. Keep protected service/proxy files,
+          # installer binaries and security headers at the current known-good version.
+          git restore --source "${TARGET_SHA}" --staged --worktree -- site
+          git restore --source "${CURRENT_SHA}" --staged --worktree -- \
+            site/_worker.js \
+            site/_telegram-support.js \
+            site/_telegram-faq.js \
+            site/_headers \
+            site/downloads
+
+          if git diff --cached --quiet; then
+            echo "Selected safe rollback scope has no changes." >&2
+            exit 1
+          fi
+
+          git commit -m "Prepare safe public-site rollback to ${TARGET_SHA}"
+          git push origin "${ROLLBACK_BRANCH}"
+
+          echo "backup_branch=${BACKUP_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "rollback_branch=${ROLLBACK_BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Open rollback pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.resolve.outputs.target_sha }}
+          CURRENT_SHA: ${{ steps.resolve.outputs.current_sha }}
+          BACKUP_BRANCH: ${{ steps.prepare.outputs.backup_branch }}
+          ROLLBACK_BRANCH: ${{ steps.prepare.outputs.rollback_branch }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          printf -v BODY '%s\n\n%s\n%s\n%s\n\n%s\n\n%s' \
+            "Reason: ${REASON}" \
+            "Target known-good commit: ${TARGET_SHA}" \
+            "Current main before rollback: ${CURRENT_SHA}" \
+            "Automatic pre-rollback backup: ${BACKUP_BRANCH}" \
+            "Safety scope: restores public site content from a known-good commit of the same OutPOSt release while preserving the current public Worker, Telegram Worker files, security headers, and installer payload." \
+            "This workflow does **not** merge the PR and does **not** push to main. Normal PR smoke checks must pass before any production change."
+
+          gh pr create \
+            --base main \
+            --head "${ROLLBACK_BRANCH}" \
+            --title "Safe public-site rollback to ${TARGET_SHA:0:12}" \
+            --body "${BODY}"

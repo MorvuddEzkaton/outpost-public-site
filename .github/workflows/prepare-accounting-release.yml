@@ -1,0 +1,355 @@
+name: Prepare Accounting pre-release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Target Accounting version, for example 0.403 or 0.403.1"
+        required: true
+        type: string
+      rc_acceptance:
+        description: "Windows RC acceptance for this Accounting build"
+        required: true
+        type: choice
+        options:
+          - PASS
+          - NOT_VERIFIED
+      authenticode:
+        description: "Authenticode state of the Accounting installer"
+        required: true
+        type: choice
+        options:
+          - unsigned
+          - signed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: outpost-prepare-accounting-release
+  cancel-in-progress: false
+
+jobs:
+  prepare-accounting-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout prepared staging
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+        with:
+          ref: staging
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Validate staging contains one Accounting installer only
+        id: scope
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${VERSION}" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
+            echo "Accounting version must be a numeric dotted version such as 0.403 or 0.403.1: ${VERSION}" >&2
+            exit 1
+          fi
+
+          git fetch origin main staging --prune
+          MAIN_SHA="$(git rev-parse origin/main)"
+          STAGING_SHA="$(git rev-parse origin/staging)"
+
+          if ! git merge-base --is-ancestor "${MAIN_SHA}" "${STAGING_SHA}"; then
+            echo "staging must be based on current main without divergence." >&2
+            exit 1
+          fi
+          if [ "${MAIN_SHA}" = "${STAGING_SHA}" ]; then
+            echo "staging has no prepared Accounting installer input." >&2
+            exit 1
+          fi
+
+          TARGET_EXE="site/downloads/OutPOSt-Accounting-Setup-v${VERSION}.exe"
+          changed=0
+          seen_target=0
+          while IFS=$'\t' read -r status path extra; do
+            [ -n "${status}" ] || continue
+            changed=$((changed + 1))
+            if [ "${status}" != "A" ] || [ "${path}" != "${TARGET_EXE}" ]; then
+              echo "Accounting staging must contain exactly one newly added target EXE; unexpected: ${status} ${path} ${extra:-}" >&2
+              exit 1
+            fi
+            seen_target=1
+          done < <(git diff --name-status "${MAIN_SHA}" "${STAGING_SHA}")
+
+          if [ "${changed}" -ne 1 ] || [ "${seen_target}" -ne 1 ]; then
+            echo "Accounting staging must contain exactly one new target EXE." >&2
+            exit 1
+          fi
+
+          echo "main_sha=${MAIN_SHA}" >> "$GITHUB_OUTPUT"
+          echo "staging_sha=${STAGING_SHA}" >> "$GITHUB_OUTPUT"
+          echo "target_exe=${TARGET_EXE}" >> "$GITHUB_OUTPUT"
+          echo "Validated Accounting-installer-only staging: ${MAIN_SHA}..${STAGING_SHA}"
+
+      - name: Dry-run Accounting release preparation
+        env:
+          VERSION: ${{ inputs.version }}
+          RC_ACCEPTANCE: ${{ inputs.rc_acceptance }}
+          AUTHENTICODE: ${{ inputs.authenticode }}
+        run: >-
+          python scripts/prepare_accounting_release.py "${VERSION}"
+          --rc-acceptance "${RC_ACCEPTANCE}"
+          --authenticode "${AUTHENTICODE}"
+
+      - name: Create automatic pre-release backup and isolated Accounting branch
+        id: branch
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BACKUP_BRANCH="backup/accounting-pre-v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RELEASE_BRANCH="accounting-release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          git push origin "${MAIN_SHA}:refs/heads/${BACKUP_BRANCH}"
+          git switch -c "${RELEASE_BRANCH}"
+
+          echo "backup_branch=${BACKUP_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "release_branch=${RELEASE_BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Apply reusable Accounting release updater
+        env:
+          VERSION: ${{ inputs.version }}
+          RC_ACCEPTANCE: ${{ inputs.rc_acceptance }}
+          AUTHENTICODE: ${{ inputs.authenticode }}
+        run: >-
+          python scripts/prepare_accounting_release.py "${VERSION}"
+          --rc-acceptance "${RC_ACCEPTANCE}"
+          --authenticode "${AUTHENTICODE}"
+          --apply
+
+      - name: Enforce generated Accounting release diff scope
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
+          TARGET_EXE: ${{ steps.scope.outputs.target_exe }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          TARGET_SHA="site/downloads/OutPOSt-Accounting-Setup-v${VERSION}.sha256.txt"
+          seen_target_exe=0
+          seen_target_sha=0
+          seen_manifest=0
+          seen_page=0
+          seen_download=0
+
+          while IFS=$'\t' read -r status path extra; do
+            [ -n "${status}" ] || continue
+            if [[ "${status}" == R* || "${status}" == C* ]]; then
+              echo "Accounting release must not rename/copy files: ${status} ${path} ${extra:-}" >&2
+              exit 1
+            fi
+            case "${path}" in
+              "${TARGET_EXE}")
+                [ "${status}" = "A" ] || { echo "Target Accounting EXE must remain newly added." >&2; exit 1; }
+                seen_target_exe=1
+                ;;
+              "${TARGET_SHA}")
+                [ "${status}" = "A" ] || { echo "Target Accounting checksum must be newly generated." >&2; exit 1; }
+                seen_target_sha=1
+                ;;
+              site/downloads/OutPOSt-Accounting-Setup-v*.exe|site/downloads/OutPOSt-Accounting-Setup-v*.sha256.txt)
+                [ "${status}" = "D" ] || { echo "Only previous Accounting artifacts may be deleted: ${status} ${path}" >&2; exit 1; }
+                ;;
+              release/accounting-release.json)
+                [ "${status}" = "M" ] || { echo "Accounting release manifest must be modified in place." >&2; exit 1; }
+                seen_manifest=1
+                ;;
+              site/buhgalteriya.html)
+                [ "${status}" = "M" ] || { echo "/buhgalteriya must be modified in place." >&2; exit 1; }
+                seen_page=1
+                ;;
+              site/download.html)
+                [ "${status}" = "M" ] || { echo "/download must be modified in place." >&2; exit 1; }
+                seen_download=1
+                ;;
+              site/sitemap.xml)
+                [ "${status}" = "M" ] || { echo "sitemap must be modified in place." >&2; exit 1; }
+                ;;
+              *)
+                echo "Prepared Accounting release escaped the allowlist: ${status} ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done < <(git diff --name-status "${MAIN_SHA}")
+
+          for flag in seen_target_exe seen_target_sha seen_manifest seen_page seen_download; do
+            [ "${!flag}" -eq 1 ] || { echo "Accounting release diff is missing required component: ${flag}" >&2; exit 1; }
+          done
+
+          for protected in \
+            site/changelog.html \
+            site/_worker.js \
+            site/_telegram-support.js \
+            site/_telegram-faq.js \
+            site/_headers \
+            wrangler.jsonc; do
+            git diff --quiet "${MAIN_SHA}" -- "${protected}" || {
+              echo "Protected stable/backend boundary changed unexpectedly: ${protected}" >&2
+              exit 1
+            }
+          done
+
+          git diff --quiet "${MAIN_SHA}" -- ':(glob)site/downloads/OutPOSt-Setup-v*.exe' || {
+            echo "Stable OutPOSt installer changed during Accounting preparation." >&2
+            exit 1
+          }
+          git diff --quiet "${MAIN_SHA}" -- ':(glob)site/downloads/OutPOSt-Setup-v*.sha256.txt' || {
+            echo "Stable OutPOSt checksum changed during Accounting preparation." >&2
+            exit 1
+          }
+
+      - name: Run complete Accounting release gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/verify_public_site.py
+          python scripts/verify_debt_screenshot_tour.py
+          python scripts/verify_automation_landing_intents.py
+          python scripts/verify_public_seo_uniqueness.py
+          python scripts/verify_public_contextual_links.py
+          python scripts/test_demo_dialog_contract.py
+          python scripts/test_public_faq_schema.py
+          python scripts/verify_site_identity.py
+          python scripts/verify_site_identity_workflows.py
+          python scripts/verify_quality_gate_workflows.py
+          python scripts/test_quality_gate_workflows.py
+          python scripts/test_main_push_provenance.py
+          python scripts/verify_removed_public_pages.py
+          python scripts/verify_404_page.py
+          python scripts/verify_public_ctas.py
+          python scripts/verify_support_discovery.py
+          python scripts/verify_safe_rollback_workflow.py
+          python scripts/verify_prepare_release_workflow.py
+          python scripts/verify_prepare_accounting_release_workflow.py
+          python scripts/verify_release_gate_parity.py
+          python scripts/test_release_gate_parity.py
+          python scripts/verify_internal_anchors.py
+          python scripts/verify_license_activation_path.py
+          python scripts/verify_public_license_terms.py
+          python scripts/verify_public_product_maturity.py
+          python scripts/verify_client_copy_no_release_history.py
+          python scripts/test_product_maturity_guard.py
+          python scripts/verify_cabinet_entry.py
+          python scripts/verify_accessibility.py
+          python scripts/verify_color_contrast.py
+          python scripts/verify_public_contacts.py
+          python scripts/verify_phone_ctas.py
+          python scripts/verify_cloudflare_config.py
+          python scripts/verify_security_headers.py
+          python scripts/verify_installers.py
+          python scripts/verify_accounting_release.py
+          python scripts/prepare_accounting_release.py --check-current
+          python scripts/test_prepare_accounting_release.py
+          python scripts/verify_release_metadata.py
+          python scripts/test_release_changelog_counts.py
+          python scripts/verify_release_sitemap.py
+          python scripts/prepare_public_release.py --check-current
+          python scripts/test_prepare_public_release.py
+          python scripts/test_sitemap_freshness.py
+          python scripts/verify_sitemap_freshness.py
+          python scripts/test_live_host_normalization.py
+          python scripts/test_live_cloudflare_privacy.py
+          python scripts/test_live_sitemap.py
+          python scripts/test_live_static_assets.py
+          python scripts/test_social_image_dimensions.py
+          python -m py_compile scripts/accounting_release_meta.py scripts/prepare_accounting_release.py scripts/test_prepare_accounting_release.py scripts/verify_prepare_accounting_release_workflow.py
+          python -m py_compile scripts/verify_live_production.py scripts/verify_live_public_ctas.py scripts/verify_live_phone_ctas.py scripts/verify_live_indexability.py scripts/verify_live_404.py scripts/verify_live_public_links.py scripts/verify_live_sitemap.py scripts/test_live_sitemap.py scripts/verify_live_robots.py scripts/verify_live_support_discovery.py scripts/verify_live_cabinet_entry.py scripts/verify_live_security_headers.py scripts/verify_live_static_assets.py scripts/test_live_static_assets.py scripts/test_social_image_dimensions.py scripts/verify_live_url_normalization.py scripts/verify_live_host_normalization.py scripts/test_live_host_normalization.py scripts/verify_live_cloudflare_privacy.py scripts/test_live_cloudflare_privacy.py scripts/verify_live_social_metadata.py scripts/verify_live_structured_metadata.py scripts/verify_live_product_maturity.py scripts/verify_live_accounting_release.py
+          python -m py_compile scripts/verify_site_identity.py scripts/verify_live_site_identity.py scripts/verify_site_identity_workflows.py scripts/verify_quality_gate_workflows.py scripts/test_quality_gate_workflows.py scripts/verify_main_push_provenance.py scripts/test_main_push_provenance.py scripts/verify_public_product_maturity.py scripts/verify_client_copy_no_release_history.py scripts/test_product_maturity_guard.py scripts/verify_release_gate_parity.py scripts/test_release_gate_parity.py
+          python scripts/verify_telegram_support.py
+          node scripts/test_telegram_support.mjs
+          node scripts/test_cms_preview_privacy.mjs
+          node scripts/test_static_preview_privacy.mjs
+          node scripts/generate_support_center.mjs --check
+          node --check scripts/generate_support_center.mjs
+          node --check scripts/test_static_preview_privacy.mjs
+          node --check site/assets/outpost-demo-v1.js
+          node --check site/assets/outpost-demo-modules-v1.js
+          node --check site/assets/outpost-demo-returns-v1.js
+          node --check site/assets/outpost-demo-products-v1.js
+          node --check site/script.js
+          node --check site/_worker.js
+          node --check site/_cms-runtime.js
+          node --check site/_telegram-support.js
+          node --check site/_telegram-faq.js
+          git diff --check
+
+      - name: Commit generated Accounting release metadata
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          git add -A \
+            release/accounting-release.json \
+            site/buhgalteriya.html \
+            site/download.html \
+            site/sitemap.xml \
+            site/downloads/OutPOSt-Accounting-Setup-v*.exe \
+            site/downloads/OutPOSt-Accounting-Setup-v*.sha256.txt
+          if git diff --cached --quiet; then
+            echo "Accounting updater produced no generated changes." >&2
+            exit 1
+          fi
+          git commit -m "Prepare Accounting pre-release v${VERSION}"
+
+      - name: Push isolated Accounting release branch
+        shell: bash
+        env:
+          RELEASE_BRANCH: ${{ steps.branch.outputs.release_branch }}
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:refs/heads/${RELEASE_BRANCH}"
+
+      - name: Open Accounting release pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
+          STAGING_SHA: ${{ steps.scope.outputs.staging_sha }}
+          BACKUP_BRANCH: ${{ steps.branch.outputs.backup_branch }}
+          RELEASE_BRANCH: ${{ steps.branch.outputs.release_branch }}
+          RC_ACCEPTANCE: ${{ inputs.rc_acceptance }}
+          AUTHENTICODE: ${{ inputs.authenticode }}
+        run: |
+          set -euo pipefail
+          printf -v BODY '%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n\n%s\n\n%s' \
+            "Prepared OutPOSt Accounting pre-release v${VERSION}." \
+            "Current main baseline: ${MAIN_SHA}" \
+            "Validated staging input: ${STAGING_SHA}" \
+            "Automatic pre-release backup: ${BACKUP_BRANCH}" \
+            "Accounting release branch: ${RELEASE_BRANCH}" \
+            "Windows RC acceptance: ${RC_ACCEPTANCE}" \
+            "Authenticode: ${AUTHENTICODE}" \
+            "The workflow accepted only the target Accounting EXE, generated its checksum/manifest/page updates, retired the previous Accounting artifact pair, and ran the complete static release gate." \
+            "This workflow does **not** merge the PR, push to main, deploy Cloudflare, modify the stable OutPOSt installer/changelog, or call Cabinet/Director/Sync/D1. Normal PR smoke and post-merge live verification remain mandatory."
+
+          gh pr create \
+            --base main \
+            --head "${RELEASE_BRANCH}" \
+            --title "Release OutPOSt Accounting v${VERSION}" \
+            --body "${BODY}"

@@ -1,0 +1,199 @@
+name: Verify live production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "site/**"
+      - "wrangler.jsonc"
+      - "scripts/verify_site_identity.py"
+      - "scripts/verify_release_metadata.py"
+      - "scripts/verify_main_push_provenance.py"
+      - "scripts/verify_phone_ctas.py"
+      - "scripts/verify_security_headers.py"
+      - "scripts/verify_public_site.py"
+      - "scripts/verify_public_license_terms.py"
+      - "scripts/accounting_release_meta.py"
+      - "release/accounting-release.json"
+      - "scripts/verify_live_site_identity.py"
+      - "scripts/verify_live_production.py"
+      - "scripts/verify_live_public_ctas.py"
+      - "scripts/verify_live_phone_ctas.py"
+      - "scripts/verify_live_indexability.py"
+      - "scripts/verify_live_404.py"
+      - "scripts/verify_live_public_links.py"
+      - "scripts/verify_live_security_headers.py"
+      - "scripts/verify_live_static_assets.py"
+      - "scripts/verify_live_url_normalization.py"
+      - "scripts/verify_live_host_normalization.py"
+      - "scripts/verify_live_cloudflare_privacy.py"
+      - "scripts/verify_live_social_metadata.py"
+      - "scripts/verify_live_structured_metadata.py"
+      - "scripts/verify_public_product_maturity.py"
+      - "scripts/verify_live_product_maturity.py"
+      - "scripts/verify_live_accounting_release.py"
+      - "scripts/verify_live_sitemap.py"
+      - "scripts/verify_live_robots.py"
+      - "scripts/verify_live_support_discovery.py"
+      - "scripts/verify_live_cabinet_entry.py"
+      - ".github/workflows/live-production-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outpost-live-production-verify
+  cancel-in-progress: true
+
+jobs:
+  verify-live-production:
+    # The new repository is not a production deploy source until owner-approved cutover.
+    # A skipped job is NOT evidence of a verified deployment.
+    if: vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED == '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout production source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+        with:
+          # Provenance guard must read actual merge parents; depth=1 hides them.
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Verify repository release metadata first
+        run: python scripts/verify_release_metadata.py
+
+      - name: Verify source browser/site identity first
+        run: python scripts/verify_site_identity.py
+
+      - name: Verify source product maturity contract first
+        run: python scripts/verify_public_product_maturity.py
+
+      - name: Wait for Cloudflare and verify live production
+        env:
+          OUTPOST_LIVE_VERIFY_ATTEMPTS: "18"
+          OUTPOST_LIVE_VERIFY_DELAY_SECONDS: "10"
+        run: python scripts/verify_live_production.py
+
+      - name: Verify live browser/site identity
+        env:
+          OUTPOST_LIVE_IDENTITY_ATTEMPTS: "6"
+          OUTPOST_LIVE_IDENTITY_DELAY_SECONDS: "5"
+          OUTPOST_LIVE_IDENTITY_WORKERS: "8"
+        run: python scripts/verify_live_site_identity.py
+
+      - name: Verify live public conversion paths
+        run: python scripts/verify_live_public_ctas.py
+
+      - name: Verify live phone CTA dialog
+        env:
+          OUTPOST_LIVE_PHONE_ATTEMPTS: "6"
+          OUTPOST_LIVE_PHONE_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_phone_ctas.py
+
+      - name: Verify live sitemap source parity
+        env:
+          OUTPOST_LIVE_SITEMAP_ATTEMPTS: "6"
+          OUTPOST_LIVE_SITEMAP_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_sitemap.py
+
+      - name: Verify live robots source parity
+        env:
+          OUTPOST_LIVE_ROBOTS_ATTEMPTS: "6"
+          OUTPOST_LIVE_ROBOTS_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_robots.py
+
+      - name: Verify live sitemap canonical indexability
+        env:
+          OUTPOST_LIVE_INDEXABILITY_ATTEMPTS: "4"
+          OUTPOST_LIVE_INDEXABILITY_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_indexability.py
+
+      - name: Verify live 404 behavior
+        env:
+          OUTPOST_LIVE_404_ATTEMPTS: "4"
+          OUTPOST_LIVE_404_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_404.py
+
+      - name: Verify live public internal links
+        env:
+          OUTPOST_LIVE_LINKS_ATTEMPTS: "4"
+          OUTPOST_LIVE_LINKS_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_public_links.py
+
+      - name: Verify live browser security headers
+        env:
+          OUTPOST_LIVE_SECURITY_ATTEMPTS: "4"
+          OUTPOST_LIVE_SECURITY_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_security_headers.py
+
+      - name: Verify live public static assets
+        env:
+          OUTPOST_LIVE_ASSETS_ATTEMPTS: "4"
+          OUTPOST_LIVE_ASSETS_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_static_assets.py
+
+      - name: Verify live canonical URL normalization
+        env:
+          OUTPOST_LIVE_NORMALIZATION_ATTEMPTS: "4"
+          OUTPOST_LIVE_NORMALIZATION_DELAY_SECONDS: "5"
+          OUTPOST_LIVE_NORMALIZATION_WORKERS: "8"
+        run: python scripts/verify_live_url_normalization.py
+
+      - name: Verify live alternate-host normalization
+        env:
+          OUTPOST_LIVE_HOST_NORMALIZATION_ATTEMPTS: "4"
+          OUTPOST_LIVE_HOST_NORMALIZATION_DELAY_SECONDS: "5"
+          OUTPOST_LIVE_HOST_NORMALIZATION_WORKERS: "8"
+        run: python scripts/verify_live_host_normalization.py
+
+      - name: Verify Cloudflare RUM remains disabled
+        env:
+          OUTPOST_LIVE_CLOUDFLARE_PRIVACY_ATTEMPTS: "4"
+          OUTPOST_LIVE_CLOUDFLARE_PRIVACY_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_cloudflare_privacy.py
+
+      - name: Verify live social metadata and Open Graph images
+        env:
+          OUTPOST_LIVE_SOCIAL_ATTEMPTS: "4"
+          OUTPOST_LIVE_SOCIAL_DELAY_SECONDS: "5"
+          OUTPOST_LIVE_SOCIAL_WORKERS: "8"
+        run: python scripts/verify_live_social_metadata.py
+
+      - name: Verify live structured commercial metadata
+        env:
+          OUTPOST_LIVE_STRUCTURED_ATTEMPTS: "4"
+          OUTPOST_LIVE_STRUCTURED_DELAY_SECONDS: "5"
+          OUTPOST_LIVE_STRUCTURED_WORKERS: "8"
+        run: python scripts/verify_live_structured_metadata.py
+
+      - name: Verify live product maturity status
+        env:
+          OUTPOST_LIVE_MATURITY_ATTEMPTS: "4"
+          OUTPOST_LIVE_MATURITY_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_product_maturity.py
+
+      - name: Verify live Accounting pre-release
+        run: python scripts/verify_live_accounting_release.py
+
+      - name: Verify live Support Center discovery
+        env:
+          OUTPOST_LIVE_SUPPORT_ATTEMPTS: "4"
+          OUTPOST_LIVE_SUPPORT_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_support_discovery.py
+
+      - name: Verify live customer Cabinet entry
+        env:
+          OUTPOST_LIVE_CABINET_ATTEMPTS: "4"
+          OUTPOST_LIVE_CABINET_DELAY_SECONDS: "5"
+        run: python scripts/verify_live_cabinet_entry.py
+
+      - name: Guard main push provenance
+        if: always()
+        run: python scripts/verify_main_push_provenance.py

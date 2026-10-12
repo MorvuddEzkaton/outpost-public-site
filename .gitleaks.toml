@@ -1,0 +1,11 @@
+title = "OutPOSt public site secret scan"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Exact IndexNow ownership verification value, already deliberately served in its public verification file; not a private API credential"
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)scripts/submit_indexnow\.py$''']
+regexes = ['''KEY\s*=\s*"0e9134a8bef16d4343aa1a75d8be5ecd"''']

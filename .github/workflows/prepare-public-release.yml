@@ -1,0 +1,304 @@
+name: Prepare public release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Target OutPOSt version, for example 0.24.3"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: outpost-prepare-public-release
+  cancel-in-progress: false
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout prepared staging
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
+        with:
+          ref: staging
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Validate staging contains release inputs only
+        id: scope
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use X.Y.Z format: ${VERSION}" >&2
+            exit 1
+          fi
+
+          git fetch origin main staging --prune
+          MAIN_SHA="$(git rev-parse origin/main)"
+          STAGING_SHA="$(git rev-parse origin/staging)"
+
+          if ! git merge-base --is-ancestor "${MAIN_SHA}" "${STAGING_SHA}"; then
+            echo "staging must be based on current main without divergence." >&2
+            exit 1
+          fi
+          if [ "${MAIN_SHA}" = "${STAGING_SHA}" ]; then
+            echo "staging has no prepared release inputs." >&2
+            exit 1
+          fi
+
+          TARGET_EXE="site/downloads/OutPOSt-Setup-v${VERSION}.exe"
+          TARGET_SHA="site/downloads/OutPOSt-Setup-v${VERSION}.sha256.txt"
+          CHANGELOG="site/changelog.html"
+
+          seen_exe=0
+          seen_sha=0
+          seen_changelog=0
+          changed=0
+
+          while IFS=$'\t' read -r status path extra; do
+            [ -n "${status}" ] || continue
+            changed=$((changed + 1))
+
+            if [[ "${status}" == R* || "${status}" == C* || "${status}" == D* ]]; then
+              echo "Release staging must not rename/copy/delete files: ${status} ${path} ${extra:-}" >&2
+              exit 1
+            fi
+
+            case "${path}" in
+              "${TARGET_EXE}")
+                [ "${status}" = "A" ] || { echo "Target installer must be newly added: ${status} ${path}" >&2; exit 1; }
+                seen_exe=1
+                ;;
+              "${TARGET_SHA}")
+                [ "${status}" = "A" ] || { echo "Target checksum must be newly added: ${status} ${path}" >&2; exit 1; }
+                seen_sha=1
+                ;;
+              "${CHANGELOG}")
+                [ "${status}" = "M" ] || { echo "Changelog must be modified in place: ${status} ${path}" >&2; exit 1; }
+                seen_changelog=1
+                ;;
+              *)
+                echo "Unexpected staging change outside release inputs: ${status} ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done < <(git diff --name-status "${MAIN_SHA}" "${STAGING_SHA}")
+
+          if [ "${changed}" -ne 3 ] || [ "${seen_exe}" -ne 1 ] || [ "${seen_sha}" -ne 1 ] || [ "${seen_changelog}" -ne 1 ]; then
+            echo "staging must contain exactly three release inputs: target installer, target checksum, changelog." >&2
+            exit 1
+          fi
+
+          echo "main_sha=${MAIN_SHA}" >> "$GITHUB_OUTPUT"
+          echo "staging_sha=${STAGING_SHA}" >> "$GITHUB_OUTPUT"
+          echo "target_exe=${TARGET_EXE}" >> "$GITHUB_OUTPUT"
+          echo "target_sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Validated release-input-only staging: ${MAIN_SHA}..${STAGING_SHA}"
+
+      - name: Dry-run release preparation
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python scripts/prepare_public_release.py "${VERSION}"
+
+      - name: Create automatic pre-release backup and isolated release branch
+        id: branch
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BACKUP_BRANCH="backup/pre-v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RELEASE_BRANCH="release/v${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          git push origin "${MAIN_SHA}:refs/heads/${BACKUP_BRANCH}"
+          git switch -c "${RELEASE_BRANCH}"
+
+          echo "backup_branch=${BACKUP_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "release_branch=${RELEASE_BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Apply reusable release updater
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python scripts/prepare_public_release.py "${VERSION}" --apply
+
+      - name: Enforce generated release diff scope
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
+          TARGET_EXE: ${{ steps.scope.outputs.target_exe }}
+          TARGET_SHA: ${{ steps.scope.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+
+          while IFS=$'\t' read -r status path extra; do
+            [ -n "${status}" ] || continue
+
+            if [[ "${status}" == R* || "${status}" == C* || "${status}" == D* ]]; then
+              echo "Prepared release must not rename/copy/delete files: ${status} ${path} ${extra:-}" >&2
+              exit 1
+            fi
+
+            case "${path}" in
+              site/*.html|site/sitemap.xml|"${TARGET_EXE}"|"${TARGET_SHA}")
+                ;;
+              *)
+                echo "Prepared release escaped the public allowlist: ${status} ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done < <(git diff --name-status "${MAIN_SHA}")
+
+          for protected in \
+            site/_worker.js \
+            site/_telegram-support.js \
+            site/_telegram-faq.js \
+            site/_headers \
+            wrangler.jsonc; do
+            if ! git diff --quiet "${MAIN_SHA}" -- "${protected}"; then
+              echo "Protected release boundary changed unexpectedly: ${protected}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Run complete static release gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/verify_public_site.py
+          python scripts/verify_debt_screenshot_tour.py
+          python scripts/verify_automation_landing_intents.py
+          python scripts/verify_public_seo_uniqueness.py
+          python scripts/verify_public_contextual_links.py
+          python scripts/test_demo_dialog_contract.py
+          python scripts/test_public_faq_schema.py
+          python scripts/verify_site_identity.py
+          python scripts/verify_site_identity_workflows.py
+          python scripts/verify_quality_gate_workflows.py
+          python scripts/test_quality_gate_workflows.py
+          python scripts/test_main_push_provenance.py
+          python scripts/verify_removed_public_pages.py
+          python scripts/verify_404_page.py
+          python scripts/verify_public_ctas.py
+          python scripts/verify_support_discovery.py
+          python scripts/verify_safe_rollback_workflow.py
+          python scripts/verify_prepare_release_workflow.py
+          python scripts/verify_prepare_accounting_release_workflow.py
+          python scripts/verify_release_gate_parity.py
+          python scripts/test_release_gate_parity.py
+          python scripts/verify_internal_anchors.py
+          python scripts/verify_license_activation_path.py
+          python scripts/verify_public_license_terms.py
+          python scripts/verify_public_product_maturity.py
+          python scripts/verify_client_copy_no_release_history.py
+          python scripts/test_product_maturity_guard.py
+          python scripts/verify_cabinet_entry.py
+          python scripts/verify_accessibility.py
+          python scripts/verify_color_contrast.py
+          python scripts/verify_public_contacts.py
+          python scripts/verify_phone_ctas.py
+          python scripts/verify_cloudflare_config.py
+          python scripts/verify_security_headers.py
+          python scripts/verify_installers.py
+          python scripts/verify_accounting_release.py
+          python scripts/prepare_accounting_release.py --check-current
+          python scripts/test_prepare_accounting_release.py
+          python scripts/verify_release_metadata.py
+          python scripts/test_release_changelog_counts.py
+          python scripts/verify_release_sitemap.py
+          python scripts/prepare_public_release.py --check-current
+          python scripts/test_prepare_public_release.py
+          python scripts/test_sitemap_freshness.py
+          python scripts/verify_sitemap_freshness.py
+          python scripts/test_live_host_normalization.py
+          python scripts/test_live_cloudflare_privacy.py
+          python scripts/test_live_sitemap.py
+          python scripts/test_live_static_assets.py
+          python scripts/test_social_image_dimensions.py
+          python -m py_compile scripts/accounting_release_meta.py scripts/prepare_accounting_release.py scripts/test_prepare_accounting_release.py scripts/verify_prepare_accounting_release_workflow.py
+          python -m py_compile scripts/verify_site_identity.py scripts/verify_live_site_identity.py scripts/verify_site_identity_workflows.py scripts/verify_quality_gate_workflows.py scripts/test_quality_gate_workflows.py scripts/verify_main_push_provenance.py scripts/test_main_push_provenance.py scripts/verify_public_product_maturity.py scripts/verify_client_copy_no_release_history.py scripts/test_product_maturity_guard.py scripts/verify_release_gate_parity.py scripts/test_release_gate_parity.py
+          python -m py_compile scripts/verify_live_production.py scripts/verify_live_public_ctas.py scripts/verify_live_phone_ctas.py scripts/verify_live_indexability.py scripts/verify_live_404.py scripts/verify_live_public_links.py scripts/verify_live_sitemap.py scripts/test_live_sitemap.py scripts/verify_live_robots.py scripts/verify_live_support_discovery.py scripts/verify_live_cabinet_entry.py scripts/verify_live_security_headers.py scripts/verify_live_static_assets.py scripts/test_live_static_assets.py scripts/test_social_image_dimensions.py scripts/verify_live_url_normalization.py scripts/verify_live_host_normalization.py scripts/test_live_host_normalization.py scripts/verify_live_cloudflare_privacy.py scripts/test_live_cloudflare_privacy.py scripts/verify_live_social_metadata.py scripts/verify_live_structured_metadata.py scripts/verify_live_product_maturity.py scripts/verify_live_accounting_release.py
+          python scripts/verify_telegram_support.py
+          node scripts/test_telegram_support.mjs
+          node scripts/test_cms_preview_privacy.mjs
+          node scripts/test_static_preview_privacy.mjs
+          node scripts/generate_support_center.mjs --check
+          node --check scripts/generate_support_center.mjs
+          node --check scripts/test_static_preview_privacy.mjs
+          node --check site/assets/outpost-demo-v1.js
+          node --check site/assets/outpost-demo-modules-v1.js
+          node --check site/assets/outpost-demo-returns-v1.js
+          node --check site/assets/outpost-demo-products-v1.js
+          node --check site/script.js
+          node --check site/_worker.js
+          node --check site/_cms-runtime.js
+          node --check site/_telegram-support.js
+          node --check site/_telegram-faq.js
+          git diff --check
+
+      - name: Commit generated release metadata
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          git add site/*.html site/sitemap.xml
+          if git diff --cached --quiet; then
+            echo "Release updater produced no generated metadata changes." >&2
+            exit 1
+          fi
+          git commit -m "Prepare public release v${VERSION}"
+
+      - name: Push isolated release branch
+        shell: bash
+        env:
+          RELEASE_BRANCH: ${{ steps.branch.outputs.release_branch }}
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:refs/heads/${RELEASE_BRANCH}"
+
+      - name: Open release pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
+          STAGING_SHA: ${{ steps.scope.outputs.staging_sha }}
+          BACKUP_BRANCH: ${{ steps.branch.outputs.backup_branch }}
+          RELEASE_BRANCH: ${{ steps.branch.outputs.release_branch }}
+        run: |
+          set -euo pipefail
+          printf -v BODY '%s\n\n%s\n%s\n%s\n%s\n\n%s\n\n%s' \
+            "Prepared OutPOSt public release v${VERSION}." \
+            "Current main baseline: ${MAIN_SHA}" \
+            "Validated staging inputs: ${STAGING_SHA}" \
+            "Automatic pre-release backup: ${BACKUP_BRANCH}" \
+            "Release branch: ${RELEASE_BRANCH}" \
+            "The workflow accepted only the target installer, target checksum and changelog as staging inputs, then ran the reusable release updater plus the complete static release gate." \
+            "This workflow does **not** merge the PR, push to main, deploy Cloudflare, or call Cabinet/Director/Sync/D1. Normal PR smoke and post-merge live verification remain mandatory."
+
+          gh pr create \
+            --base main \
+            --head "${RELEASE_BRANCH}" \
+            --title "Release OutPOSt v${VERSION}" \
+            --body "${BODY}"
