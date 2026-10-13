@@ -39,6 +39,24 @@ LIVE_COMMANDS = (
     'verify_live_accounting_release.py', 'verify_live_support_discovery.py',
     'verify_live_cabinet_entry.py',
 )
+# Public GET verifiers need runtime/TLS settings and bounded retry controls, not
+# the parent publisher's Pages/Actions credentials or trusted workflow context.
+LIVE_RUNTIME_ENV = frozenset({
+    'PATH', 'SYSTEMROOT', 'WINDIR', 'SYSTEMDRIVE', 'TEMP', 'TMP', 'TMPDIR',
+    'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'LD_LIBRARY_PATH',
+    'DYLD_LIBRARY_PATH', 'DYLD_FALLBACK_LIBRARY_PATH',
+    'PYTHONUTF8', 'PYTHONIOENCODING', 'PYTHONPYCACHEPREFIX',
+    'SSL_CERT_FILE', 'SSL_CERT_DIR',
+})
+LIVE_TUNING_ENV = frozenset(
+    'OUTPOST_LIVE_' + name + '_' + suffix
+    for name in ('VERIFY', 'IDENTITY', '404', 'CLOUDFLARE_PRIVACY', 'CABINET',
+                 'HOST_NORMALIZATION', 'INDEXABILITY', 'PHONE', 'MATURITY',
+                 'LINKS', 'ROBOTS', 'SECURITY', 'SITEMAP', 'ASSETS', 'STRUCTURED',
+                 'SOCIAL', 'SUPPORT', 'NORMALIZATION')
+    for suffix in ('ATTEMPTS', 'DELAY_SECONDS')
+) | frozenset('OUTPOST_LIVE_' + name + '_WORKERS' for name in
+              ('IDENTITY', 'HOST_NORMALIZATION', 'NORMALIZATION', 'SOCIAL', 'STRUCTURED'))
 
 def digest(value):
     payload = value if isinstance(value, bytes) else json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
@@ -409,9 +427,17 @@ def deployment_id(data):
     gate.require(len(identities) == 1, 'verified_own_deployment_missing')
     return identities.pop()
 
+def live_environment(env):
+    # Allowlist, not a secret-name denylist: unknown/private/proxy/profile vars
+    # must not leak into a verifier. This does not sandbox filesystem access.
+    allowed = LIVE_RUNTIME_ENV | LIVE_TUNING_ENV
+    return {name: value for name, value in env.items() if name.upper() in allowed}
+
 def run_live(root, command):
     import sys
-    result = subprocess.run([sys.executable, str(root / 'scripts' / command)], cwd=root, capture_output=True, timeout=240, check=False)
+    gate.require(command in LIVE_COMMANDS, 'unexpected_live_verifier')
+    result = subprocess.run([sys.executable, str(root / 'scripts' / command)], cwd=root,
+                            env=live_environment(os.environ), capture_output=True, timeout=240, check=False)
     return result.returncode == 0
 
 def verify_live(env, root, journal, client, runner=run_live):

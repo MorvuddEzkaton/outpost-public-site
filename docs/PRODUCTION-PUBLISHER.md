@@ -31,10 +31,12 @@ unresolved old attempts still quarantine all source SHAs. No checkpoint rewrite,
 retention reset, history pruning or automatic-recovery override is added.
 
 This source/config change does **not** publish, activate a writer, create keys,
-initialize release SQL, enable a scheduler or announce a desktop release. A new
-explicitly approved bootstrap and compatible successful baseline are still needed
-before protected writer acceptance. Old preview or legacy-mode deployment metadata
-alone cannot qualify as a compatible code-only rollback target.
+initialize release SQL, enable a scheduler or announce a desktop release. Before
+protected writer acceptance, retain the separately approved successful bootstrap
+and its compatible live baseline privately, then revalidate them immediately
+before the first protected run. Reuse an accepted baseline; do not create another
+manual bootstrap merely to obtain a fresh source SHA. Old preview or legacy-mode
+deployment metadata alone cannot qualify as a compatible code-only rollback target.
 [Cloudflare Pages configuration source of truth](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).
 
 ## Dormant by default
@@ -74,7 +76,15 @@ strengthened.
    deployment/source/status, wait read-only at most four minutes for our own
    deployment, and reject another rollout or configuration drift.
 5. Recheck actual exact deployment, current main and safe notification mode
-   before **each** live verifier. Run the existing 20 live contracts. Record
+   before **each** live verifier. Run the existing 20 live contracts. Each verifier
+   receives an explicit allowlisted environment: Python/OS/TLS essentials and
+   known retry/parallelism controls only. Pages/Actions credentials, trusted CI
+   context, activation flags, unlisted variables, profile-environment references,
+   Python module overrides and
+   proxy variables are not inherited. The parent keeps its existing scoped
+   credentials for the repeated provenance gates; no workflow permissions are
+   widened. Only the literal reviewed verifier names may be spawned. This is
+   environment isolation, not an OS/filesystem sandbox. Record
    `live_pass` only after all pass. Any failure/uncertainty remains a failure.
 6. If separately approved via `OUTPOST_PRODUCTION_ROLLBACK_ENABLED=1`, a critical
    live failure can restore only the recorded successful baseline, only while
@@ -237,10 +247,16 @@ inherent rights. Never copy an owner's broad interactive OAuth profile into CI.
 Before activation: human code review; explicit deployment/credential/mode/rollback
 approval; controlled bootstrap of the new health schema; deliberate confirmed-mode
 transition without an unsolicited broadcast; and a real protected pipeline acceptance
-against the existing project. This preparation has only synthetic/offline tests,
-not production end-to-end acceptance. The scheduler, release-confirmation linkage,
-receipt provenance, real checkpoint capture/review and actual notification acceptance
-remain separate work. No new Windows build/evidence is implied.
+against the existing project. A separately approved manual bootstrap can establish
+a compatible live baseline, but does not activate or certify this protected writer.
+Its accepted source must not be resubmitted as the writer's first trial: both its
+real deployment and any dormant workflow run participate in no-replay guards.
+Use a new reviewed source with meaningful preparation changes, retain the accepted
+baseline privately, and obtain activation approval before its first protected run.
+Do not rerun a skipped/manual-bootstrap source, weaken environment equality or
+clear history to manufacture a first acceptance. The scheduler, release-confirmation
+linkage, receipt provenance, future resolved-run checkpoint capture/review and actual
+notification acceptance remain separate work. No new Windows build/evidence is implied.
 
 Keep the exact reviewed configuration as the source of truth, not a generated preview
 configuration or a config-free upload.
