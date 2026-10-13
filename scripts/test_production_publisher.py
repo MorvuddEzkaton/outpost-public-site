@@ -26,8 +26,7 @@ def env():
 class FakeClient:
     def __init__(self):
         self.project = project()
-        for config in self.project['deployment_configs'].values():
-            config['wrangler_config_hash'] = publisher.ORIGINAL_CONFIG_HASH
+        self.project['deployment_configs']['production']['wrangler_config_hash'] = publisher.APPROVED_CONFIG_HASH
         self.project['canonical_deployment']['deployment_trigger']['metadata']['commit_hash'] = 'c' * 40
         self.original = deepcopy(self.project['canonical_deployment'])
         self.items = [deepcopy(self.original)]
@@ -106,7 +105,7 @@ class PublisherTests(unittest.TestCase):
         checkpoint_patch.start()
         self.addCleanup(checkpoint_patch.stop)
         config = json.loads((gate.ROOT / 'wrangler.jsonc').read_text())
-        self.source_patch = patch.object(gate, 'local_source', return_value=(config, publisher.ORIGINAL_CONFIG_HASH))
+        self.source_patch = patch.object(gate, 'local_source', return_value=(config, publisher.APPROVED_CONFIG_HASH))
         self.source_patch.start()
         self.addCleanup(self.source_patch.stop)
         self.manifest_patch = patch.object(publisher, 'manifest', return_value=[{'path': 'site/demo.html', 'bytes': 4, 'sha256': 'd' * 64}])
@@ -167,6 +166,17 @@ class PublisherTests(unittest.TestCase):
     def test_original_config_hash_required(self):
         with patch.object(gate, 'local_source', return_value=({}, '0' * 64)), self.assertRaises(gate.GateError):
             publisher.preflight(self.env, self.root, self.client)
+
+    def test_legacy_hash_is_historical_evidence_only_not_operational(self):
+        old = deepcopy(self.journal.data); old['configuration_sha256'] = publisher.LEGACY_CONFIG_HASH
+        publisher.validate_journal_evidence(old, SHA, self.env['GITHUB_RUN_ID'])
+        with self.assertRaisesRegex(gate.GateError, 'current_journal_configuration_mismatch'):
+            publisher.validate_journal(old, self.env)
+        with patch.object(gate, 'local_source', return_value=(json.loads((gate.ROOT/'wrangler.jsonc').read_text()), publisher.LEGACY_CONFIG_HASH)):
+            with self.assertRaises(gate.GateError): publisher.preflight(self.env, self.root, self.client)
+        for value in ['0'*64, 'f'*64]:
+            other = deepcopy(old); other['configuration_sha256'] = value
+            with self.subTest(value=value), self.assertRaises(gate.GateError): publisher.validate_journal_evidence(other, SHA, self.env['GITHUB_RUN_ID'])
 
     def test_release_hold_blocks(self):
         (self.root / '.release-hold').touch()

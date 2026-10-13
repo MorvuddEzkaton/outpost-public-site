@@ -9,6 +9,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "wrangler.jsonc"
+LEGACY_CONFIG_HASH = "a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d"
+APPROVED_CONFIG_HASH = "1250f89a51fd987f0829d2e9772afd658943d956666259661ceaecfe212bfcf6"
+# A production-only upload must not require or silently change preview settings.
+EXPECTED_PREVIEW_CONFIG_HASH = LEGACY_CONFIG_HASH
+EXPECTED_PRODUCTION_VARS = {"TELEGRAM_CONFIRMED_RELEASES_ENABLED": "1"}
 
 EXPECTED = {
     "name": "outpost-web",
@@ -34,8 +39,35 @@ def as_binding_map(items: list[dict]) -> dict[str, tuple[str, str]]:
     }
 
 
-def main() -> int:
+def configuration_errors(data) -> list[str]:
     errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["configuration must be an object"]
+    if set(data) != {"$schema", "name", "pages_build_output_dir", "compatibility_date", "vars", "d1_databases", "env"}:
+        errors.append("unexpected configuration fields")
+    environments = data.get("env", {})
+    preview_candidate = environments.get("preview", {}) if isinstance(environments, dict) else {}
+    preview_config = preview_candidate if isinstance(preview_candidate, dict) else {}
+    if not isinstance(environments, dict) or set(environments) != {"preview"} or not isinstance(preview_candidate, dict) or set(preview_config) != {"vars", "d1_databases"}:
+        errors.append("only the explicit preview configuration is allowed")
+    if data.get("vars") != EXPECTED_PRODUCTION_VARS:
+        errors.append("production must declare exactly the nonsecret confirmed-mode flag as string 1")
+    if preview_config.get("vars") != {}:
+        errors.append("preview must explicitly override vars with an empty object")
+    for key, expected in EXPECTED.items():
+        if data.get(key) != expected:
+            errors.append(f"{key} does not match the reviewed contract")
+    try:
+        if as_binding_map(data.get("d1_databases", [])) != EXPECTED_PRODUCTION_D1:
+            errors.append("production D1 bindings changed")
+        if as_binding_map(preview_config.get("d1_databases", [])) != EXPECTED_PREVIEW_D1:
+            errors.append("preview D1 bindings changed")
+    except (TypeError, AttributeError):
+        errors.append("invalid D1 binding structure")
+    return errors
+
+
+def main() -> int:
 
     if not CONFIG.is_file():
         print("Cloudflare config guard: FAIL\n  - wrangler.jsonc is missing")
@@ -47,18 +79,10 @@ def main() -> int:
         print(f"Cloudflare config guard: FAIL\n  - wrangler.jsonc is not parseable JSON: {exc}")
         return 1
 
-    for key, expected in EXPECTED.items():
-        actual = data.get(key)
-        if actual != expected:
-            errors.append(f"{key}: expected {expected!r}, got {actual!r}")
-
-    production = as_binding_map(data.get("d1_databases", []))
-    if production != EXPECTED_PRODUCTION_D1:
-        errors.append(f"production D1 bindings changed: {production!r}")
-
-    preview = as_binding_map(data.get("env", {}).get("preview", {}).get("d1_databases", []))
-    if preview != EXPECTED_PREVIEW_D1:
-        errors.append(f"preview D1 bindings changed: {preview!r}")
+    errors = configuration_errors(data)
+    import hashlib
+    if hashlib.sha256(CONFIG.read_bytes()).hexdigest() != APPROVED_CONFIG_HASH:
+        errors.append("configuration bytes do not match the reviewed exact pin")
 
     if errors:
         print(f"Cloudflare config guard: FAIL ({len(errors)} issue(s))")
@@ -68,7 +92,7 @@ def main() -> int:
         return 1
 
     print("Cloudflare config guard: PASS")
-    print("  Pages output and production/preview D1 bindings match the known-good baseline")
+    print("  Exact reviewed configuration: production mode flag, isolated preview vars, unchanged runtime and D1 bindings")
     return 0
 
 

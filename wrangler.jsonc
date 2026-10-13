@@ -3,6 +3,9 @@
   "name": "outpost-web",
   "pages_build_output_dir": "./site",
   "compatibility_date": "2026-08-22",
+  "vars": {
+    "TELEGRAM_CONFIRMED_RELEASES_ENABLED": "1"
+  },
   "d1_databases": [
     {
       "binding": "ANALYTICS_DB",
@@ -17,6 +20,7 @@
   ],
   "env": {
     "preview": {
+      "vars": {},
       "d1_databases": [
         {
           "binding": "ANALYTICS_DB",

@@ -2,7 +2,40 @@
 
 This is source publication to the existing `outpost-web` Pages project. It does not
 publish a new desktop release, announce versions, create resources, or change
-DNS, secrets, D1, Git integration, or the original Wrangler configuration.
+DNS, secrets, D1 or Git integration. It uploads only the exact reviewed Wrangler
+configuration; it does not patch provider settings.
+
+## Declared runtime mode (source preparation only)
+
+The nonsecret `TELEGRAM_CONFIRMED_RELEASES_ENABLED="1"` is declared in production
+`vars`, with `env.preview.vars={}` explicitly preventing inheritance. A plain-text
+project setting alone is not sufficient when the vars-free Wrangler file owns
+runtime Worker bindings: a controlled attempt produced new health schema 1 but
+confirmed=false/legacy=true despite matching project/deployment metadata. It was
+restored, not accepted. Do not substitute a synthetic environment or metadata for
+actual canonical health, resubmit that source, or silently convert the flag to a
+secret/change other bindings.
+
+The current exact file pin is `1250f89a51fd987f0829d2e9772afd658943d956666259661ceaecfe212bfcf6`.
+Runtime date and both D1 environments are unchanged. Remote **preview** retains
+its independent legacy configuration marker
+`a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d`:
+production publication must not force a preview upload or mutate its settings.
+Unexpected variables/values/fields or either environment's marker drift block.
+The full stable project fingerprint and baseline environment equality remain strict.
+
+Historical evidence understands only these two explicitly reviewed pins; current
+operational intents/packages accept only the current pin. Legacy resolved evidence
+is not discarded, but legacy intents cannot authorize a new upload. Unknown or
+unresolved old attempts still quarantine all source SHAs. No checkpoint rewrite,
+retention reset, history pruning or automatic-recovery override is added.
+
+This source/config change does **not** publish, activate a writer, create keys,
+initialize release SQL, enable a scheduler or announce a desktop release. A new
+explicitly approved bootstrap and compatible successful baseline are still needed
+before protected writer acceptance. Old preview or legacy-mode deployment metadata
+alone cannot qualify as a compatible code-only rollback target.
+[Cloudflare Pages configuration source of truth](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).
 
 ## Dormant by default
 
@@ -24,14 +57,14 @@ strengthened.
 ## One attempt; explicit states
 
 1. Read-only preflight: actual merged PR with latest owner review on its exact
-   head; current main; protected environment; original config/runtime/bindings;
+   head; current main; protected environment; exact approved config/runtime/bindings;
    no production deployment in flight; successful current baseline; safe confirmed
    notification mode. Old/unknown health or visitor-triggered mode blocks.
 2. Record the baseline ID/source, normalized configuration digest, exact package
    digest, reviewed source and run ID. Persist this credential-free intent as a
    GitHub artifact **before** upload. No project configuration dump, raw tool/API
    logs, secret values, recipient identities, or database content are uploaded.
-3. Export only reviewed tracked regular files under `site/` and the exact original
+3. Export only reviewed tracked regular files under `site/` and the exact approved
    `wrangler.jsonc` to a separate upload directory. Check every byte, hash and
    filename; reject symlinks, extra files and ancestor development configs.
    Wrangler 4.142.0 and its dependency integrity lock are reviewed; install with
@@ -190,7 +223,7 @@ it does not consume credentials or contact any service.
   incompatible with the guarded rollback target. Do not activate the writer,
   add bindings or promise rollback to the old code until a separately approved
   bootstrap has established and checked a compatible successful baseline.
-  Legacy code is not assumed to understand the new confirmed-notification flag.
+  A legacy metadata snapshot is not proof that the new runtime binding applies.
   Recovery must not overwrite hidden secret values or restore SQL over new data.
 
 ## Separate activation decision
@@ -209,6 +242,6 @@ not production end-to-end acceptance. The scheduler, release-confirmation linkag
 receipt provenance, real checkpoint capture/review and actual notification acceptance
 remain separate work. No new Windows build/evidence is implied.
 
-Keep the original configuration as the source of truth, not a generated preview
+Keep the exact reviewed configuration as the source of truth, not a generated preview
 configuration or a config-free upload.
 [Cloudflare configuration contract](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).

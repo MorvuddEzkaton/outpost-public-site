@@ -19,9 +19,12 @@ from urllib.request import Request, build_opener
 import production_deployment_gate as gate
 import production_history as history
 import production_checkpoints as checkpoints
+from verify_cloudflare_config import APPROVED_CONFIG_HASH, LEGACY_CONFIG_HASH
 
 WRANGLER_VERSION = '4.142.0'
-ORIGINAL_CONFIG_HASH = 'a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d'
+# Only already reviewed pins are understood by the read-only historical validator.
+# Current plan/upload/live/rollback never accepts the legacy vars-free config.
+EVIDENCE_CONFIG_HASHES = frozenset({LEGACY_CONFIG_HASH, APPROVED_CONFIG_HASH})
 TERMINAL = {'success', 'failure', 'canceled', 'skipped'}
 PAGES_PER_PAGE = 20
 MAX_PRODUCTION_DEPLOYMENTS = 1000
@@ -135,7 +138,9 @@ class Journal:
 
 def validate_journal(data, env):
     sha = context(env)
-    return validate_journal_evidence(data, sha, env['GITHUB_RUN_ID'])
+    value = validate_journal_evidence(data, sha, env['GITHUB_RUN_ID'])
+    gate.require(value['configuration_sha256'] == APPROVED_CONFIG_HASH, 'current_journal_configuration_mismatch')
+    return value
 
 
 def validate_journal_evidence(data, sha, run_id):
@@ -143,7 +148,7 @@ def validate_journal_evidence(data, sha, run_id):
     gate.require(isinstance(data, dict) and set(data) == {'schema', 'run_id', 'source_sha', 'configuration_sha256', 'package_sha256', 'project_sha256',
                               'baseline_id', 'baseline_sha', 'initial_ids', 'review', 'state', 'events'}, 'invalid_journal_schema')
     gate.require(type(data['schema']) is int and data['schema'] == 1 and data['run_id'] == run_id and data['source_sha'] == sha and
-                 data['configuration_sha256'] == ORIGINAL_CONFIG_HASH and isinstance(data['events'], list) and
+                 isinstance(data['configuration_sha256'], str) and data['configuration_sha256'] in EVIDENCE_CONFIG_HASHES and isinstance(data['events'], list) and
                  1 <= len(data['events']) <= 10 and all(isinstance(event, dict) for event in data['events']), 'journal_context_mismatch')
     for name in ('package_sha256', 'project_sha256'):
         gate.require(re.fullmatch(r'[a-f0-9]{64}', data[name]) is not None, 'invalid_journal_digest')
@@ -190,9 +195,15 @@ def validate_journal_evidence(data, sha, run_id):
     return data
 
 
+def validate_historical_journal(data, metadata):
+    # Evidence only: the surrounding current protected context is still required,
+    # but resolved prior runs may carry the explicitly pinned legacy config.
+    return validate_journal_evidence(data, context(metadata), metadata['GITHUB_RUN_ID'])
+
+
 def history_clear(client, env, root):
     records = checkpoints.load_checked(root, env['GITHUB_SHA'], validate_journal_evidence)
-    history.assert_clear(client, env, validate_journal, records)
+    history.assert_clear(client, env, validate_historical_journal, records)
 
 class Clients(history.HistoryReads, gate.ReadOnlyClients):
     def __init__(self, env):
@@ -252,7 +263,7 @@ def preflight(env, root, client, notification_mode=True):
     # This is transaction/replay evidence, never a CI quality PASS substitute.
     history_clear(client, env, root)
     config, config_hash = gate.local_source(root, sha)
-    gate.require(config_hash == ORIGINAL_CONFIG_HASH and not (root / '.release-hold').exists(), 'original_configuration_or_release_hold_rejected')
+    gate.require(config_hash == APPROVED_CONFIG_HASH and not (root / '.release-hold').exists(), 'approved_configuration_or_release_hold_rejected')
     review = gate.review_proof(client, sha)
     if notification_mode:
         gate.validate_notification_mode(client.health())
@@ -305,7 +316,7 @@ def verify_package(destination, expected):
             name = file.relative_to(destination).as_posix()
             payload = file.read_bytes()
             if name == 'wrangler.jsonc':
-                gate.require(digest(payload) == ORIGINAL_CONFIG_HASH, 'upload_config_changed')
+                gate.require(digest(payload) == APPROVED_CONFIG_HASH, 'upload_config_changed')
             else:
                 gate.require(name.startswith('site/'), 'extra_upload_file')
                 rows.append({'path': name, 'bytes': len(payload), 'sha256': digest(payload)})
