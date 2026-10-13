@@ -223,7 +223,7 @@ it does not consume credentials or contact any service.
   incompatible with the guarded rollback target. Do not activate the writer,
   add bindings or promise rollback to the old code until a separately approved
   bootstrap has established and checked a compatible successful baseline.
-  Legacy code is not assumed to understand the new confirmed-notification flag.
+  A legacy metadata snapshot is not proof that the new runtime binding applies.
   Recovery must not overwrite hidden secret values or restore SQL over new data.
 
 ## Separate activation decision
@@ -242,6 +242,6 @@ not production end-to-end acceptance. The scheduler, release-confirmation linkag
 receipt provenance, real checkpoint capture/review and actual notification acceptance
 remain separate work. No new Windows build/evidence is implied.
 
-Keep the original configuration as the source of truth, not a generated preview
+Keep the exact reviewed configuration as the source of truth, not a generated preview
 configuration or a config-free upload.
 [Cloudflare configuration contract](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).
