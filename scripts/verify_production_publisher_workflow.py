@@ -52,13 +52,16 @@ def verify(text):
 
 def main():
     errors = verify(WORKFLOW.read_text(encoding='utf-8'))
+    errors += verify_checkpoints((ROOT / '.github/workflows/public-repository-security.yml').read_text(encoding='utf-8'))
     for name in ['public-site-smoke.yml', 'prepare-public-release.yml', 'prepare-accounting-release.yml']:
         text = (ROOT / '.github/workflows' / name).read_text(encoding='utf-8')
         for command in ['python scripts/test_production_publisher.py', 'python scripts/test_production_history.py', 'python scripts/verify_production_publisher_workflow.py',
-                        'python scripts/test_production_publisher_workflow.py']:
+                        'python scripts/test_production_publisher_workflow.py', 'python scripts/test_production_checkpoints.py',
+                        'python scripts/verify_production_checkpoints.py']:
             if command not in text:
                 errors.append('publisher regression missing from ' + name + ': ' + command)
-        for target in ['scripts/production_history.py', 'scripts/test_production_history.py']:
+        for target in ['scripts/production_history.py', 'scripts/test_production_history.py', 'scripts/production_checkpoints.py',
+                       'scripts/verify_production_checkpoints.py', 'scripts/test_production_checkpoints.py']:
             if not any(target in line for line in text.splitlines() if 'python -m py_compile ' in line):
                 errors.append('history compilation missing from ' + name + ': ' + target)
     if errors:
@@ -66,6 +69,19 @@ def main():
         return 1
     print('Production publisher workflow: PASS; dormant opt-in, protected main, all quality gates, durable intent and conditional code-only rollback')
     return 0
+
+
+def verify_checkpoints(text):
+    text = re.sub(r'(?m)^\s*#.*$', '', text)
+    required = ['permissions:\n      contents: read\n      actions: read', 'fetch-depth: 0', 'persist-credentials: false',
+                'CHECKPOINT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}',
+                'GITHUB_TOKEN: ${{ github.token }}', 'run: python scripts/verify_production_checkpoints.py --check-new']
+    errors = ['missing checkpoint guard: ' + marker for marker in required if marker not in text]
+    for marker in ['contents: write', 'actions: write', 'secrets.', 'continue-on-error:', 'pull_request_target:',
+                   'workflow_run:', 'schedule:', '--capture', '|| true']:
+        if marker in text:
+            errors.append('unsafe checkpoint verification privilege/bypass: ' + marker)
+    return errors
 
 if __name__ == '__main__':
     sys.exit(main())

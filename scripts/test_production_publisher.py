@@ -102,6 +102,9 @@ class PublisherTests(unittest.TestCase):
         self.package = self.directory / 'upload'
         self.env = env()
         self.client = FakeClient()
+        checkpoint_patch = patch.object(publisher.checkpoints, 'load_checked', return_value=[])
+        checkpoint_patch.start()
+        self.addCleanup(checkpoint_patch.stop)
         config = json.loads((gate.ROOT / 'wrangler.jsonc').read_text())
         self.source_patch = patch.object(gate, 'local_source', return_value=(config, publisher.ORIGINAL_CONFIG_HASH))
         self.source_patch.start()
