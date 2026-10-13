@@ -188,6 +188,13 @@ jobs:
       - name: Test quality workflow trigger guard
         run: python scripts/test_quality_gate_workflows.py
 
+      - name: Test dormant production publisher and fail-closed wiring
+        run: |
+          python scripts/test_production_publisher.py
+          python scripts/verify_production_publisher_workflow.py
+          python scripts/test_production_publisher_workflow.py
+          python -m py_compile scripts/production_publisher.py scripts/test_production_publisher.py scripts/verify_production_publisher_workflow.py scripts/test_production_publisher_workflow.py scripts/run_production_quality.py
+
       - name: Test main push provenance guard
         run: python scripts/test_main_push_provenance.py
 
@@ -330,6 +337,9 @@ jobs:
 
       - name: Test credential-free release mode health
         run: node scripts/test_release_mode_health.mjs
+
+      - name: Test locked Linux publisher toolchain without operational credentials
+        run: node scripts/test_publisher_toolchain.mjs
 
       - name: Verify confirmed release journal and disabled activation gates
         run: |

@@ -126,6 +126,7 @@ class ReadOnlyClients:
     def __init__(self, env):
         self.account = env.get('CLOUDFLARE_ACCOUNT_ID', '')
         self.token = env.get('CLOUDFLARE_API_TOKEN', '')
+        self.github_token = env.get('GITHUB_TOKEN', '')
         require(re.fullmatch(r'[a-f0-9]{32}', self.account) is not None and self.token, 'pages_credential_missing')
         self.base = '/accounts/' + self.account + '/pages/projects/' + PROJECT
 
@@ -144,9 +145,13 @@ class ReadOnlyClients:
         require(suffix in ('/git/ref/heads/main', '/environments/production', '/environments/production/deployment-branch-policies') or
                 re.fullmatch(r'/commits/[a-f0-9]{40}/pulls\?per_page=100', suffix) or
                 re.fullmatch(r'/pulls/\d+/reviews\?per_page=100', suffix), 'unapproved_github_read')
-        # Public metadata can be read without a token. Never obtain broader GitHub permissions here.
-        return self._json('https://api.github.com/repos/' + REPOSITORY + suffix,
-                          {'Accept': 'application/vnd.github+json', 'User-Agent': 'OutPOSt-Production-Provenance'})
+        # Public metadata works without a token. A publisher may pass the existing
+        # read-only CI token to avoid the low anonymous limit during repeated gates;
+        # never mint a token, widen permissions or permit additional endpoints here.
+        headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'OutPOSt-Production-Provenance'}
+        if self.github_token:
+            headers['Authorization'] = 'Bearer ' + self.github_token
+        return self._json('https://api.github.com/repos/' + REPOSITORY + suffix, headers)
 
     def pages(self, suffix=''):
         require(suffix in ('', '/deployments') or re.fullmatch(r'/deployments/[a-f0-9-]{36}', suffix), 'unapproved_pages_read')
