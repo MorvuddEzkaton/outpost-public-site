@@ -31,7 +31,11 @@ It verifies the reviewed Windows receipt, immutable source artifacts and actual
 live checks BEFORE using the confirmation credential. Existing historical artifacts
 without a current reviewed receipt cannot become a new announcement accidentally.
 The source SHA is trusted-caller provenance, not independent proof of a Cloudflare
-deployment. Separate deployment/live provenance gates remain necessary.
+deployment. A separate read-only `production_deployment_gate.py` now requires actual
+matching successful canonical Pages metadata, exact merged PR/owner review and a
+safe notification mode before live GETs or confirmation. It does not activate the
+protected deployment writer, create credentials, or certify a completed release
+workflow run; full deployment/live/scheduler end-to-end acceptance remains necessary.
 
 The endpoint rechecks source/static current version, canonical live download page,
 checksum, exact bounded PE bytes and SHA-256 before creating an event, and again

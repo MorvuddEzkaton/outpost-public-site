@@ -48,6 +48,12 @@ jobs:
         env:
           RELEASE_PRODUCT: ${{ inputs.product }}
         run: python scripts/confirm_telegram_release.py "$RELEASE_PRODUCT" --source-sha "$GITHUB_SHA"
+      - name: Require exact reviewed live deployment and safe notification mode
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.OUTPOST_PAGES_DEPLOY_TOKEN }}
+          OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED: ${{ vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED }}
+        run: python scripts/production_deployment_gate.py --check
       - name: Verify actual live installers/pages before confirmation
         run: |
           python scripts/verify_live_production.py

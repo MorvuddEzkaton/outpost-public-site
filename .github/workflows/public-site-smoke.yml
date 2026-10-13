@@ -178,6 +178,13 @@ jobs:
       - name: Guard PR-only quality workflow triggers
         run: python scripts/verify_quality_gate_workflows.py
 
+      - name: Guard protected production provenance before live checks
+        run: |
+          python scripts/verify_production_deployment_workflows.py
+          python scripts/test_production_deployment_gate.py
+          python scripts/test_production_deployment_workflows.py
+          python -m py_compile scripts/production_deployment_gate.py scripts/verify_production_deployment_workflows.py
+
       - name: Test quality workflow trigger guard
         run: python scripts/test_quality_gate_workflows.py
 
@@ -320,6 +327,9 @@ jobs:
 
       - name: Test preview outbound and Telegram isolation offline
         run: node scripts/test_preview_integration_isolation.mjs
+
+      - name: Test credential-free release mode health
+        run: node scripts/test_release_mode_health.mjs
 
       - name: Verify confirmed release journal and disabled activation gates
         run: |

@@ -748,7 +748,10 @@ export function handleTelegramHealth(request, env) {
   if (request.method !== "GET") return jsonResponse({ ok: false, error: "method_not_allowed" }, 405);
   const configured = Boolean(env?.TELEGRAM_BOT_TOKEN && env?.TELEGRAM_WEBHOOK_SECRET && env?.TELEGRAM_ADMIN_CHAT_ID);
   const enabled = configured && String(env?.TELEGRAM_PUBLIC_ENABLED || "") === "1";
-  return jsonResponse({ ok: true, enabled, bot: `@${BOT_USERNAME}` });
+  const confirmed = enabled && String(env?.TELEGRAM_CONFIRMED_RELEASES_ENABLED || "") === "1";
+  return jsonResponse({ ok: true, enabled, bot: `@${BOT_USERNAME}`, release_mode_schema: 1,
+    confirmed_releases_enabled: confirmed,
+    legacy_release_notifications_enabled: enabled && !confirmed });
 }
 
 export async function handleTelegramSetup(request, env) {

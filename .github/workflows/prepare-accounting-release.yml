@@ -254,6 +254,11 @@ jobs:
           python scripts/verify_site_identity.py
           python scripts/verify_site_identity_workflows.py
           python scripts/verify_quality_gate_workflows.py
+          python scripts/verify_production_deployment_workflows.py
+          python scripts/test_production_deployment_gate.py
+          python scripts/test_production_deployment_workflows.py
+          node scripts/test_release_mode_health.mjs
+          python -m py_compile scripts/production_deployment_gate.py scripts/verify_production_deployment_workflows.py
           python scripts/test_quality_gate_workflows.py
           python scripts/test_main_push_provenance.py
           python scripts/verify_removed_public_pages.py

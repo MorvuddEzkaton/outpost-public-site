@@ -1,5 +1,10 @@
 # OutPOSt public deployment workflow
 
+Protected provenance preparation: see [PRODUCTION-PROVENANCE-GATE.md](PRODUCTION-PROVENANCE-GATE.md).
+Once deliberately activated, live verification waits for an actual reviewed exact-SHA
+successful Pages deployment and safe confirmed notification mode before canonical GETs.
+This read-only gate does not itself implement or activate an automatic deployment writer.
+
 Migration preparation date: 2026-10-12. This new public repository is not the production source until an explicit owner-approved cutover. The existing private Git integration and Pages deployment remain active during preparation.
 
 ## Branches and checks
