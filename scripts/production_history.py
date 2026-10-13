@@ -2,7 +2,8 @@
 
 Only the existing writer's run metadata, skipped-job proof and two immutable
 journal artifacts are read. CI conclusions are not substitutes for live proof.
-Incomplete, deleted, expired, malformed or unresolved evidence blocks mutation.
+Missing evidence blocks mutation unless it was already checked and preserved in
+the reviewed append-only source checkpoint. Unknown attempts remain blocked.
 """
 from io import BytesIO
 import hashlib
@@ -161,7 +162,21 @@ class HistoryReads:
         return archive_journal(payload, artifact)
 
 
-def validate_runs(runs, env):
+RUN_FIELDS = ('id', 'run_number', 'head_sha', 'head_branch', 'run_attempt', 'workflow_id',
+              'path', 'event', 'status', 'conclusion')
+JOB_FIELDS = ('id', 'name', 'run_id', 'run_attempt', 'head_sha', 'status', 'conclusion',
+              'steps', 'runner_id', 'runner_name')
+ARTIFACT_FIELDS = ('id', 'name', 'digest', 'size_in_bytes', 'workflow_run')
+IDENTITY_FIELDS = ('id', 'head_sha', 'head_branch', 'repository_id', 'head_repository_id')
+
+
+def run_projection(run):
+    return {**{key: run.get(key) for key in RUN_FIELDS},
+            'repository': {key: run.get('repository', {}).get(key) for key in ('id', 'full_name')},
+            'head_repository': {'id': run.get('head_repository', {}).get('id')}}
+
+
+def validate_inventory(runs):
     gate.require(isinstance(runs, list) and 0 < len(runs) <= MAX_RUNS, 'publication_history_incomplete')
     for run in runs:
         gate.require(isinstance(run, dict), 'invalid_history_run')
@@ -171,6 +186,7 @@ def validate_runs(runs, env):
                      run.get('repository', {}).get('id') == REPOSITORY_ID and
                      run.get('repository', {}).get('full_name') == gate.REPOSITORY and
                      run.get('head_repository', {}).get('id') == REPOSITORY_ID and
+                     run.get('head_branch') == 'main' and
                      run.get('run_attempt') == 1 and type(run.get('run_attempt')) is int and
                      run.get('event') in ('push', 'workflow_dispatch') and
                      isinstance(run.get('head_sha'), str) and re.fullmatch(r'[a-f0-9]{40}', run['head_sha']),
@@ -180,6 +196,25 @@ def validate_runs(runs, env):
                  'deleted_or_duplicate_publication_history')
     first = next(run for run in runs if run['run_number'] == 1)
     gate.require(first['id'] == FIRST_RUN_ID and first['head_sha'] == FIRST_SOURCE, 'publication_history_anchor_missing')
+
+
+def merge_runs(live, records):
+    gate.require(isinstance(live, list) and live and len(live) <= MAX_RUNS and
+                 all(isinstance(run, dict) for run in live), 'publication_history_incomplete')
+    gate.require(len({positive(run.get('id')) for run in live}) == len(live), 'deleted_or_duplicate_publication_history')
+    archived = {record['run']['id']: record['run'] for record in records}
+    combined = dict(archived)
+    for run in live:
+        if run['id'] in archived:
+            gate.require(run_projection(run) == archived[run['id']], 'checkpoint_live_run_mismatch')
+        combined[run['id']] = run
+    runs = list(combined.values())
+    validate_inventory(runs)
+    return runs
+
+
+def validate_runs(runs, env):
+    validate_inventory(runs)
     current = [run for run in runs if str(run['id']) == env['GITHUB_RUN_ID']]
     gate.require(len(current) == 1 and str(current[0]['run_number']) == env.get('GITHUB_RUN_NUMBER') and
                  current[0]['head_sha'] == env['GITHUB_SHA'] and current[0].get('head_branch') == 'main' and
@@ -217,6 +252,7 @@ def skipped_without_intent(client, run):
                  (job.get('runner_id') is None or type(job.get('runner_id')) is int and job['runner_id'] == 0) and
                  not job.get('runner_name'),
                  'missing_publication_journal_inspect_only')
+    return {**{key: job.get(key) for key in JOB_FIELDS}, 'runner_name': None}
 
 
 def resolved_journals(intent, result, run, env, validator):
@@ -237,26 +273,35 @@ def resolved_journals(intent, result, run, env, validator):
         gate.require(run['conclusion'] == 'failure', 'publication_result_conclusion_mismatch')
 
 
-def assert_clear(client, env, validator):
-    runs = client.publication_runs()
-    current = validate_runs(runs, env)
-    for run in sorted(runs, key=lambda item: item['run_number']):
-        if run['run_number'] >= current['run_number']:
-            continue
-        gate.require(run.get('status') == 'completed' and run.get('conclusion') in
+def read_resolved_record(client, run, env, validator):
+    """Provider-verified safe projection, shared by runtime and read-only capture."""
+    gate.require(run.get('status') == 'completed' and run.get('conclusion') in
                      ('success', 'failure', 'cancelled', 'timed_out', 'skipped', 'action_required', 'neutral'),
                      'unfinished_prior_publication_inspect_only')
-        artifacts = client.publication_artifacts(run)
-        if not artifacts:
-            skipped_without_intent(client, run)
-            continue
-        gate.require(len(artifacts) == 2 and len({item.get('id') for item in artifacts}) == 2,
+    artifacts = client.publication_artifacts(run)
+    if not artifacts:
+        return {'run': run_projection(run), 'kind': 'skipped', 'proof': skipped_without_intent(client, run)}
+    gate.require(len(artifacts) == 2 and len({item.get('id') for item in artifacts}) == 2,
                      'missing_or_duplicate_publication_journal')
-        records = []
-        for kind in ('intent', 'result'):
-            matches = [item for item in artifacts if item.get('name') == artifact_name(kind, run)]
-            gate.require(len(matches) == 1, 'missing_or_duplicate_publication_journal')
-            artifact = matches[0]
-            validate_artifact(artifact, run, kind)
-            records.append(client.publication_journal(artifact))
-        resolved_journals(*records, run, env, validator)
+    proof = []
+    for kind in ('intent', 'result'):
+        matches = [item for item in artifacts if item.get('name') == artifact_name(kind, run)]
+        gate.require(len(matches) == 1, 'missing_or_duplicate_publication_journal')
+        artifact = matches[0]
+        validate_artifact(artifact, run, kind)
+        journal = client.publication_journal(artifact)
+        safe = {key: artifact[key] for key in ARTIFACT_FIELDS}
+        safe['workflow_run'] = {key: artifact['workflow_run'][key] for key in IDENTITY_FIELDS}
+        proof.append({**safe, 'journal': journal})
+    resolved_journals(*(item['journal'] for item in proof), run, env, validator)
+    return {'run': run_projection(run), 'kind': 'journal', 'proof': proof}
+
+
+def assert_clear(client, env, validator, records=()):
+    runs = merge_runs(client.publication_runs(), records)
+    current = validate_runs(runs, env)
+    archived = {record['run']['id'] for record in records}
+    for run in sorted(runs, key=lambda item: item['run_number']):
+        if run['run_number'] >= current['run_number'] or run['id'] in archived:
+            continue
+        read_resolved_record(client, run, env, validator)

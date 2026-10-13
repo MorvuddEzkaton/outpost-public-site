@@ -18,6 +18,7 @@ import time
 from urllib.request import Request, build_opener
 import production_deployment_gate as gate
 import production_history as history
+import production_checkpoints as checkpoints
 
 WRANGLER_VERSION = '4.142.0'
 ORIGINAL_CONFIG_HASH = 'a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d'
@@ -132,9 +133,14 @@ class Journal:
 
 def validate_journal(data, env):
     sha = context(env)
+    return validate_journal_evidence(data, sha, env['GITHUB_RUN_ID'])
+
+
+def validate_journal_evidence(data, sha, run_id):
+    """Pure evidence validation; this does NOT authorize a publisher operation."""
     gate.require(isinstance(data, dict) and set(data) == {'schema', 'run_id', 'source_sha', 'configuration_sha256', 'package_sha256', 'project_sha256',
                               'baseline_id', 'baseline_sha', 'initial_ids', 'review', 'state', 'events'}, 'invalid_journal_schema')
-    gate.require(type(data['schema']) is int and data['schema'] == 1 and data['run_id'] == env['GITHUB_RUN_ID'] and data['source_sha'] == sha and
+    gate.require(type(data['schema']) is int and data['schema'] == 1 and data['run_id'] == run_id and data['source_sha'] == sha and
                  data['configuration_sha256'] == ORIGINAL_CONFIG_HASH and isinstance(data['events'], list) and
                  1 <= len(data['events']) <= 10 and all(isinstance(event, dict) for event in data['events']), 'journal_context_mismatch')
     for name in ('package_sha256', 'project_sha256'):
@@ -181,6 +187,11 @@ def validate_journal(data, env):
                  not identities.intersection(data['initial_ids']), 'journal_order_or_deployment_mismatch')
     return data
 
+
+def history_clear(client, env, root):
+    records = checkpoints.load_checked(root, env['GITHUB_SHA'], validate_journal_evidence)
+    history.assert_clear(client, env, validate_journal, records)
+
 class Clients(history.HistoryReads, gate.ReadOnlyClients):
     def __init__(self, env):
         super().__init__(env)
@@ -214,7 +225,7 @@ def preflight(env, root, client, notification_mode=True):
     sha = context(env)
     # Different source commits cannot escape an older unresolved attempt.
     # This is transaction/replay evidence, never a CI quality PASS substitute.
-    history.assert_clear(client, env, validate_journal)
+    history_clear(client, env, root)
     config, config_hash = gate.local_source(root, sha)
     gate.require(config_hash == ORIGINAL_CONFIG_HASH and not (root / '.release-hold').exists(), 'original_configuration_or_release_hold_rejected')
     review = gate.review_proof(client, sha)
@@ -333,7 +344,7 @@ def execute(env, root, journal, package, client, uploader=run_upload, wait_secon
     binary = tool(env, root)
     upload_package(root, package, sha, data['package_sha256'])
     verify_package(package, data['package_sha256'])
-    history.assert_clear(client, env, validate_journal)
+    history_clear(client, env, root)
     # Last read immediately before recording intent and mutating. Provider offers no CAS.
     same_baseline(data, client.pages(), client.inventory())
     gate.require(client.github('/git/ref/heads/main')['object']['sha'] == sha, 'main_advanced_before_upload')
@@ -373,7 +384,7 @@ def verify_live(env, root, journal, client, runner=run_live):
     own = deployment_id(data)
     journal.event('live_intent')
     try:
-        history.assert_clear(client, env, validate_journal)
+        history_clear(client, env, root)
         gate.verify_current(env, root, client)
         gate.require(resolve(data, client.pages(), client.inventory()) == own, 'canonical_changed_before_live')
         for command in LIVE_COMMANDS:
@@ -396,7 +407,7 @@ def rollback(env, root, journal, client):
     # a successful live endpoint to restore the known-good saved code.
     sha, _, _, _, project, items = preflight(env, root, client, notification_mode=False)
     gate.require(sha == data['source_sha'] and resolve(data, project, items) == own, 'rollback_would_overwrite_other_rollout')
-    history.assert_clear(client, env, validate_journal)
+    history_clear(client, env, root)
     target = client.pages('/deployments/' + data['baseline_id'])
     gate.require(target.get('id') == data['baseline_id'] and target.get('environment') == 'production' and
                  target.get('latest_stage', {}).get('status') == 'success' and source_metadata(target).get('commit_hash') == data['baseline_sha'] and

@@ -17,6 +17,9 @@ jobs:
   public-source-security:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout public candidate without persisted credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
@@ -50,6 +53,12 @@ jobs:
           else
             python scripts/release_integrity.py
           fi
+
+      - name: Verify new publication checkpoints against provider evidence
+        env:
+          CHECKPOINT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/verify_production_checkpoints.py --check-new
 
       - name: Install checksum-verified portable secret scanner
         shell: bash

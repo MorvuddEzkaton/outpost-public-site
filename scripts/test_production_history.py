@@ -44,6 +44,10 @@ class HistoryTests(unittest.TestCase):
         self.root.mkdir()
         self.env = env()
         self.client = HistoryClient()
+        checkpoint_patch = patch.object(publisher.checkpoints, 'load_checked', return_value=[])
+        checkpoint_patch.start()
+        self.addCleanup(checkpoint_patch.stop)
+        self.checkpoint_patch = checkpoint_patch
         config = json.loads((gate.ROOT / 'wrangler.jsonc').read_text())
         for target, value in [(gate, ('local_source', (config, publisher.ORIGINAL_CONFIG_HASH))),
                               (publisher, ('manifest', [{'path': 'site/demo.html', 'bytes': 4, 'sha256': 'd' * 64}]))]:

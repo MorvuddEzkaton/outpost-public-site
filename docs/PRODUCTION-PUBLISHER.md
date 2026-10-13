@@ -61,7 +61,7 @@ check run identity/history, not to write status or claim quality PASS.
 Before preparing a plan and again immediately before an upload or rollback,
 inspect the **unfiltered** history of the existing publisher workflow, not only
 runs for the new commit. Its provider workflow identity and first run are pinned;
-complete sequential run numbers starting at one detect deleted runs. Duplicate
+complete sequential run numbers starting at one detect unaccounted missing runs. Duplicate
 identities, a recreated workflow, pagination drift, missing history, reruns, or
 more than 1,000 runs block for a separate reviewed recovery decision. A new SHA
 never clears an earlier unresolved attempt.
@@ -83,15 +83,66 @@ journal JSON entry; never extract paths or accept duplicate JSON keys. The signe
 artifact-storage redirect receives no GitHub Authorization header and is never
 logged or saved.
 
-No recovery override or acknowledgment file is added. Retention expiry after an
-executed run intentionally blocks future automatic publication, even for resolved
-runs, until a separately reviewed durable evidence/reconciliation policy exists.
-Keep the history and preserve unresolved evidence before expiry. These read-only
-guards do not create a new transaction store or guarantee protection against a
-privileged owner replacing the reviewed code, or an independent Cloudflare writer.
+No recovery override or acknowledgment file is added. A reviewed source checkpoint
+can preserve **already verified resolved** evidence before retention expiry. Missing
+evidence without that checkpoint still blocks, including an unknown attempt whose
+provider history has expired. These read-only guards do not create a transaction
+store or guarantee protection against a privileged owner replacing reviewed code,
+or an independent Cloudflare writer.
 
 [GitHub run-number identity contract](https://docs.github.com/en/actions/reference/workflows-and-actions/variables),
 [artifact identity, digest and archive download](https://docs.github.com/en/rest/actions/artifacts).
+
+### Owner-reviewed append-only checkpoint
+
+`release/production-history-checkpoint.json` starts with an **empty genesis**.
+This source preparation does not claim that any real run was captured or accepted.
+The publisher has no repository-write permission and does not append checkpoints.
+
+An explicit read-only preparation tool can produce a candidate outside Git:
+`python scripts/verify_production_checkpoints.py --capture --output <new-external-file>`.
+Only when separately authorized, provide an existing Actions-read credential on
+stdin through a private helper, never an argument, terminal history or a tracked
+file. The tool reads only the pinned workflow/run/job/artifact endpoints. It has
+no Cloudflare client and cannot publish, change a setting, repair a run or send
+Telegram. Unknown, running, incomplete or expired evidence produces no candidate.
+No token creation, automatic capture, schedule, push or approval is included.
+
+The readable candidate contains only fixed-schema run identities, a minimal
+skipped-publisher proof or the two validated journals and artifact identities.
+ZIPs are decoded after checking the provider digest; their raw bytes, comments,
+signed URLs, logs, actors and free text are never copied to the public ledger.
+Each record includes a canonical-content hash linked to its predecessor. These
+hashes detect corruption, **not** an independent provider signature.
+
+Copy the safe candidate into a topic branch and obtain the existing required
+owner review. The security PR job receives only `contents: read` and
+`actions: read`; it compares against the **exact PR base** and downloads live
+provider evidence for every newly appended record before it expires. The initial
+empty-ledger PR and subsequent changes without new records make no evidence API
+requests. It has no operational secret or write permission.
+
+Runtime requires the exact tracked ledger bytes and complete Git ancestry, from
+empty genesis through **every** append-only ledger revision. Existing records may
+not be edited, removed, reordered, reset or replaced; new records form a contiguous
+resolved prefix from the pinned first run. The limits are 8 MiB, fewer than 1,000
+archived runs and at most 256 ledger-changing commits; exceeding them blocks for
+a separate reviewed maintenance/recovery decision, not automatic pruning.
+
+Previously reviewed records do not need their expired artifacts downloaded again.
+Live run metadata, when still present, must match the archived identity, final
+status and attempt exactly. A rerun or competing change blocks. A retained prefix
+may cover provider-deleted historical runs; any gap after that prefix blocks.
+Archived SHAs still participate in the original same-source no-replay rule. A
+new SHA, a successful CI check or a manually written "acknowledged" record cannot
+clear an unknown attempt.
+
+Keep capture/review ahead of the shortest evidence retention. GitHub's current
+retention rules affect workflow runs/checks/statuses as well as artifacts/logs;
+loss of a never-checkpointed run cannot be guessed away.
+[GitHub retention policy](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository).
+Default offline validation is `python scripts/verify_production_checkpoints.py`;
+it does not consume credentials or contact any service.
 
 ## Operator recovery and limitations
 
@@ -99,8 +150,9 @@ privileged owner replacing the reviewed code, or an independent Cloudflare write
   runner require inspection. Never press rerun/re-upload to "see if it works".
   Compare the saved intent, current deployment, complete inventory, config and main.
   Recovery authorization and any necessary reconciliation are separate actions.
-- Intent/result artifacts have seven-day retention. Preserve unresolved evidence
-  privately before expiry; do not delete unresolved run history. The journal is not
+- Intent/result artifacts have seven-day retention. Capture and separately review
+  resolved evidence before expiry. Preserve unresolved evidence privately for
+  investigation, never append it as resolved; do not delete unresolved history. The journal is not
   a permanent external transaction store or an independent disaster-recovery backup.
 - Provider metadata/reads do not give an atomic compare-and-swap with independent
   administrators. Shared workflow concurrency prevents this writer from interrupting
@@ -112,6 +164,13 @@ privileged owner replacing the reviewed code, or an independent Cloudflare write
 - Hidden encrypted secret values cannot be independently compared; only names/types
   and observable mode/config contracts are checked. No compiled-worker cryptographic
   attestation or mathematical exactly-once publication is claimed.
+- Checkpoints address retention only, **not** first-rollout compatibility. New
+  encrypted binding names can make the existing five-binding legacy deployment
+  incompatible with the guarded rollback target. Do not activate the writer,
+  add bindings or promise rollback to the old code until a separately approved
+  bootstrap has established and checked a compatible successful baseline.
+  Legacy code is not assumed to understand the new confirmed-notification flag.
+  Recovery must not overwrite hidden secret values or restore SQL over new data.
 
 ## Separate activation decision
 
@@ -126,7 +185,7 @@ approval; controlled bootstrap of the new health schema; deliberate confirmed-mo
 transition without an unsolicited broadcast; and a real protected pipeline acceptance
 against the existing project. This preparation has only synthetic/offline tests,
 not production end-to-end acceptance. The scheduler, release-confirmation linkage,
-receipt provenance, retention/reconciliation and actual notification acceptance
+receipt provenance, real checkpoint capture/review and actual notification acceptance
 remain separate work. No new Windows build/evidence is implied.
 
 Keep the original configuration as the source of truth, not a generated preview
