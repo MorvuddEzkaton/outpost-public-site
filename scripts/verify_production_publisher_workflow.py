@@ -54,10 +54,13 @@ def main():
     errors = verify(WORKFLOW.read_text(encoding='utf-8'))
     for name in ['public-site-smoke.yml', 'prepare-public-release.yml', 'prepare-accounting-release.yml']:
         text = (ROOT / '.github/workflows' / name).read_text(encoding='utf-8')
-        for command in ['python scripts/test_production_publisher.py', 'python scripts/verify_production_publisher_workflow.py',
+        for command in ['python scripts/test_production_publisher.py', 'python scripts/test_production_history.py', 'python scripts/verify_production_publisher_workflow.py',
                         'python scripts/test_production_publisher_workflow.py']:
             if command not in text:
                 errors.append('publisher regression missing from ' + name + ': ' + command)
+        for target in ['scripts/production_history.py', 'scripts/test_production_history.py']:
+            if not any(target in line for line in text.splitlines() if 'python -m py_compile ' in line):
+                errors.append('history compilation missing from ' + name + ': ' + target)
     if errors:
         print('Production publisher workflow: FAIL\n' + '\n'.join(errors))
         return 1

@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 import production_publisher as publisher
 import production_deployment_gate as gate
+import production_history as history
 from test_production_deployment_gate import environment, project, protected_env, policies
 
 SHA, HEAD = 'a' * 40, 'b' * 40
@@ -17,6 +18,7 @@ OTHER = '33333333-3333-4333-8333-333333333333'
 def env():
     value = environment()
     value.update({'GITHUB_ACTIONS': 'true', 'RUNNER_OS': 'Linux', 'GITHUB_RUN_ID': '1234', 'GITHUB_RUN_ATTEMPT': '1',
+                  'GITHUB_RUN_NUMBER': '2',
                   'OUTPOST_PRODUCTION_WRITER_ENABLED': '1', 'OUTPOST_PRODUCTION_ROLLBACK_ENABLED': '1',
                   'OUTPOST_SAVED_PLAN_URL': 'https://github.com/' + gate.REPOSITORY + '/actions/runs/1234/artifacts/5678'})
     return value
@@ -32,11 +34,29 @@ class FakeClient:
         self.health_value = {'ok': True, 'enabled': True, 'release_mode_schema': 1,
                              'confirmed_releases_enabled': True, 'legacy_release_notifications_enabled': False}
         self.main = SHA
-        self.runs = [{'id': 1234, 'head_sha': SHA, 'head_branch': 'main', 'run_attempt': 1}]
+        self.runs = [{'id': 1234, 'head_sha': SHA, 'head_branch': 'main', 'run_attempt': 1, 'run_number': 2,
+                      'event': 'push', 'status': 'in_progress', 'conclusion': None, 'workflow_id': history.WORKFLOW_ID,
+                      'path': history.WORKFLOW_PATH, 'repository': {'id': history.REPOSITORY_ID, 'full_name': gate.REPOSITORY},
+                      'head_repository': {'id': history.REPOSITORY_ID}}]
         self.rollback_calls = []
 
-    def prior_runs(self, sha):
-        return deepcopy(self.runs)
+    def publication_runs(self):
+        first = {**self.runs[0], 'id': history.FIRST_RUN_ID, 'run_number': 1, 'head_sha': history.FIRST_SOURCE,
+                 'status': 'completed', 'conclusion': 'success'} if self.runs else {
+                     'id': history.FIRST_RUN_ID, 'run_number': 1, 'head_sha': history.FIRST_SOURCE,
+                     'workflow_id': history.WORKFLOW_ID, 'path': history.WORKFLOW_PATH, 'run_attempt': 1,
+                     'event': 'push', 'repository': {'id': history.REPOSITORY_ID, 'full_name': gate.REPOSITORY},
+                     'head_repository': {'id': history.REPOSITORY_ID}}
+        return deepcopy([first, *self.runs])
+
+    def publication_artifacts(self, run):
+        return []
+
+    def skipped_publication_jobs(self, run):
+        return [{'id': index + 1, 'name': name, 'run_id': run['id'], 'run_attempt': 1,
+                 'head_sha': run['head_sha'], 'status': 'completed', 'conclusion': 'skipped',
+                 'steps': [], 'runner_id': 0, 'runner_name': None}
+                for index, name in enumerate(['static-quality', 'browser-quality', 'publish'])]
 
     def github(self, suffix):
         if suffix == '/git/ref/heads/main':

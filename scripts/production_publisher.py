@@ -17,6 +17,7 @@ import subprocess
 import time
 from urllib.request import Request, build_opener
 import production_deployment_gate as gate
+import production_history as history
 
 WRANGLER_VERSION = '4.142.0'
 ORIGINAL_CONFIG_HASH = 'a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d'
@@ -46,6 +47,7 @@ def context(env):
     gate.require(env.get('OUTPOST_PRODUCTION_WRITER_ENABLED') == '1', 'writer_activation_missing')
     gate.require(env.get('GITHUB_RUN_ATTEMPT') == '1', 'rerun_inspect_only_no_replay')
     gate.require(re.fullmatch(r'[1-9][0-9]*', env.get('GITHUB_RUN_ID', '')) is not None, 'invalid_run_identity')
+    gate.require(re.fullmatch(r'[1-9][0-9]*', env.get('GITHUB_RUN_NUMBER', '')) is not None, 'invalid_run_number')
     gate.require(env.get('GITHUB_ACTIONS') == 'true' and env.get('RUNNER_OS') == 'Linux', 'protected_linux_ci_required')
     return sha
 
@@ -130,10 +132,11 @@ class Journal:
 
 def validate_journal(data, env):
     sha = context(env)
-    gate.require(set(data) == {'schema', 'run_id', 'source_sha', 'configuration_sha256', 'package_sha256', 'project_sha256',
+    gate.require(isinstance(data, dict) and set(data) == {'schema', 'run_id', 'source_sha', 'configuration_sha256', 'package_sha256', 'project_sha256',
                               'baseline_id', 'baseline_sha', 'initial_ids', 'review', 'state', 'events'}, 'invalid_journal_schema')
-    gate.require(data['schema'] == 1 and data['run_id'] == env['GITHUB_RUN_ID'] and data['source_sha'] == sha and
-                 data['configuration_sha256'] == ORIGINAL_CONFIG_HASH and isinstance(data['events'], list), 'journal_context_mismatch')
+    gate.require(type(data['schema']) is int and data['schema'] == 1 and data['run_id'] == env['GITHUB_RUN_ID'] and data['source_sha'] == sha and
+                 data['configuration_sha256'] == ORIGINAL_CONFIG_HASH and isinstance(data['events'], list) and
+                 1 <= len(data['events']) <= 10 and all(isinstance(event, dict) for event in data['events']), 'journal_context_mismatch')
     for name in ('package_sha256', 'project_sha256'):
         gate.require(re.fullmatch(r'[a-f0-9]{64}', data[name]) is not None, 'invalid_journal_digest')
     uuid(data['baseline_id'])
@@ -156,27 +159,33 @@ def validate_journal(data, env):
                    'live_intent': {'live_pass', 'live_failed'}, 'live_failed': {'rollback_intent'},
                    'rollback_intent': {'rolled_back', 'rollback_unknown'}}
     gate.require(all(right in transitions.get(left, set()) for left, right in zip(states, states[1:])), 'invalid_journal_transition')
+    event_fields = {'prepared': set(), 'upload_intent': set(), 'upload_returned': {'command_returned'},
+                    'upload_unknown': set(), 'deployment_success': {'deployment_id'}, 'live_intent': set(),
+                    'live_failed': {'deployment_id'}, 'live_pass': {'deployment_id'}, 'rollback_intent': set(),
+                    'rolled_back': set(), 'rollback_unknown': set()}
+    stamps, identities = [], set()
     for event in data['events']:
         gate.require(set(event) <= {'at', 'state', 'deployment_id', 'command_returned'} and isinstance(event.get('at'), str), 'unexpected_journal_event_data')
+        gate.require(set(event) == {'at', 'state'} | event_fields[event['state']] and
+                     ('command_returned' not in event or event['command_returned'] is True), 'invalid_journal_event_details')
+        try:
+            stamp = datetime.fromisoformat(event['at'].replace('Z', '+00:00'))
+            gate.require(stamp.tzinfo is not None, 'invalid_journal_timestamp')
+            stamps.append(stamp)
+        except (TypeError, ValueError):
+            raise gate.GateError('invalid_journal_timestamp') from None
         if 'deployment_id' in event:
             uuid(event['deployment_id'])
+            identities.add(event['deployment_id'])
+    gate.require(stamps == sorted(stamps) and len(identities) <= 1 and
+                 not identities.intersection(data['initial_ids']), 'journal_order_or_deployment_mismatch')
     return data
 
-class Clients(gate.ReadOnlyClients):
+class Clients(history.HistoryReads, gate.ReadOnlyClients):
     def __init__(self, env):
         super().__init__(env)
         self.github_token = env.get('GITHUB_TOKEN', '')
         gate.require(self.github_token, 'readonly_run_history_credential_missing')
-
-    def prior_runs(self, sha):
-        # Run metadata is a replay guard, not a substitute for quality-check PASS.
-        value = self._json('https://api.github.com/repos/' + gate.REPOSITORY +
-                           '/actions/workflows/deploy-public-production.yml/runs?head_sha=' + sha + '&per_page=100',
-                           {'Authorization': 'Bearer ' + self.github_token,
-                            'Accept': 'application/vnd.github+json', 'User-Agent': 'OutPOSt-Publisher-Replay-Guard'})
-        gate.require(type(value.get('total_count')) is int and value['total_count'] < 100 and
-                     isinstance(value.get('workflow_runs'), list) and len(value['workflow_runs']) == value['total_count'], 'run_history_incomplete')
-        return value['workflow_runs']
 
     def inventory(self):
         items = []
@@ -203,10 +212,9 @@ class Clients(gate.ReadOnlyClients):
 
 def preflight(env, root, client, notification_mode=True):
     sha = context(env)
-    runs = client.prior_runs(sha)
-    gate.require(len(runs) == 1 and str(runs[0].get('id')) == env['GITHUB_RUN_ID'] and
-                 runs[0].get('head_sha') == sha and runs[0].get('head_branch') == 'main' and
-                 runs[0].get('run_attempt') == 1, 'prior_run_for_source_inspect_only')
+    # Different source commits cannot escape an older unresolved attempt.
+    # This is transaction/replay evidence, never a CI quality PASS substitute.
+    history.assert_clear(client, env, validate_journal)
     config, config_hash = gate.local_source(root, sha)
     gate.require(config_hash == ORIGINAL_CONFIG_HASH and not (root / '.release-hold').exists(), 'original_configuration_or_release_hold_rejected')
     review = gate.review_proof(client, sha)
@@ -325,6 +333,7 @@ def execute(env, root, journal, package, client, uploader=run_upload, wait_secon
     binary = tool(env, root)
     upload_package(root, package, sha, data['package_sha256'])
     verify_package(package, data['package_sha256'])
+    history.assert_clear(client, env, validate_journal)
     # Last read immediately before recording intent and mutating. Provider offers no CAS.
     same_baseline(data, client.pages(), client.inventory())
     gate.require(client.github('/git/ref/heads/main')['object']['sha'] == sha, 'main_advanced_before_upload')
@@ -364,6 +373,7 @@ def verify_live(env, root, journal, client, runner=run_live):
     own = deployment_id(data)
     journal.event('live_intent')
     try:
+        history.assert_clear(client, env, validate_journal)
         gate.verify_current(env, root, client)
         gate.require(resolve(data, client.pages(), client.inventory()) == own, 'canonical_changed_before_live')
         for command in LIVE_COMMANDS:
@@ -386,6 +396,7 @@ def rollback(env, root, journal, client):
     # a successful live endpoint to restore the known-good saved code.
     sha, _, _, _, project, items = preflight(env, root, client, notification_mode=False)
     gate.require(sha == data['source_sha'] and resolve(data, project, items) == own, 'rollback_would_overwrite_other_rollout')
+    history.assert_clear(client, env, validate_journal)
     target = client.pages('/deployments/' + data['baseline_id'])
     gate.require(target.get('id') == data['baseline_id'] and target.get('environment') == 'production' and
                  target.get('latest_stage', {}).get('status') == 'success' and source_metadata(target).get('commit_hash') == data['baseline_sha'] and

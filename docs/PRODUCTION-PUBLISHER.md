@@ -56,6 +56,43 @@ attempt, incomplete run history, multiple matching deployments, timeout or unkno
 response blocks automatic replay. The read-only Actions token is used only to
 check run identity/history, not to write status or claim quality PASS.
 
+### Cross-source quarantine
+
+Before preparing a plan and again immediately before an upload or rollback,
+inspect the **unfiltered** history of the existing publisher workflow, not only
+runs for the new commit. Its provider workflow identity and first run are pinned;
+complete sequential run numbers starting at one detect deleted runs. Duplicate
+identities, a recreated workflow, pagination drift, missing history, reruns, or
+more than 1,000 runs block for a separate reviewed recovery decision. A new SHA
+never clears an earlier unresolved attempt.
+
+Each earlier completed run must have both its original `prepared` intent and a
+linked final journal. Only `prepared` (no upload started), `live_pass` (all live
+contracts accepted) or `rolled_back` (failed publication restored) is resolved.
+All intermediate, failed-live, timeout and unknown states remain quarantined.
+A workflow's green conclusion alone is never enough; rollback remains a failed
+publication, not a green rollout. Journals bind the run/source, baseline, package,
+configuration, review, event order and deployment identity to each other.
+
+When **no** journal artifacts exist, require proof that the actual `publish` job
+was skipped without steps or a runner. This permits dormant runs and failures in
+unprivileged quality jobs; a missing result from an executed publisher blocks.
+Missing, expired, duplicate, mismatched or unreadable artifacts are not silently
+ignored. Validate the provider's SHA-256 archive digest and accept only one bounded
+journal JSON entry; never extract paths or accept duplicate JSON keys. The signed
+artifact-storage redirect receives no GitHub Authorization header and is never
+logged or saved.
+
+No recovery override or acknowledgment file is added. Retention expiry after an
+executed run intentionally blocks future automatic publication, even for resolved
+runs, until a separately reviewed durable evidence/reconciliation policy exists.
+Keep the history and preserve unresolved evidence before expiry. These read-only
+guards do not create a new transaction store or guarantee protection against a
+privileged owner replacing the reviewed code, or an independent Cloudflare writer.
+
+[GitHub run-number identity contract](https://docs.github.com/en/actions/reference/workflows-and-actions/variables),
+[artifact identity, digest and archive download](https://docs.github.com/en/rest/actions/artifacts).
+
 ## Operator recovery and limitations
 
 - `upload_unknown`, `rollback_unknown`, missing final artifacts, or an interrupted
