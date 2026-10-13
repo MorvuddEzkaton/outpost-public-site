@@ -3,9 +3,14 @@
 Protected provenance preparation: see [PRODUCTION-PROVENANCE-GATE.md](PRODUCTION-PROVENANCE-GATE.md).
 Once deliberately activated, live verification waits for an actual reviewed exact-SHA
 successful Pages deployment and safe confirmed notification mode before canonical GETs.
-This read-only gate does not itself implement or activate an automatic deployment writer.
+This read-only gate does not itself publish. A separate dormant protected writer is
+prepared in [PRODUCTION-PUBLISHER.md](PRODUCTION-PUBLISHER.md); it is not activated.
 
-Migration preparation date: 2026-10-12. This new public repository is not the production source until an explicit owner-approved cutover. The existing private Git integration and Pages deployment remain active during preparation.
+Migration preparation date: 2026-10-12. The owner-approved source-only cutover has
+published reviewed public source to the existing Pages project. The old private Git
+integration identity remains for recovery, with its automatic production deployment
+disabled. That completed source-only step did not activate new automatic publication,
+new credentials, notification modes or a scheduled sender.
 
 ## Branches and checks
 

@@ -1,0 +1,70 @@
+"""Offline workflow and quality-inventory negative regressions."""
+import unittest
+import json
+from verify_production_publisher_workflow import verify, WORKFLOW
+from run_production_quality import inventory, ROOT
+
+class WorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.text = WORKFLOW.read_text()
+
+    def test_valid_workflow(self):
+        self.assertEqual(verify(self.text), [])
+
+    def test_missing_guard_fails(self):
+        for marker in ["vars.OUTPOST_PRODUCTION_WRITER_ENABLED == '1'", "environment: production", 'cancel-in-progress: false',
+                       'needs: [static-quality, browser-quality]', 'steps.intent.outputs.artifact-url', 'if-no-files-found: error',
+                       'python scripts/run_production_quality.py', 'persist-credentials: false', 'ref: ${{ github.sha }}',
+                       'secrets.OUTPOST_PAGES_DEPLOY_TOKEN', 'sha256sum --check --strict', 'npm ci --ignore-scripts']:
+            with self.subTest(marker=marker):
+                self.assertTrue(verify(self.text.replace(marker, 'REMOVED', 1)))
+
+    def test_credentials_never_in_quality_jobs(self):
+        self.assertTrue(verify(self.text.replace('  static-quality:', '  static-quality:\n    env:\n      SECRET: ${{ secrets.OUTPOST_PAGES_DEPLOY_TOKEN }}', 1)))
+
+    def test_unsafe_triggers_privileges_logging_and_error_bypasses(self):
+        for extra in ['pull_request_target:', 'pull_request:', 'workflow_run:', 'schedule:', 'contents: write',
+                      'continue-on-error: true', 'printenv', 'set -x', '|| true', 'secrets.TELEGRAM_BOT_TOKEN']:
+            with self.subTest(extra=extra):
+                self.assertTrue(verify(self.text + '\n' + extra))
+
+    def test_missing_browser_suite_fails(self):
+        for suite in ['a11y', 'keyboard', 'runtime', 'ui']:
+            with self.subTest(suite=suite):
+                self.assertTrue(verify(self.text.replace('scripts/browser_' + suite + '.spec.mjs', 'REMOVED')))
+
+    def test_upload_cannot_precede_saved_intent(self):
+        self.assertTrue(verify(self.text.replace('production_publisher.py plan ', 'production_publisher.py execute ', 1)))
+        self.assertTrue(verify(self.text.replace('id: intent', 'id: REMOVED', 1)))
+
+    def test_commented_guard_cannot_substitute_for_code(self):
+        self.assertTrue(verify(self.text.replace('    environment: production', '    # environment: production')))
+
+    def test_quality_is_superset_of_smoke_without_live_gets(self):
+        commands = inventory((ROOT / '.github/workflows/public-site-smoke.yml').read_text())
+        self.assertGreater(len(commands), 80)
+        self.assertIn(('python', 'scripts/verify_public_repository_security.py'), commands)
+        self.assertIn(('python', 'scripts/verify_first_party_resources.py'), commands)
+        self.assertIn(('python', 'scripts/verify_public_asset_budget.py'), commands)
+
+    def test_inventory_rejects_injected_or_operational_commands(self):
+        for line in ['run: python scripts/verify_live_production.py', 'node scripts/demo.mjs; printenv',
+                     'python scripts/run_production_quality.py', 'python scripts/production_publisher.py execute']:
+            with self.subTest(line=line), self.assertRaises(ValueError):
+                inventory(line)
+
+    def test_locked_toolchain_and_public_registry_integrity(self):
+        directory = ROOT / 'scripts/publisher-tools'
+        package = json.loads((directory / 'package.json').read_text())
+        lock = json.loads((directory / 'package-lock.json').read_text())
+        self.assertEqual(package['dependencies'], {'wrangler': '4.142.0'})
+        self.assertEqual(lock['packages']['']['dependencies'], package['dependencies'])
+        self.assertEqual(lock['packages']['node_modules/wrangler']['version'], '4.142.0')
+        for name, entry in lock['packages'].items():
+            if not name:
+                continue
+            self.assertTrue(entry['resolved'].startswith('https://registry.npmjs.org/'))
+            self.assertTrue(entry['integrity'].startswith('sha512-'))
+
+if __name__ == '__main__':
+    unittest.main()

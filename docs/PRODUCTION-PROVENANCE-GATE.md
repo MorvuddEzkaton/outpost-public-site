@@ -47,12 +47,12 @@ permissions, protected main/production and expiry; obtaining and storing that
 credential needs a separate explicit owner decision. A narrower broker would be a
 separate reviewed architecture, not an implied new service.
 
-This package does NOT yet implement or activate the automatic deployment writer,
-create confirmed-release keys, enable the scheduled pump, resolve unknown delivery
-states, change retention/quota or announce the current versions. It makes the
-existing live/confirmation diagnostics fail closed until those prerequisites are
-ready. The protected writer and an actual deployment->live->release end-to-end
-acceptance remain separate steps. Ordinary legacy behavior remains unchanged
+The dormant writer is now prepared separately in [PRODUCTION-PUBLISHER.md](PRODUCTION-PUBLISHER.md).
+Neither package activates it, creates confirmed-release keys, enables the scheduled
+pump, resolves unknown delivery states, changes quota or announces current versions.
+The existing live/confirmation diagnostics fail closed until prerequisites are ready.
+Actual protected deployment->live->release end-to-end acceptance remains separate.
+Ordinary legacy behavior remains unchanged
 until deliberate activation; adding health fields does not switch either engine.
 
 An encrypted secret's value cannot be compared through Pages metadata. The proof

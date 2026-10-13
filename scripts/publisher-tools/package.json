@@ -1,0 +1,5 @@
+{
+  "name": "outpost-pages-publisher-tools",
+  "private": true,
+  "dependencies": { "wrangler": "4.142.0" }
+}
