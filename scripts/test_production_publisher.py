@@ -444,5 +444,116 @@ class PublisherTests(unittest.TestCase):
                 client.github('/actions/secrets')
             self.assertEqual(request.call_count, 1)
 
+class PagesInventoryTests(unittest.TestCase):
+    """Actual wire contract; no real credential, request or publication."""
+    def setUp(self):
+        self.client = publisher.Clients({'CLOUDFLARE_ACCOUNT_ID': 'a' * 32,
+                                        'CLOUDFLARE_API_TOKEN': 'offline-placeholder',
+                                        'GITHUB_TOKEN': 'offline-placeholder'})
+
+    def row(self, index):
+        return {'id': '00000000-0000-4000-8000-' + format(index + 1, '012x'),
+                'environment': 'production', 'latest_stage': {'status': 'success'}}
+
+    def page(self, number, total, size=20):
+        rows = [self.row(index) for index in range((number - 1) * size, min(number * size, total))]
+        return {'success': True, 'result': rows, 'result_info': {'page': number, 'per_page': size,
+                'count': len(rows), 'total_count': total, 'total_pages': (total + size - 1) // size}}
+
+    def test_short_production_page_and_exact_supported_query(self):
+        data = self.page(1, 7)
+        with patch.object(self.client, '_json', return_value=data) as read:
+            self.assertEqual(self.client.inventory(), data['result'])
+            self.assertEqual(read.call_count, 1)
+            self.assertTrue(read.call_args.args[0].endswith('/deployments?env=production&per_page=20&page=1'))
+
+    def test_complete_multpage_history_with_short_tail(self):
+        pages = [self.page(1, 27), self.page(2, 27)]
+        with patch.object(self.client, '_json', side_effect=pages) as read:
+            self.assertEqual(self.client.inventory(), [self.row(index) for index in range(27)])
+            self.assertEqual(read.call_count, 2)
+            self.assertTrue(read.call_args.args[0].endswith('&page=2'))
+
+    def test_full_final_page_needs_no_speculative_extra_request(self):
+        with patch.object(self.client, '_json', side_effect=[self.page(1, 40), self.page(2, 40)]) as read:
+            self.assertEqual(len(self.client.inventory()), 40)
+            self.assertEqual(read.call_count, 2)
+
+    def test_empty_inventory_with_zero_or_one_total_pages(self):
+        for total_pages in (0, 1):
+            data = self.page(1, 0)
+            data['result_info']['total_pages'] = total_pages
+            with self.subTest(total_pages=total_pages), patch.object(self.client, '_json', return_value=data) as read:
+                self.assertEqual(self.client.inventory(), [])
+                self.assertEqual(read.call_count, 1)
+
+    def test_complete_history_at_existing_thousand_record_bound(self):
+        with patch.object(self.client, '_json', side_effect=[self.page(number, 1000) for number in range(1, 51)]) as read:
+            self.assertEqual(len(self.client.inventory()), 1000)
+            self.assertEqual(read.call_count, 50)
+
+    def test_excessive_inventory_blocks_without_scanning_a_truncated_prefix(self):
+        with patch.object(self.client, '_json', return_value=self.page(1, 1001)) as read, self.assertRaises(gate.GateError):
+            self.client.inventory()
+        self.assertEqual(read.call_count, 1)
+
+    def test_duplicate_identity_across_pages_blocks(self):
+        pages = [self.page(1, 27), self.page(2, 27)]
+        pages[1]['result'][0] = deepcopy(pages[0]['result'][0])
+        with patch.object(self.client, '_json', side_effect=pages), self.assertRaises(gate.GateError):
+            self.client.inventory()
+
+    def test_provider_cannot_ignore_the_production_scope(self):
+        for value in ('preview', None):
+            data = self.page(1, 7)
+            data['result'][0]['environment'] = value
+            with self.subTest(value=value), patch.object(self.client, '_json', return_value=data), self.assertRaises(gate.GateError):
+                self.client.inventory()
+
+    def test_total_count_change_during_pagination_blocks(self):
+        with patch.object(self.client, '_json', side_effect=[self.page(1, 27), self.page(2, 28)]), self.assertRaises(gate.GateError):
+            self.client.inventory()
+
+    def test_short_nonfinal_page_is_not_accepted_as_complete(self):
+        data = self.page(1, 27)
+        data['result'].pop()
+        data['result_info']['count'] = 19
+        with patch.object(self.client, '_json', return_value=data), self.assertRaises(gate.GateError):
+            self.client.inventory()
+
+    def test_missing_false_or_malformed_response_blocks(self):
+        for change in ('missing_info', 'false', 'missing_rows', 'not_object'):
+            data = self.page(1, 7)
+            if change == 'missing_info':
+                del data['result_info']
+            elif change == 'false':
+                data['success'] = False
+            elif change == 'missing_rows':
+                data['result'] = None
+            else:
+                data = []
+            with self.subTest(change=change), patch.object(self.client, '_json', return_value=data), self.assertRaises(gate.GateError):
+                self.client.inventory()
+
+    def test_mismatched_or_noninteger_page_metadata_blocks(self):
+        for field, value in [('page', 2), ('per_page', 100), ('count', 1), ('total_pages', 2),
+                             ('page', True), ('count', '7'), ('total_count', -1), ('total_count', True)]:
+            data = self.page(1, 7)
+            data['result_info'][field] = value
+            with self.subTest(field=field, value=value), patch.object(self.client, '_json', return_value=data), self.assertRaises(gate.GateError):
+                self.client.inventory()
+
+    def test_invalid_identity_blocks(self):
+        data = self.page(1, 7)
+        data['result'][0]['id'] = 'not-an-id'
+        with patch.object(self.client, '_json', return_value=data), self.assertRaises(gate.GateError):
+            self.client.inventory()
+
+    def test_failed_read_never_falls_back_to_a_smaller_unproven_snapshot(self):
+        with patch.object(self.client, '_json', side_effect=gate.GateError('readonly_request_failed')) as read, self.assertRaises(gate.GateError):
+            self.client.inventory()
+        self.assertEqual(read.call_count, 1)
+
+
 if __name__ == '__main__':
     unittest.main()

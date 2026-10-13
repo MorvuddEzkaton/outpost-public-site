@@ -93,6 +93,24 @@ or an independent Cloudflare writer.
 [GitHub run-number identity contract](https://docs.github.com/en/actions/reference/workflows-and-actions/variables),
 [artifact identity, digest and archive download](https://docs.github.com/en/rest/actions/artifacts).
 
+### Bounded production deployment inventory
+
+Read the provider's **production-only** deployment inventory with
+`env=production&per_page=20`, not `per_page=100` (rejected by the actual Pages API).
+Preview deployments cannot be successful production baselines or competing
+production uploads; preview configuration/bindings remain protected by the
+unchanged complete project fingerprint and configuration guard.
+
+Require exact page/size/count/total-pages metadata, a stable total count, complete
+pages, unique deployment IDs and production scope on every row. Never accept a
+truncated prefix, ignored filter, shifted page, duplicate or failed read. Retain
+the 1,000-record bound (at most 50 read-only requests). Larger production history
+requires a separate reviewed policy, not automatic pruning or relaxed checks.
+The initial journal IDs refer to this complete production inventory. This change
+does not limit the unfiltered **GitHub publisher run** history/quarantine above.
+All upload, rollback, current main, journal and notification-mode guards remain.
+[Cloudflare deployment-list contract](https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/list/).
+
 ### Owner-reviewed append-only checkpoint
 
 `release/production-history-checkpoint.json` was introduced with an **empty genesis**
