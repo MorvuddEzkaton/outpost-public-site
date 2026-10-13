@@ -23,6 +23,8 @@ import production_checkpoints as checkpoints
 WRANGLER_VERSION = '4.142.0'
 ORIGINAL_CONFIG_HASH = 'a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d'
 TERMINAL = {'success', 'failure', 'canceled', 'skipped'}
+PAGES_PER_PAGE = 20
+MAX_PRODUCTION_DEPLOYMENTS = 1000
 LIVE_COMMANDS = (
     'verify_live_production.py', 'verify_live_site_identity.py', 'verify_live_public_ctas.py',
     'verify_live_phone_ctas.py', 'verify_live_sitemap.py', 'verify_live_robots.py',
@@ -199,14 +201,37 @@ class Clients(history.HistoryReads, gate.ReadOnlyClients):
         gate.require(self.github_token, 'readonly_run_history_credential_missing')
 
     def inventory(self):
-        items = []
-        for page in range(1, 11):
-            response = self._json('https://api.cloudflare.com/client/v4' + self.base + '/deployments?per_page=100&page=' + str(page),
+        # Pages rejects per_page=100. Scope to production: preview versions
+        # cannot be rollback targets or competing production rollouts.
+        # Never interpret a truncated/shifted page as a complete history.
+        items, total, seen = [], None, set()
+        for page in range(1, MAX_PRODUCTION_DEPLOYMENTS // PAGES_PER_PAGE + 1):
+            response = self._json('https://api.cloudflare.com/client/v4' + self.base +
+                                  '/deployments?env=production&per_page=' + str(PAGES_PER_PAGE) + '&page=' + str(page),
                                   {'Authorization': 'Bearer ' + self.token})
-            gate.require(response.get('success') is True and isinstance(response.get('result'), list), 'inventory_read_failed')
+            gate.require(isinstance(response, dict) and response.get('success') is True and
+                         isinstance(response.get('result'), list) and isinstance(response.get('result_info'), dict), 'inventory_read_failed')
             chunk = response['result']
+            info = response['result_info']
+            count = info.get('total_count')
+            gate.require(type(count) is int and 0 <= count <= MAX_PRODUCTION_DEPLOYMENTS,
+                         'inventory_too_large_or_invalid_manual_review_required')
+            pages = (count + PAGES_PER_PAGE - 1) // PAGES_PER_PAGE
+            gate.require(type(info.get('page')) is int and info['page'] == page and
+                         type(info.get('per_page')) is int and info['per_page'] == PAGES_PER_PAGE and
+                         type(info.get('count')) is int and info['count'] == len(chunk) and
+                         type(info.get('total_pages')) is int and
+                         info['total_pages'] in ((0, 1) if count == 0 else (pages,)) and
+                         (total is None or total == count), 'inventory_pagination_drift_or_incomplete')
+            total = count
+            gate.require(len(chunk) == max(0, min(PAGES_PER_PAGE, total - len(items))), 'inventory_pagination_drift_or_incomplete')
+            for item in chunk:
+                gate.require(isinstance(item, dict) and item.get('environment') == 'production', 'inventory_scope_mismatch')
+                identity = uuid(item.get('id'))
+                gate.require(identity not in seen, 'inventory_duplicate_or_shifted_page')
+                seen.add(identity)
             items.extend(chunk)
-            if len(chunk) < 100:
+            if len(items) == total:
                 return items
         raise gate.GateError('inventory_too_large_manual_review_required')
 
