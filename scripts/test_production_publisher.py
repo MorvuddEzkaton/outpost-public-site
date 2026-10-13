@@ -1,6 +1,7 @@
 """Synthetic publisher acceptance/negative tests. No real credentials or network."""
 from copy import deepcopy
 import json
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -453,6 +454,80 @@ class PublisherTests(unittest.TestCase):
             with self.assertRaises(gate.GateError):
                 client.github('/actions/secrets')
             self.assertEqual(request.call_count, 1)
+
+class LiveVerifierEnvironmentTests(unittest.TestCase):
+    """Child environment regression; synthetic values, no process or network."""
+    def test_unknown_and_operational_values_are_not_inherited(self):
+        private = {'CLOUDFLARE_ACCOUNT_ID': 'offline-account', 'CLOUDFLARE_API_TOKEN': 'offline-pages',
+                   'GITHUB_TOKEN': 'offline-actions', 'GITHUB_ACTIONS': 'true', 'GITHUB_SHA': SHA,
+                   'OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED': '1', 'OUTPOST_PRODUCTION_WRITER_ENABLED': '1',
+                   'OUTPOST_PRODUCTION_ROLLBACK_ENABLED': '1', 'OUTPOST_RELEASE_CONFIRM_KEY': 'offline-only',
+                   'OUTPOST_LIVE_TOKEN': 'offline-only', 'CUSTOM_AUTH': 'offline-only',
+                   'GIT_CONFIG_KEY_0': 'http.extraheader', 'GIT_CONFIG_VALUE_0': 'offline-only',
+                   'HTTP_PROXY': 'http://offline.invalid', 'HTTPS_PROXY': 'http://offline.invalid',
+                   'PYTHONPATH': '/private/modules', 'HOME': '/private/profile', 'AWS_PROFILE': 'private'}
+        self.assertEqual(publisher.live_environment(private), {})
+
+    def test_runtime_settings_are_preserved_without_normalizing_values(self):
+        runtime = {'PATH': '/runtime/bin', 'SystemRoot': 'C:/Windows', 'TMPDIR': '/tmp',
+                   'LD_LIBRARY_PATH': '/runtime/lib', 'PYTHONUTF8': '1',
+                   'PYTHONPYCACHEPREFIX': '/tmp/public-cache', 'SSL_CERT_FILE': '/public/ca.pem'}
+        self.assertEqual(publisher.live_environment(runtime), runtime)
+
+    def test_retry_and_parallelism_controls_still_work(self):
+        controls = {'OUTPOST_LIVE_VERIFY_ATTEMPTS': '2', 'OUTPOST_LIVE_CABINET_DELAY_SECONDS': '0.5',
+                    'OUTPOST_LIVE_NORMALIZATION_WORKERS': '4', 'OUTPOST_LIVE_STRUCTURED_WORKERS': '8'}
+        self.assertEqual(publisher.live_environment(controls), controls)
+        self.assertEqual(publisher.live_environment({'OUTPOST_LIVE_PRIVATE_ATTEMPTS': '2',
+                                                     'OUTPOST_LIVE_SECRET_WORKERS': 'offline-only'}), {})
+
+    def test_parent_environment_is_not_modified(self):
+        parent = {'PATH': '/runtime/bin', 'GITHUB_TOKEN': 'offline-actions',
+                  'CLOUDFLARE_API_TOKEN': 'offline-pages'}
+        before = deepcopy(parent)
+        child = publisher.live_environment(parent)
+        child['PATH'] = '/other'
+        self.assertEqual(parent, before)
+
+    def test_runner_receives_explicit_credential_free_environment(self):
+        root = Path('/reviewed')
+        with patch.dict(publisher.os.environ, {'PATH': '/runtime/bin', 'GITHUB_TOKEN': 'offline-actions',
+                'CLOUDFLARE_API_TOKEN': 'offline-pages', 'OUTPOST_LIVE_VERIFY_ATTEMPTS': '1'}, clear=True), \
+                patch.object(publisher.subprocess, 'run', return_value=publisher.subprocess.CompletedProcess([], 0)) as run:
+            self.assertTrue(publisher.run_live(root, 'verify_live_production.py'))
+            self.assertEqual(run.call_args.args[0], [sys.executable, str(root / 'scripts/verify_live_production.py')])
+            self.assertEqual(run.call_args.kwargs['env'], {'PATH': '/runtime/bin', 'OUTPOST_LIVE_VERIFY_ATTEMPTS': '1'})
+            self.assertEqual(publisher.os.environ['GITHUB_TOKEN'], 'offline-actions')
+            self.assertEqual(publisher.os.environ['CLOUDFLARE_API_TOKEN'], 'offline-pages')
+            self.assertEqual(run.call_args.kwargs['cwd'], root)
+            self.assertTrue(run.call_args.kwargs['capture_output'])
+            self.assertEqual(run.call_args.kwargs['timeout'], 240)
+
+    def test_nonzero_exit_remains_failed(self):
+        with patch.object(publisher.subprocess, 'run', return_value=publisher.subprocess.CompletedProcess([], 1)):
+            self.assertFalse(publisher.run_live(Path('/reviewed'), 'verify_live_production.py'))
+
+    def test_real_offline_python_child_can_start_without_operational_environment(self):
+        parent = {**dict(publisher.os.environ), 'CLOUDFLARE_API_TOKEN': 'offline-pages',
+                  'GITHUB_TOKEN': 'offline-actions', 'OUTPOST_PRODUCTION_WRITER_ENABLED': '1'}
+        code = "import os; assert all(name not in os.environ for name in ('CLOUDFLARE_API_TOKEN', 'GITHUB_TOKEN', 'OUTPOST_PRODUCTION_WRITER_ENABLED'))"
+        result = publisher.subprocess.run([sys.executable, '-c', code],
+                    env=publisher.live_environment(parent), capture_output=True, timeout=15, check=False)
+        self.assertEqual(result.returncode, 0, 'isolated Python runtime must start; no network was requested')
+
+    def test_timeout_is_not_retried_or_hidden(self):
+        with patch.object(publisher.subprocess, 'run', side_effect=publisher.subprocess.TimeoutExpired('offline', 240)) as run:
+            with self.assertRaises(publisher.subprocess.TimeoutExpired):
+                publisher.run_live(Path('/reviewed'), 'verify_live_production.py')
+            self.assertEqual(run.call_count, 1)
+
+    def test_unlisted_or_traversal_verifier_is_rejected_before_spawn(self):
+        for command in ('../private.py', 'dump_environment.py', '', 'verify_live_production.py;echo'):
+            with self.subTest(command=command), patch.object(publisher.subprocess, 'run') as run:
+                with self.assertRaisesRegex(gate.GateError, 'unexpected_live_verifier'):
+                    publisher.run_live(Path('/reviewed'), command)
+                run.assert_not_called()
+
 
 class PagesInventoryTests(unittest.TestCase):
     """Actual wire contract; no real credential, request or publication."""
