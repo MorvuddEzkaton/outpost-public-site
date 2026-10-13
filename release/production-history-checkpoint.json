@@ -1,7 +1,116 @@
 {
-  "schema": 1,
-  "repository": "MorvuddEzkaton/outpost-public-site",
-  "workflow_id": 382921011,
   "first_run_id": 38360609329,
-  "records": []
+  "records": [
+    {
+      "kind": "skipped",
+      "previous_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proof": {
+        "conclusion": "skipped",
+        "head_sha": "3f319aa5ff18b42b69c44da4b3cabcde429679b7",
+        "id": 115173649143,
+        "name": "publish",
+        "run_attempt": 1,
+        "run_id": 38360609329,
+        "runner_id": null,
+        "runner_name": null,
+        "status": "completed",
+        "steps": []
+      },
+      "record_sha256": "0df1e54e1379431cd50a1f461b40a48d0c06f47eb37a20cb8c18636bc622b4c4",
+      "run": {
+        "conclusion": "skipped",
+        "event": "push",
+        "head_branch": "main",
+        "head_repository": {
+          "id": 1415330072
+        },
+        "head_sha": "3f319aa5ff18b42b69c44da4b3cabcde429679b7",
+        "id": 38360609329,
+        "path": ".github/workflows/deploy-public-production.yml",
+        "repository": {
+          "full_name": "MorvuddEzkaton/outpost-public-site",
+          "id": 1415330072
+        },
+        "run_attempt": 1,
+        "run_number": 1,
+        "status": "completed",
+        "workflow_id": 382921011
+      }
+    },
+    {
+      "kind": "skipped",
+      "previous_sha256": "0df1e54e1379431cd50a1f461b40a48d0c06f47eb37a20cb8c18636bc622b4c4",
+      "proof": {
+        "conclusion": "skipped",
+        "head_sha": "25246c0e2c326d408a3fd027351878a793b94573",
+        "id": 115222292971,
+        "name": "publish",
+        "run_attempt": 1,
+        "run_id": 38375370741,
+        "runner_id": null,
+        "runner_name": null,
+        "status": "completed",
+        "steps": []
+      },
+      "record_sha256": "658ed2d5f6c709c3f2631e1710b809916ffadc63fc0303e30f435cf5437f7c45",
+      "run": {
+        "conclusion": "skipped",
+        "event": "push",
+        "head_branch": "main",
+        "head_repository": {
+          "id": 1415330072
+        },
+        "head_sha": "25246c0e2c326d408a3fd027351878a793b94573",
+        "id": 38375370741,
+        "path": ".github/workflows/deploy-public-production.yml",
+        "repository": {
+          "full_name": "MorvuddEzkaton/outpost-public-site",
+          "id": 1415330072
+        },
+        "run_attempt": 1,
+        "run_number": 2,
+        "status": "completed",
+        "workflow_id": 382921011
+      }
+    },
+    {
+      "kind": "skipped",
+      "previous_sha256": "658ed2d5f6c709c3f2631e1710b809916ffadc63fc0303e30f435cf5437f7c45",
+      "proof": {
+        "conclusion": "skipped",
+        "head_sha": "00d93d673da0ae1527900475c16f264c113b3926",
+        "id": 115279513629,
+        "name": "publish",
+        "run_attempt": 1,
+        "run_id": 38392512170,
+        "runner_id": null,
+        "runner_name": null,
+        "status": "completed",
+        "steps": []
+      },
+      "record_sha256": "eb90e25a60b7f45eae809e496c29daf4a91593df6d4d33a9f4b7b2c0644ab187",
+      "run": {
+        "conclusion": "skipped",
+        "event": "push",
+        "head_branch": "main",
+        "head_repository": {
+          "id": 1415330072
+        },
+        "head_sha": "00d93d673da0ae1527900475c16f264c113b3926",
+        "id": 38392512170,
+        "path": ".github/workflows/deploy-public-production.yml",
+        "repository": {
+          "full_name": "MorvuddEzkaton/outpost-public-site",
+          "id": 1415330072
+        },
+        "run_attempt": 1,
+        "run_number": 3,
+        "status": "completed",
+        "workflow_id": 382921011
+      }
+    }
+  ],
+  "repository": "MorvuddEzkaton/outpost-public-site",
+  "schema": 1,
+  "workflow_id": 382921011
 }
