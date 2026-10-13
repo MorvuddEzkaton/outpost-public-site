@@ -49,7 +49,7 @@ class HistoryTests(unittest.TestCase):
         self.addCleanup(checkpoint_patch.stop)
         self.checkpoint_patch = checkpoint_patch
         config = json.loads((gate.ROOT / 'wrangler.jsonc').read_text())
-        for target, value in [(gate, ('local_source', (config, publisher.ORIGINAL_CONFIG_HASH))),
+        for target, value in [(gate, ('local_source', (config, publisher.APPROVED_CONFIG_HASH))),
                               (publisher, ('manifest', [{'path': 'site/demo.html', 'bytes': 4, 'sha256': 'd' * 64}]))]:
             change = patch.object(target, value[0], return_value=value[1])
             change.start()
@@ -100,7 +100,7 @@ class HistoryTests(unittest.TestCase):
         self.client.records[self.prior['id']] = records
 
     def clear(self):
-        history.assert_clear(self.client, self.env, publisher.validate_journal)
+        history.assert_clear(self.client, self.env, publisher.validate_historical_journal)
 
     def execute(self, uploader):
         with patch.object(publisher, 'tool', return_value=Path('/pinned/wrangler.js')), \
@@ -110,6 +110,15 @@ class HistoryTests(unittest.TestCase):
     def test_different_source_prepared_without_upload_is_safe(self):
         self.clear()
         self.assertNotEqual(self.intent['source_sha'], self.env['GITHUB_SHA'])
+
+    def test_reviewed_legacy_config_history_is_preserved_without_replay(self):
+        self.intent['configuration_sha256'] = publisher.LEGACY_CONFIG_HASH
+        self.set_result('prepared')
+        publisher.history_clear(self.client, self.env, self.root)
+        self.set_result('upload_unknown')
+        with self.assertRaises(gate.GateError):
+            self.execute(lambda *_: self.fail('legacy unresolved evidence must still block'))
+        self.assertEqual(self.journal.data['state'], 'prepared')
 
     def test_accepted_previous_live_pass_is_safe(self):
         self.prior['conclusion'] = 'success'

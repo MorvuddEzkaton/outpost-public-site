@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 import unittest
 import production_deployment_gate as gate
-from verify_cloudflare_config import EXPECTED_PRODUCTION_D1, EXPECTED_PREVIEW_D1
+from verify_cloudflare_config import EXPECTED_PRODUCTION_D1, EXPECTED_PREVIEW_D1, EXPECTED_PREVIEW_CONFIG_HASH, configuration_errors, APPROVED_CONFIG_HASH, LEGACY_CONFIG_HASH
 
 SHA = 'a' * 40
 HEAD = 'b' * 40
@@ -22,7 +22,7 @@ def project():
     prod = {'d1_databases': {k: {'id': v[1]} for k, v in EXPECTED_PRODUCTION_D1.items()}, 'compatibility_date': '2026-08-22',
             'compatibility_flags': [], 'wrangler_config_hash': HASH, 'env_vars': {'DEMO_SECRET': {'type': 'secret_text'}}}
     preview = {'d1_databases': {k: {'id': v[1]} for k, v in EXPECTED_PREVIEW_D1.items()}, 'compatibility_date': '2026-08-22',
-               'compatibility_flags': [], 'wrangler_config_hash': HASH, 'env_vars': {}}
+               'compatibility_flags': [], 'wrangler_config_hash': EXPECTED_PREVIEW_CONFIG_HASH, 'env_vars': {}}
     return {'name': gate.PROJECT, 'production_branch': 'main', 'domains': ['outpost.com.ua', 'www.outpost.com.ua'],
             'source': {'type': 'github', 'config': {'production_deployments_enabled': False}},
             'deployment_configs': {'production': prod, 'preview': preview},
@@ -119,6 +119,27 @@ class GateTests(unittest.TestCase):
         with self.assertRaises(gate.GateError): gate.validate_project(project(), {**config, 'vars': {'DEMO': 'value'}}, HASH)
         config['d1_databases'] = config['env']['preview']['d1_databases']
         with self.assertRaises(gate.GateError): gate.validate_project(project(), config, HASH)
+
+    def test_declared_runtime_mode_and_preview_isolation_are_exact(self):
+        config = json.loads((gate.ROOT/'wrangler.jsonc').read_text(encoding='utf-8'))
+        self.assertEqual(configuration_errors(config), [])
+        for value in [None, {}, {'TELEGRAM_CONFIRMED_RELEASES_ENABLED': '0'}, {'TELEGRAM_CONFIRMED_RELEASES_ENABLED': 1},
+                      {'TELEGRAM_CONFIRMED_RELEASES_ENABLED': True}, {'TELEGRAM_CONFIRMED_RELEASES_ENABLED': 'true'},
+                      {**config['vars'], 'TELEGRAM_BOT_TOKEN': 'SYNTHETIC-ONLY'}]:
+            changed = deepcopy(config); changed['vars'] = value
+            with self.subTest(value=value), self.assertRaises(gate.GateError): gate.validate_project(project(), changed, HASH)
+        for value in [None, {'TELEGRAM_CONFIRMED_RELEASES_ENABLED': '1'}, {'OUTPOST_PREVIEW_ONLY': '1'}]:
+            changed = deepcopy(config); changed['env']['preview']['vars'] = value
+            with self.subTest(preview=value), self.assertRaises(gate.GateError): gate.validate_project(project(), changed, HASH)
+        changed = deepcopy(config); del changed['env']['preview']['vars']
+        with self.assertRaises(gate.GateError): gate.validate_project(project(), changed, HASH)
+
+    def test_preview_marker_is_pinned_independently_not_silently_updated(self):
+        config = json.loads((gate.ROOT/'wrangler.jsonc').read_text(encoding='utf-8'))
+        self.assertEqual(EXPECTED_PREVIEW_CONFIG_HASH, LEGACY_CONFIG_HASH)
+        for value in [None, APPROVED_CONFIG_HASH, '0'*64]:
+            changed = project(); changed['deployment_configs']['preview']['wrangler_config_hash'] = value
+            with self.subTest(marker=value), self.assertRaises(gate.GateError): gate.validate_project(changed, config, HASH)
 
     def test_successful_exact_canonical_only(self):
         self.assertEqual(gate.validate_deployment(project(), SHA, DEPLOYMENT), DEPLOYMENT)

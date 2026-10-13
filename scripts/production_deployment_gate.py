@@ -87,7 +87,7 @@ def stable_project(value):
     return result
 
 def validate_project(project, config, config_hash):
-    from verify_cloudflare_config import EXPECTED_PRODUCTION_D1, EXPECTED_PREVIEW_D1, as_binding_map
+    from verify_cloudflare_config import EXPECTED_PRODUCTION_D1, EXPECTED_PREVIEW_D1, EXPECTED_PREVIEW_CONFIG_HASH, as_binding_map, configuration_errors
     require(project.get('name') == PROJECT and project.get('production_branch') == 'main', 'wrong_pages_project')
     require(project.get('source', {}).get('type') == 'github' and
             project['source'].get('config', {}).get('production_deployments_enabled') is False, 'old_git_autodeploy_not_disabled')
@@ -96,13 +96,13 @@ def validate_project(project, config, config_hash):
     require(as_binding_map(config.get('d1_databases', [])) == EXPECTED_PRODUCTION_D1 and
             as_binding_map(config.get('env', {}).get('preview', {}).get('d1_databases', [])) == EXPECTED_PREVIEW_D1,
             'local_binding_drift')
-    require(set(config) == {'$schema', 'name', 'pages_build_output_dir', 'compatibility_date', 'd1_databases', 'env'} and
-            set(config['env']) == {'preview'} and set(config['env']['preview']) == {'d1_databases'}, 'unexpected_config_fields')
+    require(not configuration_errors(config), 'unexpected_config_fields')
     for name, expected in [('production', EXPECTED_PRODUCTION_D1), ('preview', EXPECTED_PREVIEW_D1)]:
         value = project.get('deployment_configs', {}).get(name, {})
         require(value.get('d1_databases') == {binding: {'id': pair[1]} for binding, pair in expected.items()}, 'remote_binding_drift')
+        expected_hash = config_hash if name == 'production' else EXPECTED_PREVIEW_CONFIG_HASH
         require(value.get('compatibility_date') == config['compatibility_date'] and value.get('compatibility_flags') == [] and
-                value.get('wrangler_config_hash') == config_hash, 'runtime_or_configuration_hash_drift')
+                value.get('wrangler_config_hash') == expected_hash, 'runtime_or_configuration_hash_drift')
     require(set(project.get('domains', [])) >= {'outpost.com.ua', 'www.outpost.com.ua'}, 'production_domains_missing')
 
 def validate_deployment(project, sha, deployment_id=None):

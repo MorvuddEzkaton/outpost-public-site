@@ -1,9 +1,17 @@
 # Protected production provenance — preparation, not activation
 
-The Pages publication path must preserve the reviewed original `wrangler.jsonc`.
+The Pages publication path must preserve the exact currently reviewed `wrangler.jsonc`.
 Publishing without that file can clear its configuration marker even when D1
 bindings and runtime settings survive. Never substitute an isolated-preview file,
 reconstruct encrypted values or accept unexplained configuration drift.
+
+The reviewed production-only nonsecret mode flag is declared in `vars`, not just
+project metadata. Preview explicitly overrides `vars` with an empty object; its
+remote configuration marker stays independently pinned to the previous baseline.
+This is a narrow deliberate source/config change, not acceptance of arbitrary vars
+or automatic preview updates. Existing runtime, D1, secrets, domains and protections
+remain unchanged. Actual runtime health remains mandatory: a controlled plain-text
+project-only attempt failed this gate and was restored rather than marked successful.
 
 ## Before any canonical live GET
 
@@ -52,8 +60,10 @@ Neither package activates it, creates confirmed-release keys, enables the schedu
 pump, resolves unknown delivery states, changes quota or announces current versions.
 The existing live/confirmation diagnostics fail closed until prerequisites are ready.
 Actual protected deployment->live->release end-to-end acceptance remains separate.
-Ordinary legacy behavior remains unchanged
-until deliberate activation; adding health fields does not switch either engine.
+The source-declared mode suppresses the legacy sender only when a separately
+approved deployment actually applies it. It does not deliver messages without
+operational keys, release confirmation and a separately approved pump. Adding
+health fields or merging this source does not itself establish live mode acceptance.
 
 An encrypted secret's value cannot be compared through Pages metadata. The proof
 checks names/types and safe mode, not cryptographic equality of hidden values.
