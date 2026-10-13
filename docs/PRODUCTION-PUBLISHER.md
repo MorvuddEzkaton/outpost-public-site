@@ -95,8 +95,11 @@ or an independent Cloudflare writer.
 
 ### Owner-reviewed append-only checkpoint
 
-`release/production-history-checkpoint.json` starts with an **empty genesis**.
-This source preparation does not claim that any real run was captured or accepted.
+`release/production-history-checkpoint.json` was introduced with an **empty genesis**
+in PR7. Real evidence is appended only through a separate verified, owner-reviewed
+PR. The initial capture preserves runs 1–3: each actual `publish` job was skipped,
+had no steps or runner, and produced no journal artifacts. These records prove
+**no publisher operation**, not a successful site rollout or live acceptance.
 The publisher has no repository-write permission and does not append checkpoints.
 
 An explicit read-only preparation tool can produce a candidate outside Git:
