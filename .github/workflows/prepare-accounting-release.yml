@@ -258,9 +258,10 @@ jobs:
           python scripts/test_production_deployment_gate.py
           python scripts/test_production_deployment_workflows.py
           python scripts/test_production_publisher.py
+          python scripts/test_production_history.py
           python scripts/verify_production_publisher_workflow.py
           python scripts/test_production_publisher_workflow.py
-          python -m py_compile scripts/production_publisher.py scripts/test_production_publisher.py scripts/verify_production_publisher_workflow.py scripts/test_production_publisher_workflow.py scripts/run_production_quality.py
+          python -m py_compile scripts/production_publisher.py scripts/production_history.py scripts/test_production_publisher.py scripts/test_production_history.py scripts/verify_production_publisher_workflow.py scripts/test_production_publisher_workflow.py scripts/run_production_quality.py
           node scripts/test_release_mode_health.mjs
           node scripts/test_publisher_toolchain.mjs
           python -m py_compile scripts/production_deployment_gate.py scripts/verify_production_deployment_workflows.py
