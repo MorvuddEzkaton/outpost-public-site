@@ -3,7 +3,8 @@ import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { confirmRelease, pumpReleaseJournal, releaseJournalStatus, handleReleaseDispatch,
-  verifyConfirmedReleaseLive, sendJournalMessage, validateRelease, deliveryPolicy } from '../site/_telegram-release-journal.js';
+  verifyConfirmedReleaseLive, sendJournalMessage, validateRelease, deliveryPolicy, handleReleasePilot } from '../site/_telegram-release-journal.js';
+import {pilotCredentialRole} from '../site/_telegram-pilot-credentials.js';
 import { maybeNotifyTelegramRelease, handleTelegramWebhook } from '../site/_telegram-support.js';
 import worker from '../site/_worker.js';
 import { pumpConfirmedReleases } from './telegram_release_scheduler.mjs';
@@ -50,7 +51,51 @@ function fixture(){
   const deps={now:()=>now,verifyLive:(env,r)=>verifyConfirmedReleaseLive(env,r,live),send:sender};
   return {db,env,versions,sent,fetched,release,deps,advance(ms){now+=ms;},setResponse(fn){response=fn;},confirm(p='outpost'){return confirmRelease(env,release(p),deps);},pump(){return pumpReleaseJournal(env,deps);}};
 }
+function pilotFixture(){
+ const f=fixture();delete f.env.TELEGRAM_RELEASE_DELIVERY_MODE;f.env.TELEGRAM_ADMIN_CHAT_ID='101';
+ const confirmKey='C'.repeat(43),pumpKey='P'.repeat(43);
+ const verifiers={schema:1,expires_at:new Date(200000).toISOString(),confirm_sha256:createHash('sha256').update(confirmKey).digest('hex'),pump_sha256:createHash('sha256').update(pumpKey).digest('hex')};
+ const call=(body,key=pumpKey,url='https://outpost.com.ua/api/telegram/releases/pilot')=>handleReleasePilot(new Request(url,{method:'POST',headers:{'x-outpost-release-key':key},body:JSON.stringify(body)}),f.env,{...f.deps,verifiers});
+ const {installer,...release}=f.release('outpost');
+ return {...f,call,confirmKey,pumpKey,verifiers,body:{...release,action:'confirm',expected_admin_chat_id:'101'}};
+}
 try{
+ await scenario('public pilot verifier is not a credential; keys expire and roles are distinct',async()=>{
+  const f=pilotFixture();same(await pilotCredentialRole(f.confirmKey,f.verifiers,100000),'confirm');same(await pilotCredentialRole(f.pumpKey,f.verifiers,100000),'pump');
+  for(const key of [f.verifiers.confirm_sha256,f.verifiers.pump_sha256,'wrong',''])same(await pilotCredentialRole(key,f.verifiers,100000),null);
+  same(await pilotCredentialRole(f.confirmKey,f.verifiers,200000),null);
+  same(await pilotCredentialRole(f.confirmKey,{...f.verifiers,pump_sha256:f.verifiers.confirm_sha256},100000),null);
+ });
+ await scenario('pilot capability route rejects wrong role, recipient selectors and assertions before SQL',async()=>{
+  const f=pilotFixture();same((await f.call(f.body)).status,401);same((await f.call({action:'status',expected_admin_chat_id:'101'},f.confirmKey)).status,401);
+  for(const assertion of [undefined,'202',101])same((await f.call({...f.body,expected_admin_chat_id:assertion},f.confirmKey)).status,409);
+  for(const extra of [{audience:'subscribers'},{chat_id:'202'},{recipients:['202']}])same((await f.call({...f.body,...extra},f.confirmKey)).status,400);
+  same(f.db.queries,0);same(f.sent.length,0);
+ });
+ await scenario('fixed capability pilot works with normal mode OFF and leaves subscribers untouched',async()=>{
+  const f=pilotFixture();f.db.subscribe();f.db.subscribe('202');const before=f.db.sql.prepare('SELECT * FROM telegram_update_subscribers ORDER BY chat_id').all();
+  const confirmation=await (await f.call(f.body,f.confirmKey)).json();check(confirmation.ok&&confirmation.audience==='pilot'&&confirmation.recipient_verified);
+  const tick=await (await f.call({action:'tick',expected_admin_chat_id:'101'})).json();same(tick.sent,1);check(tick.recipient_verified);same(f.sent[0].chat_id,'101');
+  await f.call(f.body,f.confirmKey);await f.call({action:'tick',expected_admin_chat_id:'101'});same(f.sent.length,1);
+  const status=await (await f.call({action:'status',expected_admin_chat_id:'101'})).json();check(status.recipient_verified);check(!JSON.stringify(status).includes('chat_id'));check(!JSON.stringify(status).includes('101'));
+  same(f.db.sql.prepare('SELECT * FROM telegram_update_subscribers ORDER BY chat_id').all(),before);same(f.db.sql.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='telegram_release_events'").get().n,0);
+  same(f.env.TELEGRAM_RELEASE_DELIVERY_MODE,undefined);
+ });
+ await scenario('capability pilot cannot inherit a subscriber audience or normal route keys',async()=>{
+  const f=pilotFixture();f.env.TELEGRAM_RELEASE_DELIVERY_MODE='subscribers';f.db.subscribe('202');await f.call(f.body,f.confirmKey);await f.call({action:'tick',expected_admin_chat_id:'101'});same(f.sent.length,1);same(f.sent[0].chat_id,'101');
+  same((await f.call(f.body,f.env.TELEGRAM_RELEASE_CONFIRM_KEY)).status,401);same(f.env.TELEGRAM_RELEASE_DELIVERY_MODE,'subscribers');same(f.db.sql.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='telegram_release_deliveries'").get().n,0);
+ });
+ await scenario('capability preview, HTTP and expired authority never reach SQL',async()=>{
+  const f=pilotFixture();same((await f.call(f.body,f.confirmKey,'http://outpost.com.ua/api/telegram/releases/pilot')).status,503);
+  const r=await worker.fetch(new Request('https://preview.example.pages.dev/api/telegram/releases/pilot',{method:'POST',headers:{'x-outpost-release-key':f.confirmKey},body:JSON.stringify(f.body)}),f.env,{waitUntil(){throw Error('No preview effects');}});same(r.status,403);
+  f.env.OUTPOST_PREVIEW_ONLY='1';same((await f.call(f.body,f.confirmKey)).status,503);delete f.env.OUTPOST_PREVIEW_ONLY;f.verifiers.expires_at=new Date(50000).toISOString();same((await f.call(f.body,f.confirmKey)).status,401);same(f.db.queries,0);
+ });
+ await scenario('authenticated capability requests retain the 8 KiB body limit',async()=>{
+  const f=pilotFixture();same((await f.call({...f.body,extra:'x'.repeat(9000)},f.confirmKey)).status,400);same(f.db.queries,0);same(f.sent.length,0);
+ });
+ await scenario('capability uncertainty is visible without blind replay or cursor changes',async()=>{
+  const f=pilotFixture();await f.call(f.body,f.confirmKey);f.setResponse(()=>{throw Error('Possible delivered pilot');});await f.call({action:'tick',expected_admin_chat_id:'101'});await f.call(f.body,f.confirmKey);await f.call({action:'tick',expected_admin_chat_id:'101'});same(f.sent.length,1);check((await (await f.call({action:'status',expected_admin_chat_id:'101'})).json()).reconciliation_required);
+ });
  await scenario('delivery mode defaults OFF before SQL or live requests',async()=>{
   for(const mode of ['', 'off', 'all', 'true', '1']){
    const f=fixture();f.env.TELEGRAM_RELEASE_DELIVERY_MODE=mode;await assert.rejects(f.confirm(),/release_delivery_disabled/);await assert.rejects(f.pump(),/release_delivery_disabled/);await assert.rejects(releaseJournalStatus(f.env),/release_delivery_disabled/);same(f.db.queries,0);same(f.fetched.length,0);same(f.sent.length,0);

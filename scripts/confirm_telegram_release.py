@@ -14,6 +14,7 @@ from release_integrity import IntegrityError, load_receipt, verify_registry
 
 ROOT = Path(__file__).resolve().parents[1]
 ENDPOINT = "https://outpost.com.ua/api/telegram/releases/dispatch"
+PILOT_ENDPOINT = "https://outpost.com.ua/api/telegram/releases/pilot"
 
 
 def confirmation_payload(root: Path, product: str, source_sha: str) -> dict:
@@ -49,6 +50,10 @@ def trusted_apply_environment(source_sha: str, operation: str = "confirm") -> st
     mode = os.environ.get("OUTPOST_RELEASE_DELIVERY_MODE", "off")
     if operation not in ("confirm", "pilot", "tick", "status") or mode not in ("pilot", "subscribers") or (operation == "pilot" and mode != "pilot"):
         raise IntegrityError("explicit delivery audience gate not satisfied")
+    if mode == "pilot":
+        chat = os.environ.get("OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID", "")
+        if not re.fullmatch(r"[1-9]\d{0,15}",chat) or int(chat) > 9007199254740991:
+            raise IntegrityError("private expected administrator assertion required")
     name = "OUTPOST_RELEASE_CONFIRM_KEY" if operation in ("confirm", "pilot") else "OUTPOST_RELEASE_PUMP_KEY"
     key = os.environ.get(name, "")
     if len(key) < 32:
@@ -57,7 +62,9 @@ def trusted_apply_environment(source_sha: str, operation: str = "confirm") -> st
 
 
 def request_dispatch(payload: dict, key: str) -> dict:
-    request = urllib.request.Request(ENDPOINT, method="POST", data=json.dumps(payload).encode(),
+    pilot = os.environ.get("OUTPOST_RELEASE_DELIVERY_MODE") == "pilot"
+    body = {**payload,"expected_admin_chat_id":os.environ["OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID"]} if pilot else payload
+    request = urllib.request.Request(PILOT_ENDPOINT if pilot else ENDPOINT, method="POST", data=json.dumps(body).encode(),
                 headers={"Content-Type": "application/json", "X-OutPost-Release-Key": key})
     opener = urllib.request.build_opener(NoRedirect())
     with opener.open(request, timeout=60) as response:
@@ -67,6 +74,8 @@ def request_dispatch(payload: dict, key: str) -> dict:
         data = json.loads(raw)
     if not isinstance(data, dict) or data.get("ok") is not True or data.get("audience") != os.environ["OUTPOST_RELEASE_DELIVERY_MODE"]:
         raise IntegrityError("dispatch audience was not acknowledged")
+    if pilot and data.get("recipient_verified") is not True:
+        raise IntegrityError("private recipient was not acknowledged")
     return data
 
 

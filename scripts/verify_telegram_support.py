@@ -13,10 +13,11 @@ WORKFLOW = ROOT / ".github" / "workflows" / "public-site-smoke.yml"
 DOCS = ROOT / "docs" / "TELEGRAM-SUPPORT.md"
 JOURNAL = SITE / "_telegram-release-journal.js"
 SCHEDULER = ROOT / "scripts" / "telegram_release_scheduler.mjs"
+PILOT = SITE / "_telegram-pilot-credentials.js"
 
 errors = []
 
-for path in (MODULE, FAQ, WORKER, SCRIPT, STYLES, WORKFLOW, DOCS, JOURNAL, SCHEDULER):
+for path in (MODULE, FAQ, WORKER, SCRIPT, STYLES, WORKFLOW, DOCS, JOURNAL, SCHEDULER, PILOT):
     if not path.exists():
         errors.append(f"missing required file: {path.relative_to(ROOT)}")
 
@@ -38,7 +39,7 @@ scheduler = SCHEDULER.read_text(encoding="utf-8")
 
 # Never allow a real-looking Bot API token in source-controlled integration files.
 token_pattern = re.compile(r"\b\d{7,12}:[A-Za-z0-9_-]{30,}\b")
-for path, text in ((MODULE, module), (FAQ, faq), (WORKER, worker), (SCRIPT, script), (WORKFLOW, workflow), (DOCS, docs), (JOURNAL, journal), (SCHEDULER, scheduler)):
+for path, text in ((MODULE, module), (FAQ, faq), (WORKER, worker), (SCRIPT, script), (WORKFLOW, workflow), (DOCS, docs), (JOURNAL, journal), (SCHEDULER, scheduler), (PILOT, PILOT.read_text(encoding="utf-8"))):
     if token_pattern.search(text):
         errors.append(f"possible Telegram bot token committed in {path.relative_to(ROOT)}")
 

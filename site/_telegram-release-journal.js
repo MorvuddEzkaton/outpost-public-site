@@ -1,7 +1,9 @@
 import { currentReleaseVersions, isNewerRelease, releaseCursorFromStorage, serializeReleaseCursor,
   releaseNotificationText, releaseLinksKeyboard } from "./_telegram-support.js";
+import { pilotCredentialRole } from "./_telegram-pilot-credentials.js";
 
 export const RELEASE_DISPATCH_PATH = "/api/telegram/releases/dispatch";
+export const RELEASE_PILOT_PATH = "/api/telegram/releases/pilot";
 const ORIGIN = "https://outpost.com.ua";
 const MAX_BYTES = 25 * 1024 * 1024;
 const MAX_BATCH = 3; // Conservative D1/HTTP subrequest budget on Workers Free.
@@ -293,4 +295,31 @@ export async function handleReleaseDispatch(request, env) {
     if(body.action==="status")return reply(await releaseJournalStatus(env));
     return reply(await pumpReleaseJournal(env));
   } catch {return reply({ok:false,error:"release_dispatch_failed"},502);}
+}
+
+// An expiring, fixed private-chat capability. No Pages configuration/secret
+// changes and no caller-selected audience. Normal subscriber dispatch stays OFF.
+export async function handleReleasePilot(request, env, deps = {}) {
+  const url = new URL(request.url);
+  if (url.protocol !== "https:" || url.port || !["outpost.com.ua","www.outpost.com.ua"].includes(url.hostname) || !ready(env)) return reply({ok:false,error:"confirmed_release_disabled"},503);
+  if (request.method !== "POST") return reply({ok:false,error:"method_not_allowed"},405);
+  const role = await pilotCredentialRole(request.headers.get("x-outpost-release-key"), deps.verifiers, deps.now?.() ?? Date.now());
+  if (!role) return reply({ok:false,error:"unauthorized"},401);
+  let body;
+  try { body = JSON.parse(new TextDecoder().decode(await boundedBytes(request,8192))); }
+  catch { return reply({ok:false,error:"invalid_request"},400); }
+  const confirm = body?.action === "confirm";
+  const allowed = confirm ? ["action","product","version","sha256","size_bytes","source_sha","expected_admin_chat_id"] : ["action","expected_admin_chat_id"];
+  if (!body || Object.keys(body).some(name=>!allowed.includes(name)) || !["confirm","tick","status"].includes(body.action)) return reply({ok:false,error:"invalid_request"},400);
+  if ((confirm && role !== "confirm") || (!confirm && role !== "pump")) return reply({ok:false,error:"unauthorized"},401);
+  const pilotEnv = {...env, TELEGRAM_RELEASE_DELIVERY_MODE:"pilot"};
+  let policy;
+  try { policy = deliveryPolicy(pilotEnv); } catch { return reply({ok:false,error:"pilot_recipient_invalid"},503); }
+  // Assertion only, not a recipient selector. Wrong/missing IDs cannot send or
+  // initialize SQL; the actual recipient is always the configured administrator.
+  if (typeof body.expected_admin_chat_id !== "string" || body.expected_admin_chat_id !== policy.chat) return reply({ok:false,error:"pilot_recipient_mismatch"},409);
+  try {
+    const result = confirm ? await confirmRelease(pilotEnv,body,deps) : body.action === "status" ? await releaseJournalStatus(pilotEnv) : await pumpReleaseJournal(pilotEnv,deps);
+    return reply({...result,recipient_verified:true});
+  } catch { return reply({ok:false,error:"release_dispatch_failed"},502); }
 }

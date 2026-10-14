@@ -15,7 +15,43 @@ Do not turn the legacy sender back on or reset subscription cursors to compensat
 
 ## Pilot and subscriber audiences
 
-`TELEGRAM_RELEASE_DELIVERY_MODE` is a second deliberate runtime boundary:
+### Short-lived private capability pilot (no Pages configuration change)
+
+The private pilot uses `/api/telegram/releases/pilot`. Its two independently random
+256-bit capabilities are stored encrypted with Windows CurrentUser DPAPI locally
+and as encrypted secrets in the protected GitHub production environment. Public
+source contains **only SHA-256 verification digests**, distinct confirm/pump roles
+and a 48-hour expiry in `_telegram-pilot-credentials.js`, never a credential or chat
+ID. A verification digest cannot authenticate as a capability. Expired authority
+fails before SQL. The ordinary subscriber dispatch remains OFF.
+
+The protected workflow also supplies a private expected-administrator assertion.
+The endpoint compares it to the existing configured positive private administrator;
+wrong/missing values stop before any queue initialization. This is an equality
+assertion, not a recipient selector. The response acknowledges the match but never
+returns its value. Capability roles cannot confirm using a pump key, send using a
+confirm key, select an audience, or gain permission on the normal dispatch route.
+The pilot route always constructs the fixed pilot scope after authentication and
+uses the existing isolated pilot journal, claim/ack and uncertainty protections.
+
+No Pages secret/variable/configuration hash or D1 binding is changed. The accepted
+rollback-compatible environment stays identical. There is no manual bootstrap,
+public Cron route, paid resource or hidden replacement of a configuration pin.
+The fresh Analytics backup and local encrypted restore precede real pilot delivery.
+Preview remains blocked even with copied credentials. The endpoint uses the existing
+bot only in the owner-authorized private chat; subscriber rows/cursors are untouched.
+
+The workflow expects `OUTPOST_RELEASE_DELIVERY_MODE=pilot` and the private
+`OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID` production secret. `pilot` performs confirm,
+one bounded tick, then aggregate status; it passes only if the matching product/version
+has exactly one stored sent acknowledgement. Repeated pilot sends nothing extra.
+After testing, disable the workflow switch; expiry also closes the pilot route.
+
+Sources: [Web Crypto](https://developers.cloudflare.com/workers/runtime-apis/web-crypto/),
+[key lifecycle](https://cheatsheetseries.owasp.org/cheatsheets/Key_Management_Cheat_Sheet.html),
+[GitHub secret encryption](https://docs.github.com/en/rest/guides/encrypting-secrets-for-the-rest-api).
+
+For the **ordinary dispatch route**, `TELEGRAM_RELEASE_DELIVERY_MODE` is a second deliberate runtime boundary:
 absent, `off` or invalid means no confirmation, queue writes or delivery. Only
 `pilot` and `subscribers` are accepted. This PR does NOT set this variable.
 
@@ -50,6 +86,8 @@ existing `TELEGRAM_PUBLIC_ENABLED=1`. Two NEW distinct encrypted keys are requir
 `TELEGRAM_RELEASE_PUMP_KEY` can only tick/read aggregate status. They cannot be
 the bot, webhook or setup key. Do not create/copy/rotate keys without the agreed
 activation plan. They never enter source, args, logs, screenshots or receipts.
+These Pages-key/configuration requirements apply to the future ordinary subscriber
+dispatcher, not the short-lived fixed-scope private capability pilot described above.
 
 When this mode is deliberately enabled, the visitor-triggered legacy sender is
 disabled both in the Worker and its direct entry point. Before activation, existing
@@ -143,7 +181,7 @@ Sources: [Telegram responses](https://core.telegram.org/bots/api#making-requests
 [D1 conditional statements](https://developers.cloudflare.com/d1/worker-api/d1-database/),
 [Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/).
 
-## Private pilot activation checklist (not executed by this PR)
+## Ordinary dispatcher activation checklist (not executed by this PR)
 
 1. Review/merge this exact change and approve its protected publication. Installer
    bytes, public product versions, existing domain and database bindings stay unchanged.
