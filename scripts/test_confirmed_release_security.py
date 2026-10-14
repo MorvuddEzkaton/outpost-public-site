@@ -43,6 +43,7 @@ class ConfirmedReleaseSecurity(unittest.TestCase):
                "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_SHA": sha,
                "OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED": "1", "OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED": "1",
                "OUTPOST_RELEASE_DELIVERY_MODE": "pilot",
+               "OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID": "101",
                "OUTPOST_RELEASE_CONFIRM_KEY": "demo-confirm-not-a-real-key".ljust(40, "x")}
         with patch.dict(os.environ, env, clear=True): self.assertEqual(confirm.trusted_apply_environment(sha), env["OUTPOST_RELEASE_CONFIRM_KEY"])
         for key in env:
@@ -55,6 +56,7 @@ class ConfirmedReleaseSecurity(unittest.TestCase):
                "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_SHA": sha,
                "OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED": "1", "OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED": "1",
                "OUTPOST_RELEASE_DELIVERY_MODE": "pilot", "OUTPOST_RELEASE_CONFIRM_KEY": "synthetic-confirm".ljust(40,"x"),
+               "OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID": "101",
                "OUTPOST_RELEASE_PUMP_KEY": "synthetic-pump".ljust(40,"y")}
         payload = {"action":"confirm", "product":"outpost", "version":"0.99.1"}
         for change in ({"OUTPOST_RELEASE_DELIVERY_MODE":"subscribers"}, {"OUTPOST_RELEASE_PUMP_KEY":""},
@@ -89,6 +91,25 @@ class ConfirmedReleaseSecurity(unittest.TestCase):
         with patch.dict(os.environ,{"OUTPOST_RELEASE_DELIVERY_MODE":"pilot"},clear=True), patch.object(confirm,"trusted_apply_environment",return_value="synthetic"), patch.object(confirm,"request_dispatch",return_value={"deliveries":[{"chat_id":"101"}]}) as request:
             with self.assertRaises(IntegrityError): confirm.apply_dispatch(payload,"status",sha)
             self.assertEqual(request.call_args.args[0],{"action":"status"})
+
+    def test_pilot_transport_asserts_private_admin_only_to_fixed_no_redirect_endpoint(self):
+        class Response:
+            status=200
+            def __enter__(self): return self
+            def __exit__(self,*args): pass
+            def read(self,limit):
+                self.limit=limit
+                return json.dumps({"ok":True,"audience":"pilot","recipient_verified":True,"sent":1}).encode()
+        response=Response()
+        with patch.dict(os.environ,{"OUTPOST_RELEASE_DELIVERY_MODE":"pilot","OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID":"101"},clear=True), patch.object(confirm.urllib.request,"build_opener") as factory:
+            factory.return_value.open.return_value=response
+            result=confirm.request_dispatch({"action":"tick"},"synthetic-no-real-key")
+            request=factory.return_value.open.call_args.args[0]
+            self.assertEqual(request.full_url,confirm.PILOT_ENDPOINT)
+            self.assertEqual(json.loads(request.data),{"action":"tick","expected_admin_chat_id":"101"})
+            self.assertEqual(response.limit,8193)
+            self.assertTrue(result["recipient_verified"])
+            self.assertIsInstance(factory.call_args.args[0],confirm.NoRedirect)
 
     def test_current_baseline_without_reviewed_receipt_cannot_announce(self):
         # Historical verified binaries are not silently promoted into new

@@ -366,6 +366,7 @@ jobs:
           node --check scripts/test_telegram_release_journal.mjs
           node --check scripts/telegram_release_scheduler.mjs
           node --check site/_telegram-release-journal.js
+          node --check site/_telegram-pilot-credentials.js
           node --check site/script.js
           node --check site/_worker.js
           node --check site/_cms-runtime.js

@@ -23,6 +23,7 @@ def verify(text: str) -> list[str]:
     markers += ['RELEASE_OPERATION: ${{ inputs.operation }}', 'default: confirm', '- pilot', '- status', '- tick',
                 'OUTPOST_RELEASE_DELIVERY_MODE: ${{ vars.OUTPOST_RELEASE_DELIVERY_MODE }}',
                 'secrets.OUTPOST_RELEASE_PUMP_KEY', '--operation "$RELEASE_OPERATION" --apply']
+    markers += ['OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID: ${{ secrets.OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID }}']
     errors = [f"missing confirmation guard {m}" for m in markers if m not in text]
     if re.search(r"^  (?:pull_request|pull_request_target|workflow_run|push|schedule):", text, re.M):
         errors.append("confirmation must not be triggered by PR/untrusted/automatic events")

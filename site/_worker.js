@@ -1,6 +1,6 @@
 import { cmsPageResponse, cmsRedirectResponse, cmsSitemapResponse } from "./_cms-runtime.js";
 import { isTelegramPath, telegramPathResponse, maybeNotifyTelegramRelease } from "./_telegram-support.js";
-import { RELEASE_DISPATCH_PATH, handleReleaseDispatch } from "./_telegram-release-journal.js";
+import { RELEASE_DISPATCH_PATH, RELEASE_PILOT_PATH, handleReleaseDispatch, handleReleasePilot } from "./_telegram-release-journal.js";
 
 // OutPOSt Pages Worker
 // Hotfix v0.24.5.3 — public-question proxy header allowlist.
@@ -161,6 +161,7 @@ export default {
     }
 
     if (url.pathname === RELEASE_DISPATCH_PATH) return handleReleaseDispatch(request, env);
+    if (url.pathname === RELEASE_PILOT_PATH) return handleReleasePilot(request, env);
 
     if (isTelegramPath(url.pathname)) {
       return telegramPathResponse(request, env);
