@@ -18,7 +18,27 @@ function ready(env) {
 }
 function database(env) {
   require(ready(env), "confirmed_release_disabled");
-  return env.ANALYTICS_DB.withSession ? env.ANALYTICS_DB.withSession("first-primary") : env.ANALYTICS_DB;
+  const policy = deliveryPolicy(env);
+  const db = env.ANALYTICS_DB.withSession ? env.ANALYTICS_DB.withSession("first-primary") : env.ANALYTICS_DB;
+  // Fixed technical-table namespace, never supplied by a request. Pilot evidence
+  // cannot seed a real audience or suppress a future subscriber announcement.
+  return {
+    policy,
+    prepare(sql) {
+      if (policy.mode === "pilot") sql = sql
+        .replace(/\btelegram_release_(events|deliveries|dispatch_control)\b/g, "telegram_release_pilot_$1")
+        .replace(/\bidx_telegram_release_due\b/g, "idx_telegram_release_pilot_due");
+      return db.prepare(sql);
+    },
+    batch(statements) { return db.batch(statements); }
+  };
+}
+export function deliveryPolicy(env) {
+  const mode = String(env?.TELEGRAM_RELEASE_DELIVERY_MODE || "off");
+  require(mode === "pilot" || mode === "subscribers", "release_delivery_disabled");
+  const chat = String(env?.TELEGRAM_ADMIN_CHAT_ID || "");
+  if (mode === "pilot") require(/^[1-9]\d{0,15}$/.test(chat) && Number.isSafeInteger(Number(chat)), "pilot_recipient_invalid");
+  return { mode, chat: mode === "pilot" ? chat : null };
 }
 function changed(result) { return Number(result?.meta?.changes || 0) === 1; }
 function equal(left, right) {
@@ -111,10 +131,15 @@ export async function confirmRelease(env, input, deps = {}) {
     .bind(release.product,release.version,release.installer,release.sha256,release.size_bytes,release.source_sha,now).run();
   const stored = await db.prepare(`SELECT * FROM telegram_release_events WHERE product=? AND version=?`).bind(release.product,release.version).first();
   require(stored && stored.sha256 === release.sha256 && stored.size_bytes === release.size_bytes && stored.installer === release.installer, "immutable_release_conflict");
-  await db.prepare(`INSERT OR IGNORE INTO telegram_release_deliveries(product,version,chat_id,state)
-    SELECT ?,?,chat_id,'pending' FROM telegram_update_subscribers
-    WHERE julianday(subscribed_at) <= julianday(?)`).bind(release.product,release.version,stored.confirmed_at).run();
-  return { ok: true, confirmed: true, product: release.product, version: release.version, notification_sent: false };
+  if (db.policy.mode === "pilot") {
+    await db.prepare(`INSERT OR IGNORE INTO telegram_release_deliveries(product,version,chat_id,state)
+      VALUES(?,?,?,'pending')`).bind(release.product,release.version,db.policy.chat).run();
+  } else {
+    await db.prepare(`INSERT OR IGNORE INTO telegram_release_deliveries(product,version,chat_id,state)
+      SELECT ?,?,chat_id,'pending' FROM telegram_update_subscribers
+      WHERE julianday(subscribed_at) <= julianday(?)`).bind(release.product,release.version,stored.confirmed_at).run();
+  }
+  return { ok: true, confirmed: true, audience: db.policy.mode, product: release.product, version: release.version, notification_sent: false };
 }
 
 export async function sendJournalMessage(env, payload, fetcher = fetch) {
@@ -145,6 +170,11 @@ export async function sendJournalMessage(env, payload, fetcher = fetch) {
 }
 
 async function syncCursor(db, job, current) {
+  if (db.policy.mode === "pilot") {
+    await db.prepare(`UPDATE telegram_release_deliveries SET cursor_synced=1 WHERE product=? AND version=? AND chat_id=? AND state='sent'`)
+      .bind(job.product,job.version,job.chat_id).run();
+    return; // A test must never advance, reset or create a subscriber cursor.
+  }
   for (let attempt = 0; attempt < 1; attempt++) {
     const subscriber = await db.prepare(`SELECT last_notified_version FROM telegram_update_subscribers WHERE chat_id=?`).bind(job.chat_id).first();
     if (!subscriber) break; // Never re-create an unsubscribed user.
@@ -171,7 +201,7 @@ export async function pumpReleaseJournal(env, deps = {}) {
   await db.prepare(`UPDATE telegram_release_deliveries SET state='unknown',error_kind='lease_expired'
     WHERE state='sending' AND lease_until<=?`).bind(now).run();
   const cooldown = await db.prepare(`SELECT not_before FROM telegram_release_dispatch_control WHERE id=1`).first();
-  if (cooldown.not_before > now) return {ok:true,cooldown:true,sent:0};
+  if (cooldown.not_before > now) return {ok:true,audience:db.policy.mode,cooldown:true,sent:0};
   const current = await currentReleaseVersions(env);
   // Superseded queues must not starve the current release at the front of a
   // bounded batch. This never announces/cancels a forward release on rollback.
@@ -189,7 +219,7 @@ export async function pumpReleaseJournal(env, deps = {}) {
     WHERE d.state IN ('pending','retry') AND d.not_before<=?
     ORDER BY d.not_before,d.product,d.version,d.chat_id LIMIT ?`).bind(now,MAX_BATCH).all();
   const verified = new Set(); const blocked = new Set();
-  const result = {ok:true,examined:0,sent:0,retry:0,unknown:0,cancelled:0,blocked:0,failed:0};
+  const result = {ok:true,audience:db.policy.mode,examined:0,sent:0,retry:0,unknown:0,cancelled:0,blocked:0,failed:0};
   for (const job of pending.results || []) {
     result.examined++;
     const event = job.product+":"+job.version;
@@ -203,17 +233,18 @@ export async function pumpReleaseJournal(env, deps = {}) {
       WHERE product=? AND version=? AND chat_id=? AND state IN ('pending','retry') AND not_before<=?`)
       .bind(nonce,now+LEASE_MS,job.product,job.version,job.chat_id,now).run();
     if (!changed(claim)) continue;
-    const subscriber = await db.prepare(`SELECT last_notified_version FROM telegram_update_subscribers WHERE chat_id=?`).bind(job.chat_id).first();
+    const pilot = db.policy.mode === "pilot";
+    const subscriber = pilot ? null : await db.prepare(`SELECT last_notified_version FROM telegram_update_subscribers WHERE chat_id=?`).bind(job.chat_id).first();
     const previous = subscriber ? releaseCursorFromStorage(subscriber.last_notified_version,current) : null;
     const finish = (state,kind,delay=0,messageId=null) => db.prepare(`UPDATE telegram_release_deliveries
       SET state=?,error_kind=?,not_before=?,message_id=? WHERE product=? AND version=? AND chat_id=? AND state='sending' AND lease_nonce=?`)
       .bind(state,kind,delay,messageId,job.product,job.version,job.chat_id,nonce).run();
-    if (!subscriber || !/^-?\d+$/.test(job.chat_id) || !isNewerRelease(job.version,previous[job.product])) {
+    if (pilot ? job.chat_id !== db.policy.chat : (!subscriber || !/^-?\d+$/.test(job.chat_id) || !isNewerRelease(job.version,previous[job.product]))) {
       await finish("cancelled","unsubscribed_or_not_newer"); result.cancelled++; continue;
     }
     let delivered;
     try { delivered = await (deps.send || sendJournalMessage)(env,{chat_id:job.chat_id,
-      text:releaseNotificationText(job.product,job.version),reply_markup:releaseLinksKeyboard(job.product,true)}); }
+      text:(pilot ? "🧪 Перевірка сповіщень — лише для адміністратора.\n\n" : "") + releaseNotificationText(job.product,job.version),reply_markup:releaseLinksKeyboard(job.product,true)}); }
     catch { delivered = {kind:"unknown",error:"transport_unconfirmed"}; }
     if (delivered.kind === "sent") {
       require(Number.isSafeInteger(delivered.message_id) && delivered.message_id > 0,"invalid_send_ack");
@@ -238,7 +269,8 @@ export async function pumpReleaseJournal(env, deps = {}) {
 export async function releaseJournalStatus(env) {
   const db=database(env);await ensureReleaseJournal(db);
   const rows=await db.prepare(`SELECT product,version,state,COUNT(*) AS count FROM telegram_release_deliveries GROUP BY product,version,state`).all();
-  return {ok:true,deliveries:rows.results||[]}; // Never return chat IDs, tokens or raw API errors.
+  const deliveries=rows.results||[];
+  return {ok:true,audience:db.policy.mode,deliveries,reconciliation_required:deliveries.some(row=>row.state==="unknown")}; // No chat IDs, tokens or raw API errors.
 }
 
 export async function handleReleaseDispatch(request, env) {
@@ -255,6 +287,7 @@ export async function handleReleaseDispatch(request, env) {
   if(!key || privileged.includes(key) || env.TELEGRAM_RELEASE_CONFIRM_KEY===env.TELEGRAM_RELEASE_PUMP_KEY || !equal(request.headers.get("x-outpost-release-key"),key)) return reply({ok:false,error:"unauthorized"},401);
   const allowed=confirm?["action","product","version","sha256","size_bytes","source_sha"]:["action"];
   if(!body || Object.keys(body).some(x=>!allowed.includes(x)) || !["confirm","tick","status"].includes(body.action))return reply({ok:false,error:"invalid_request"},400);
+  try { deliveryPolicy(env); } catch { return reply({ok:false,error:"release_delivery_disabled"},503); }
   try {
     if(confirm)return reply(await confirmRelease(env,body));
     if(body.action==="status")return reply(await releaseJournalStatus(env));
