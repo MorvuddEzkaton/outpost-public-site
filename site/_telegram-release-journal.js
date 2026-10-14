@@ -151,9 +151,15 @@ export async function sendJournalMessage(env, payload, fetcher = fetch) {
   try {
     response = await fetcher(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload),
-      redirect:"error", signal:AbortSignal.timeout(15000)
+      // workerd rejects redirect:"error" before any network request. Manual
+      // mode also prevents forwarding the bot credential to another origin.
+      redirect:"manual", signal:AbortSignal.timeout(15000)
     });
   } catch { return { kind:"unknown", error:"transport_unconfirmed" }; }
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel().catch(() => {});
+    return {kind:"unknown",error:"redirect_unconfirmed"};
+  }
   let data; try { data = JSON.parse(new TextDecoder().decode(await boundedBytes(response, 65536))); }
   catch { return { kind:"unknown", error:"response_unconfirmed" }; }
   if (response.ok && data?.ok === true && Number.isSafeInteger(data.result?.message_id) && data.result.message_id > 0) {

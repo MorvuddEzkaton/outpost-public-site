@@ -104,6 +104,10 @@ jobs:
           mkdir "$RUNNER_TEMP/outpost-publisher-tools"
           cp scripts/publisher-tools/package.json scripts/publisher-tools/package-lock.json "$RUNNER_TEMP/outpost-publisher-tools/"
           npm ci --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/outpost-publisher-tools"
+      - name: Verify Telegram transport in the actual offline edge runtime
+        env:
+          OUTPOST_WRANGLER_JS: ${{ runner.temp }}/outpost-publisher-tools/node_modules/wrangler/bin/wrangler.js
+        run: node scripts/test_telegram_transport_workerd.mjs
       - name: Prepare read-only deployment plan
         id: plan
         env:
