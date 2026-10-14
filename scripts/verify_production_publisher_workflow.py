@@ -18,6 +18,7 @@ def verify(text):
         'GITHUB_TOKEN: ${{ github.token }}', 'secrets.OUTPOST_PAGES_DEPLOY_TOKEN',
         'steps.intent.outputs.artifact-url', 'if-no-files-found: error', 'retention-days: 7',
         'scripts/publisher-tools/package-lock.json', 'npm ci --ignore-scripts',
+        'node scripts/test_telegram_transport_workerd.mjs',
         "failure() && steps.live.outcome == 'failure' && vars.OUTPOST_PRODUCTION_ROLLBACK_ENABLED == '1'",
         "always() && steps.plan.outcome == 'success'", 'outpost-production-result-${{ github.sha }}-${{ github.run_id }}'
     ]
@@ -45,6 +46,10 @@ def verify(text):
                  text.find('production_publisher.py rollback '), text.find('name: Save final journal')]
     if min(positions) < 0 or positions != sorted(positions):
         errors.append('durable intent/upload/live/conditional rollback/final journal order is required')
+    runtime_test = text.find('run: node scripts/test_telegram_transport_workerd.mjs')
+    install = text.find('npm ci --ignore-scripts')
+    if not (0 <= install < runtime_test < positions[0]):
+        errors.append('offline actual-runtime transport check must precede any plan or upload')
     before_publish = text.split('  publish:', 1)[0]
     if 'secrets.' in before_publish:
         errors.append('quality jobs must not have operational credentials')

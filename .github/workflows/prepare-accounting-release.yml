@@ -328,6 +328,7 @@ jobs:
           node --check scripts/test_static_preview_privacy.mjs
           node --check scripts/test_preview_integration_isolation.mjs
           node --check scripts/test_telegram_release_journal.mjs
+          node --check scripts/test_telegram_transport_workerd.mjs
           node --check scripts/telegram_release_scheduler.mjs
           node --check site/_telegram-release-journal.js
           node --check site/_telegram-pilot-credentials.js

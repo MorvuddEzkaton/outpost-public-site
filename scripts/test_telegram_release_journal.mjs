@@ -60,6 +60,16 @@ function pilotFixture(){
  return {...f,call,confirmKey,pumpKey,verifiers,body:{...release,action:'confirm',expected_admin_chat_id:'101'}};
 }
 try{
+ await scenario('Telegram sender uses workerd-compatible manual mode and persists a valid acknowledgement',async()=>{
+  let calls=0;const result=await sendJournalMessage({TELEGRAM_BOT_TOKEN:'synthetic-token'},{chat_id:'101',text:'offline'},async(url,init)=>{
+   calls++;same(init.redirect,'manual');return Response.json({ok:true,result:{message_id:321}});
+  });same(result,{kind:'sent',message_id:321});same(calls,1);
+ });
+ await scenario('Telegram redirect is quarantined without following or exposing its destination',async()=>{
+  let calls=0;const result=await sendJournalMessage({TELEGRAM_BOT_TOKEN:'synthetic-token'},{chat_id:'101',text:'offline'},async(url,init)=>{
+   calls++;same(init.redirect,'manual');return new Response(null,{status:302,headers:{Location:'https://forbidden.invalid/private-destination'}});
+  });same(result,{kind:'unknown',error:'redirect_unconfirmed'});same(calls,1);check(!JSON.stringify(result).includes('forbidden'));
+ });
  await scenario('public file verification identifies the real API client without forwarding credentials',async()=>{
   const f=fixture();const headers=[];
   await verifyConfirmedReleaseLive(f.env,f.release('outpost'),async(url,init)=>{headers.push(init.headers);return f.live(url,init);});

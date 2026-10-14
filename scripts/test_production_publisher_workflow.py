@@ -15,7 +15,8 @@ class WorkflowTests(unittest.TestCase):
         for marker in ["vars.OUTPOST_PRODUCTION_WRITER_ENABLED == '1'", "environment: production", 'cancel-in-progress: false',
                        'needs: [static-quality, browser-quality]', 'steps.intent.outputs.artifact-url', 'if-no-files-found: error',
                        'python scripts/run_production_quality.py', 'persist-credentials: false', 'ref: ${{ github.sha }}',
-                       'secrets.OUTPOST_PAGES_DEPLOY_TOKEN', 'sha256sum --check --strict', 'npm ci --ignore-scripts']:
+                       'secrets.OUTPOST_PAGES_DEPLOY_TOKEN', 'sha256sum --check --strict', 'npm ci --ignore-scripts',
+                       'node scripts/test_telegram_transport_workerd.mjs']:
             with self.subTest(marker=marker):
                 self.assertTrue(verify(self.text.replace(marker, 'REMOVED', 1)))
 
@@ -36,6 +37,13 @@ class WorkflowTests(unittest.TestCase):
     def test_upload_cannot_precede_saved_intent(self):
         self.assertTrue(verify(self.text.replace('production_publisher.py plan ', 'production_publisher.py execute ', 1)))
         self.assertTrue(verify(self.text.replace('id: intent', 'id: REMOVED', 1)))
+
+    def test_actual_runtime_regression_cannot_move_after_the_production_operations(self):
+        start=self.text.index('      - name: Verify Telegram transport in the actual offline edge runtime')
+        end=self.text.index('      - name: Prepare read-only deployment plan',start)
+        block=self.text[start:end]
+        late=self.text[:start]+self.text[end:]+block
+        self.assertTrue(verify(late))
 
     def test_commented_guard_cannot_substitute_for_code(self):
         self.assertTrue(verify(self.text.replace('    environment: production', '    # environment: production')))
