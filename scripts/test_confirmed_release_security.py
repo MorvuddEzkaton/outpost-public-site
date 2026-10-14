@@ -4,6 +4,8 @@ import os
 import json
 import tempfile
 import unittest
+import io
+import urllib.error
 from unittest.mock import patch
 from release_integrity import IntegrityError
 from verify_confirmed_release_workflow import verify, verify_scheduler_config
@@ -110,6 +112,16 @@ class ConfirmedReleaseSecurity(unittest.TestCase):
             self.assertEqual(response.limit,8193)
             self.assertTrue(result["recipient_verified"])
             self.assertIsInstance(factory.call_args.args[0],confirm.NoRedirect)
+
+    def test_http_failure_exposes_only_allowlisted_code_not_raw_private_response(self):
+        for kind, expected in [("source_assets_unavailable","pilot_source_assets_unavailable"),("private-sensitive-token","pilot_dispatch_unavailable")]:
+            failure=urllib.error.HTTPError(confirm.PILOT_ENDPOINT,502,"Bad Gateway",{},io.BytesIO(json.dumps({"error_kind":kind,"raw":"PRIVATE DATA"}).encode()))
+            with self.subTest(kind=kind), patch.dict(os.environ,{"OUTPOST_RELEASE_DELIVERY_MODE":"pilot","OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID":"101"},clear=True), patch.object(confirm.urllib.request,"build_opener") as opener:
+                opener.return_value.open.side_effect=failure
+                with self.assertRaises(IntegrityError) as result:
+                    confirm.request_dispatch({"action":"confirm"},"synthetic-no-real-key")
+                self.assertEqual(str(result.exception),expected)
+                self.assertNotIn("PRIVATE DATA",str(result.exception))
 
     def test_current_baseline_without_reviewed_receipt_cannot_announce(self):
         # Historical verified binaries are not silently promoted into new

@@ -231,7 +231,7 @@ function releaseVersionFromHtml(html, pattern, label, required = true) {
 
 export async function currentReleaseVersions(env) {
   if (!env?.ASSETS?.fetch) throw new Error("assets_binding_unavailable");
-  const response = await env.ASSETS.fetch(new Request("https://outpost.com.ua/download.html"));
+  const response = await env.ASSETS.fetch(new Request("https://outpost.com.ua/download"));
   if (!response.ok) throw new Error("download_page_unavailable");
   const html = await response.text();
   return {

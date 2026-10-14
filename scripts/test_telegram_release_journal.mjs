@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { confirmRelease, pumpReleaseJournal, releaseJournalStatus, handleReleaseDispatch,
   verifyConfirmedReleaseLive, sendJournalMessage, validateRelease, deliveryPolicy, handleReleasePilot } from '../site/_telegram-release-journal.js';
 import {pilotCredentialRole} from '../site/_telegram-pilot-credentials.js';
-import { maybeNotifyTelegramRelease, handleTelegramWebhook } from '../site/_telegram-support.js';
+import { maybeNotifyTelegramRelease, handleTelegramWebhook, currentReleaseVersions } from '../site/_telegram-support.js';
 import worker from '../site/_worker.js';
 import { pumpConfirmedReleases } from './telegram_release_scheduler.mjs';
 const originalFetch=globalThis.fetch;
@@ -60,6 +60,15 @@ function pilotFixture(){
  return {...f,call,confirmKey,pumpKey,verifiers,body:{...release,action:'confirm',expected_admin_chat_id:'101'}};
 }
 try{
+ await scenario('asset-binding version getter uses canonical path when html alias redirects',async()=>{
+  const f=fixture();const html=await (await f.env.ASSETS.fetch()).text();const paths=[];
+  f.env.ASSETS.fetch=async request=>{const path=new URL(request.url).pathname;paths.push(path);return path==='/download'?new Response(html):new Response(null,{status:308,headers:{Location:'/download'}});};
+  same(await currentReleaseVersions(f.env),f.versions);same(paths,['/download']);
+ });
+ await scenario('private pilot reports only allowlisted failure kinds before queue writes',async()=>{
+  const f=pilotFixture();f.deps.verifyLive=async()=>{throw Error('download_page_unavailable');};const response=await f.call(f.body,f.confirmKey);same(response.status,502);same((await response.json()).error_kind,'source_assets_unavailable');same(f.db.queries,0);same(f.sent.length,0);
+  f.deps.verifyLive=async()=>{throw Error('Raw private credentials must not be returned');};const data=await (await f.call(f.body,f.confirmKey)).json();same(data.error_kind,'dispatch_unavailable');check(!JSON.stringify(data).includes('credentials'));
+ });
  await scenario('live verifier uses canonical download and does not depend on redirected html alias',async()=>{
   const f=fixture();await verifyConfirmedReleaseLive(f.env,f.release('outpost'),async(url,init)=>new URL(url).pathname==='/download.html'?new Response(null,{status:308,headers:{Location:'/download'}}):f.live(url,init));
   check(f.fetched.includes('https://outpost.com.ua/download'));check(!f.fetched.includes('https://outpost.com.ua/download.html'));
