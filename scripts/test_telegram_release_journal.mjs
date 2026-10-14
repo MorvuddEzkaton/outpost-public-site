@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { confirmRelease, pumpReleaseJournal, releaseJournalStatus, handleReleaseDispatch,
-  verifyConfirmedReleaseLive, sendJournalMessage, validateRelease } from '../site/_telegram-release-journal.js';
+  verifyConfirmedReleaseLive, sendJournalMessage, validateRelease, deliveryPolicy } from '../site/_telegram-release-journal.js';
 import { maybeNotifyTelegramRelease, handleTelegramWebhook } from '../site/_telegram-support.js';
 import worker from '../site/_worker.js';
 import { pumpConfirmedReleases } from './telegram_release_scheduler.mjs';
@@ -37,7 +37,7 @@ function fixture(){
   const html=()=>Object.entries(versions).map(([p,v])=>`<a href="/downloads/OutPOSt-${p==='accounting'?'Accounting-':''}Setup-v${v}.exe">Demo</a>`).join('');
   const env={ANALYTICS_DB:db,TELEGRAM_BOT_TOKEN:'synthetic-not-a-bot-token',TELEGRAM_CONFIRMED_RELEASES_ENABLED:'1',TELEGRAM_PUBLIC_ENABLED:'1',
     TELEGRAM_RELEASE_CONFIRM_KEY:'demo-confirm-key-'.padEnd(40,'x'),TELEGRAM_RELEASE_PUMP_KEY:'demo-pump-key-'.padEnd(40,'y'),
-    TELEGRAM_WEBHOOK_SECRET:'demo-webhook',ASSETS:{fetch:async()=>new Response(html())}};
+    TELEGRAM_WEBHOOK_SECRET:'demo-webhook',TELEGRAM_RELEASE_DELIVERY_MODE:'subscribers',ASSETS:{fetch:async()=>new Response(html())}};
   const release=product=>validateRelease({product,version:versions[product],sha256:hash,size_bytes:bytes.length,source_sha:'a'.repeat(40)});
   const live=async(url,init)=>{
     fetched.push(String(url));same(init.redirect,'manual');check(String(url).startsWith('https://outpost.com.ua/'),'Verifier escaped canonical origin');
@@ -51,6 +51,48 @@ function fixture(){
   return {db,env,versions,sent,fetched,release,deps,advance(ms){now+=ms;},setResponse(fn){response=fn;},confirm(p='outpost'){return confirmRelease(env,release(p),deps);},pump(){return pumpReleaseJournal(env,deps);}};
 }
 try{
+ await scenario('delivery mode defaults OFF before SQL or live requests',async()=>{
+  for(const mode of ['', 'off', 'all', 'true', '1']){
+   const f=fixture();f.env.TELEGRAM_RELEASE_DELIVERY_MODE=mode;await assert.rejects(f.confirm(),/release_delivery_disabled/);await assert.rejects(f.pump(),/release_delivery_disabled/);await assert.rejects(releaseJournalStatus(f.env),/release_delivery_disabled/);same(f.db.queries,0);same(f.fetched.length,0);same(f.sent.length,0);
+  }
+ });
+ await scenario('pilot rejects absent, group or unsafe recipient before SQL',async()=>{
+  for(const chat of ['', '-101','0','101,202','9007199254740992','00101']){
+   const f=fixture();f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID=chat;assert.throws(()=>deliveryPolicy(f.env),/pilot_recipient_invalid/);await assert.rejects(f.confirm());same(f.db.queries,0);same(f.sent.length,0);
+  }
+ });
+ await scenario('authenticated off mode and request-selected audience are blocked before SQL',async()=>{
+  const f=fixture();const call=body=>handleReleaseDispatch(new Request('https://outpost.com.ua/api/telegram/releases/dispatch',{method:'POST',headers:{'x-outpost-release-key':f.env.TELEGRAM_RELEASE_PUMP_KEY},body:JSON.stringify(body)}),f.env);
+  delete f.env.TELEGRAM_RELEASE_DELIVERY_MODE;same((await call({action:'tick'})).status,503);
+  f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID='101';
+  for(const extra of [{audience:'subscribers'},{chat_id:'202'},{recipients:['202']},{mode:'subscribers'}])same((await call({action:'tick',...extra})).status,400);
+  same(f.db.queries,0);same(f.sent.length,0);
+ });
+ await scenario('pilot uses only private administrator and never touches subscriber cursors',async()=>{
+  const f=fixture();f.db.subscribe();f.db.subscribe('202');f.db.subscribe('303',f.versions);const before=f.db.sql.prepare('SELECT * FROM telegram_update_subscribers ORDER BY chat_id').all();
+  f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID='303';
+  same((await f.confirm()).audience,'pilot');same(f.sent.length,0);same((await f.pump()).sent,1);same(f.sent[0].chat_id,'303');check(f.sent[0].text.startsWith('🧪'));await f.confirm();await Promise.all([f.pump(),f.pump()]);same(f.sent.length,1);
+  same(f.db.sql.prepare('SELECT * FROM telegram_update_subscribers ORDER BY chat_id').all(),before);
+  same(f.db.sql.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='telegram_release_events'").get().n,0);
+  const status=await releaseJournalStatus(f.env);same(status.audience,'pilot');check(!JSON.stringify(status).includes('chat_id'));
+ });
+ await scenario('pilot does not require or recreate a subscription',async()=>{
+  const f=fixture();f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID='101';await f.confirm();await f.pump();same(f.sent.length,1);check(!f.db.row());
+ });
+ await scenario('pilot confirmation cannot seed subscriber delivery or cursor suppression',async()=>{
+  const f=fixture();f.db.subscribe();f.db.subscribe('202');f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID='101';await f.confirm();await f.pump();
+  f.env.TELEGRAM_RELEASE_DELIVERY_MODE='subscribers';same((await f.pump()).sent,0);await f.confirm();same((await f.pump()).sent,2);same(f.sent.length,3);check(!f.sent.at(-1).text.startsWith('🧪'));
+  f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';same((await f.pump()).sent,0);
+ });
+ await scenario('pilot administrator change cannot deliver old queued recipients',async()=>{
+  const f=fixture();f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID='101';await f.confirm();f.env.TELEGRAM_ADMIN_CHAT_ID='202';same((await f.pump()).cancelled,1);same(f.sent.length,0);
+ });
+ await scenario('pilot uncertainty stays quarantined and reported, never repeated',async()=>{
+  const f=fixture();f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID='101';await f.confirm();f.setResponse(()=>{throw Error('Possible delivered test');});await f.pump();f.advance(86400000);await f.confirm();await f.pump();same(f.sent.length,1);const status=await releaseJournalStatus(f.env);check(status.reconciliation_required);same(status.deliveries[0].state,'unknown');
+ });
+ await scenario('pilot uses same acknowledged-send and lost-ack protection as subscribers',async()=>{
+  const f=fixture();f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID='101';await f.confirm();f.db.failAck=true;await assert.rejects(f.pump());f.db.failAck=false;f.advance(180000);await f.pump();same(f.sent.length,1);check((await releaseJournalStatus(f.env)).reconciliation_required);
+ });
  await scenario('disabled journal has no DB/network effects',async()=>{
   const f=fixture();f.env.TELEGRAM_CONFIRMED_RELEASES_ENABLED='0';await assert.rejects(f.confirm(),/disabled/);same(f.db.queries,0);same(f.sent.length,0);
  });

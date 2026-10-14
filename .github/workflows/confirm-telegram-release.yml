@@ -9,6 +9,16 @@ on:
         options:
           - outpost
           - accounting
+      operation:
+        description: Pilot sends only to the private administrator; status sends nothing
+        required: true
+        default: confirm
+        type: choice
+        options:
+          - confirm
+          - pilot
+          - status
+          - tick
 
 permissions:
   contents: read
@@ -61,7 +71,10 @@ jobs:
       - name: Confirm only the verified product; do not directly broadcast
         env:
           RELEASE_PRODUCT: ${{ inputs.product }}
+          RELEASE_OPERATION: ${{ inputs.operation }}
           OUTPOST_RELEASE_CONFIRM_KEY: ${{ secrets.OUTPOST_RELEASE_CONFIRM_KEY }}
+          OUTPOST_RELEASE_PUMP_KEY: ${{ secrets.OUTPOST_RELEASE_PUMP_KEY }}
+          OUTPOST_RELEASE_DELIVERY_MODE: ${{ vars.OUTPOST_RELEASE_DELIVERY_MODE }}
           OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED: ${{ vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED }}
           OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED: ${{ vars.OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED }}
-        run: python scripts/confirm_telegram_release.py "$RELEASE_PRODUCT" --source-sha "$GITHUB_SHA" --apply
+        run: python scripts/confirm_telegram_release.py "$RELEASE_PRODUCT" --source-sha "$GITHUB_SHA" --operation "$RELEASE_OPERATION" --apply

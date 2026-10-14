@@ -20,6 +20,9 @@ def verify(text: str) -> list[str]:
                "secrets.OUTPOST_RELEASE_CONFIRM_KEY"]
     markers += ['python scripts/production_deployment_gate.py --check',
                 'secrets.OUTPOST_PAGES_DEPLOY_TOKEN']
+    markers += ['RELEASE_OPERATION: ${{ inputs.operation }}', 'default: confirm', '- pilot', '- status', '- tick',
+                'OUTPOST_RELEASE_DELIVERY_MODE: ${{ vars.OUTPOST_RELEASE_DELIVERY_MODE }}',
+                'secrets.OUTPOST_RELEASE_PUMP_KEY', '--operation "$RELEASE_OPERATION" --apply']
     errors = [f"missing confirmation guard {m}" for m in markers if m not in text]
     if re.search(r"^  (?:pull_request|pull_request_target|workflow_run|push|schedule):", text, re.M):
         errors.append("confirmation must not be triggered by PR/untrusted/automatic events")

@@ -42,11 +42,53 @@ class ConfirmedReleaseSecurity(unittest.TestCase):
         env = {"GITHUB_REPOSITORY": "MorvuddEzkaton/outpost-public-site", "GITHUB_REF": "refs/heads/main",
                "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_SHA": sha,
                "OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED": "1", "OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED": "1",
+               "OUTPOST_RELEASE_DELIVERY_MODE": "pilot",
                "OUTPOST_RELEASE_CONFIRM_KEY": "demo-confirm-not-a-real-key".ljust(40, "x")}
         with patch.dict(os.environ, env, clear=True): self.assertEqual(confirm.trusted_apply_environment(sha), env["OUTPOST_RELEASE_CONFIRM_KEY"])
         for key in env:
             with self.subTest(key=key), patch.dict(os.environ, {**env, key: "wrong"}, clear=True):
                 with self.assertRaises(IntegrityError): confirm.trusted_apply_environment(sha)
+
+    def test_pilot_requires_both_distinct_keys_and_cannot_use_subscriber_mode(self):
+        sha = "a" * 40
+        env = {"GITHUB_REPOSITORY": "MorvuddEzkaton/outpost-public-site", "GITHUB_REF": "refs/heads/main",
+               "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_SHA": sha,
+               "OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED": "1", "OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED": "1",
+               "OUTPOST_RELEASE_DELIVERY_MODE": "pilot", "OUTPOST_RELEASE_CONFIRM_KEY": "synthetic-confirm".ljust(40,"x"),
+               "OUTPOST_RELEASE_PUMP_KEY": "synthetic-pump".ljust(40,"y")}
+        payload = {"action":"confirm", "product":"outpost", "version":"0.99.1"}
+        for change in ({"OUTPOST_RELEASE_DELIVERY_MODE":"subscribers"}, {"OUTPOST_RELEASE_PUMP_KEY":""},
+                       {"OUTPOST_RELEASE_PUMP_KEY":env["OUTPOST_RELEASE_CONFIRM_KEY"]}):
+            with self.subTest(change=change), patch.dict(os.environ,{**env,**change},clear=True), patch.object(confirm,"request_dispatch") as request:
+                with self.assertRaises(IntegrityError): confirm.apply_dispatch(payload,"pilot",sha)
+                request.assert_not_called()
+        acknowledgements = [{"ok":True,"audience":"pilot","confirmed":True,"product":"outpost","version":"0.99.1","notification_sent":False},
+                            {"ok":True,"audience":"pilot","sent":1},
+                            {"deliveries":[{"product":"outpost","version":"0.99.1","state":"sent","count":1}]}]
+        with patch.dict(os.environ,env,clear=True), patch.object(confirm,"request_dispatch",side_effect=acknowledgements) as request:
+            result = confirm.apply_dispatch(payload,"pilot",sha)
+            self.assertEqual(request.call_args_list[1].args[0],{"action":"tick"})
+            self.assertEqual(result["sent"],1)
+            self.assertTrue(result["notification_sent"])
+            self.assertTrue(result["pilot_acknowledged"])
+            self.assertEqual(request.call_args_list[2].args[0],{"action":"status"})
+        with patch.dict(os.environ,env,clear=True), patch.object(confirm,"request_dispatch",return_value={"ok":True,"confirmed":False}) as request:
+            with self.assertRaises(IntegrityError): confirm.apply_dispatch(payload,"pilot",sha)
+            self.assertEqual(request.call_count,1)
+        for state in ("pending","retry","unknown","failed","sending","cancelled"):
+            replies = [acknowledgements[0], {"ok":True,"audience":"pilot","sent":0},
+                       {"deliveries":[{"product":"outpost","version":"0.99.1","state":state,"count":1}]}]
+            with self.subTest(state=state), patch.dict(os.environ,env,clear=True), patch.object(confirm,"request_dispatch",side_effect=replies):
+                result = confirm.apply_dispatch(payload,"pilot",sha)
+                self.assertFalse(result["pilot_acknowledged"])
+                self.assertEqual(result["reconciliation_required"],state == "unknown")
+
+    def test_status_refuses_identifiers_and_never_requests_tick(self):
+        sha = "a" * 40
+        payload = {"action":"confirm","product":"outpost","version":"0.99.1"}
+        with patch.dict(os.environ,{"OUTPOST_RELEASE_DELIVERY_MODE":"pilot"},clear=True), patch.object(confirm,"trusted_apply_environment",return_value="synthetic"), patch.object(confirm,"request_dispatch",return_value={"deliveries":[{"chat_id":"101"}]}) as request:
+            with self.assertRaises(IntegrityError): confirm.apply_dispatch(payload,"status",sha)
+            self.assertEqual(request.call_args.args[0],{"action":"status"})
 
     def test_current_baseline_without_reviewed_receipt_cannot_announce(self):
         # Historical verified binaries are not silently promoted into new

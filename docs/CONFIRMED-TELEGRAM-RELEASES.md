@@ -1,8 +1,39 @@
-# Confirmed Telegram releases — prepared, disabled by default
+# Confirmed Telegram releases — explicit audience, disabled by default
 
 This is NOT production activation, a real test-bot delivery, Windows acceptance,
 or permission to broadcast. Public PR code and synthetic tests are separate from
 owner approval, private backup/restore and production cutover.
+
+## Current migration state and missing notice
+
+The protected public-repository publisher successfully deployed OutPOSt 0.24.40.
+Its receipt explicitly records `release_announced: false`. Production uses the
+confirmed-mode safety flag, so the old visitor-triggered sender is disabled, but
+the notification workflow, scoped credentials and scheduled pump were not activated.
+Successful installer publication alone therefore did not send a Telegram notice.
+Do not turn the legacy sender back on or reset subscription cursors to compensate.
+
+## Pilot and subscriber audiences
+
+`TELEGRAM_RELEASE_DELIVERY_MODE` is a second deliberate runtime boundary:
+absent, `off` or invalid means no confirmation, queue writes or delivery. Only
+`pilot` and `subscribers` are accepted. This PR does NOT set this variable.
+
+Pilot delivery uses only the existing private `TELEGRAM_ADMIN_CHAT_ID`, which must
+identify one positive, safe-integer private chat. The caller cannot supply a chat,
+audience or list of recipients. The owner has authorized testing the existing bot
+only in their private chat. No chat ID or credential is committed in source.
+Pilot events, deliveries, retry controls and indexes use separate fixed technical
+tables (`telegram_release_pilot_*`); subscriber tables and their cursors are not
+read, imported, updated or reset. A test also works if the owner is not subscribed
+or is already at the current release. The text is explicitly marked as a test.
+Identical-version replay and parallel ticks retain the same claim/ack protections.
+Changing the administrator does not send an old queued test to the old recipient.
+
+Subscriber mode remains a separate activation decision. A completed pilot cannot
+seed the real queue, establish its recipient cutoff, or suppress a later real
+announcement. Switching modes alone sends nothing: real confirmation is still
+required. There is no `all`, wildcard, request-supplied audience or broadcast API.
 
 ## Architecture and activation boundary
 
@@ -27,6 +58,13 @@ production behavior is preserved. There are never two active sending engines.
 The manual `confirm-telegram-release.yml` runs only for owner-dispatched trusted
 main, requires the production environment's human approval and two repository
 activation switches. Default permissions are read-only; no PR/workflow_run trigger.
+The workflow's `operation` defaults to `confirm` (no messages). `pilot` verifies
+and confirms the current product, then performs exactly one bounded tick using
+the separate pump credential; it is rejected unless both the runner's expected
+audience and the endpoint's acknowledged audience are `pilot`. `tick` processes
+an existing queue without creating an event. `status` returns only aggregate
+states and whether uncertain deliveries need reconciliation. All operations keep
+the same manual-owner, protected-main and human-production approval boundary.
 It verifies the reviewed Windows receipt, immutable source artifacts and actual
 live checks BEFORE using the confirmation credential. Existing historical artifacts
 without a current reviewed receipt cannot become a new announcement accidentally.
@@ -104,3 +142,45 @@ Sources: [Telegram responses](https://core.telegram.org/bots/api#making-requests
 [retry_after](https://core.telegram.org/bots/api#responseparameters),
 [D1 conditional statements](https://developers.cloudflare.com/d1/worker-api/d1-database/),
 [Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/).
+
+## Private pilot activation checklist (not executed by this PR)
+
+1. Review/merge this exact change and approve its protected publication. Installer
+   bytes, public product versions, existing domain and database bindings stay unchanged.
+2. Approve a fresh private ANALYTICS_DB backup/restore check in a quiet window before
+   the pilot's additive technical tables are first initialized. Never export raw
+   subscribers or tokens into GitHub artifacts, Dropbox or public evidence.
+3. Separately approve two new distinct scoped credentials: confirmation and pump.
+   Store their Pages values as secrets and their GitHub counterparts only in the
+   protected production environment. Keep the existing bot/webhook/setup keys.
+4. Separately approve runtime mode `pilot`, workflow expectation
+   `OUTPOST_RELEASE_DELIVERY_MODE=pilot`, and the confirmation workflow activation
+   switch. Cron, public Worker routes and subscriber mode remain OFF. Check that
+   the configured private administrator is the owner-approved recipient.
+5. Owner-dispatch current `outpost` / operation `pilot`, approve the production job,
+   and accept delivery only on a stored positive Telegram acknowledgement. Compare
+   the test received in the private chat with the current download/changelog links.
+6. Use `status` and repeat the same pilot once to prove no additional message.
+   A timeout, bare 5xx or lost acknowledgement is `unknown`, not permission to
+   retry. Ask the recipient whether it arrived; preserve private evidence and
+   stop for a separately approved reconciliation decision. No blind SQL repair.
+7. Disable pilot delivery and workflow activation after acceptance unless separately
+   authorized to leave them enabled. Subscriber rollout and a Cron relay require
+   their own recipient/volume/quota/rollback go/no-go decision.
+
+## Operational limits and retention
+
+Pilot has one recipient per product/version and no automatic Cron. Subscriber
+batches remain at most three recipients, eight explicit-rejection attempts and a
+persistent 429 cooldown. Unknown outcomes are quarantined, never automatically
+resent. Large deployments require measured Free-plan HTTP/D1 budgets before a
+five-minute schedule is enabled; a batch bound is not a guarantee of total daily
+quota or completion time. No paid plan is enabled by these changes.
+
+This preparation does not add automatic pruning. Acknowledged `(product, version,
+recipient)` evidence must not be deleted while repeat confirmation is allowed:
+otherwise replay could send again. Keep compact delivery/ack evidence and immutable
+artifact facts; honor unsubscribe purging for the real queue. Pilot identifiers
+are restricted to the private administrator; delete them only in a separately
+approved post-test cleanup after pilot mode is OFF. No public status contains
+recipient identifiers, keys, message text or raw Telegram errors.
