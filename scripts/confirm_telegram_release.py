@@ -9,12 +9,15 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 from release_integrity import IntegrityError, load_receipt, verify_registry
 
 ROOT = Path(__file__).resolve().parents[1]
 ENDPOINT = "https://outpost.com.ua/api/telegram/releases/dispatch"
 PILOT_ENDPOINT = "https://outpost.com.ua/api/telegram/releases/pilot"
+SAFE_PILOT_ERRORS = {"source_assets_unavailable", "source_release_mismatch", "live_integrity_unavailable",
+                     "live_integrity_mismatch", "dispatch_unavailable", "unauthorized", "pilot_recipient_mismatch"}
 
 
 def confirmation_payload(root: Path, product: str, source_sha: str) -> dict:
@@ -67,11 +70,25 @@ def request_dispatch(payload: dict, key: str) -> dict:
     request = urllib.request.Request(PILOT_ENDPOINT if pilot else ENDPOINT, method="POST", data=json.dumps(body).encode(),
                 headers={"Content-Type": "application/json", "X-OutPost-Release-Key": key})
     opener = urllib.request.build_opener(NoRedirect())
-    with opener.open(request, timeout=60) as response:
-        raw = response.read(8193)
-        if response.status != 200 or len(raw) > 8192:
-            raise IntegrityError("bounded dispatch response required")
-        data = json.loads(raw)
+    try:
+        with opener.open(request, timeout=60) as response:
+            raw = response.read(8193)
+            if response.status != 200 or len(raw) > 8192:
+                raise IntegrityError("bounded dispatch response required")
+            data = json.loads(raw)
+    except urllib.error.HTTPError as error:
+        code = "dispatch_unavailable"
+        if pilot:
+            try:
+                raw = error.read(8193)
+                if len(raw) <= 8192:
+                    parsed = json.loads(raw)
+                    candidate = parsed.get("error_kind", parsed.get("error"))
+                    if candidate in SAFE_PILOT_ERRORS:
+                        code = candidate
+            except Exception:
+                pass
+        raise IntegrityError("pilot_" + code if pilot else "release_endpoint_unavailable") from None
     if not isinstance(data, dict) or data.get("ok") is not True or data.get("audience") != os.environ["OUTPOST_RELEASE_DELIVERY_MODE"]:
         raise IntegrityError("dispatch audience was not acknowledged")
     if pilot and data.get("recipient_verified") is not True:
@@ -144,9 +161,10 @@ def main() -> int:
             print("Pilot delivery not acknowledged; inspect status, do not blindly replay", file=sys.stderr)
             return 1
         return 0
-    except Exception:
+    except Exception as error:
         # Never print auth values, raw API errors or private exception payloads.
-        print("Release confirmation: FAIL; inspect approval, receipt and live verification gates", file=sys.stderr)
+        safe = str(error) if isinstance(error, IntegrityError) and str(error) in {"pilot_" + name for name in SAFE_PILOT_ERRORS} else None
+        print("Release confirmation: FAIL; " + (safe or "inspect approval, receipt and live verification gates"), file=sys.stderr)
         return 1
 
 

@@ -321,5 +321,13 @@ export async function handleReleasePilot(request, env, deps = {}) {
   try {
     const result = confirm ? await confirmRelease(pilotEnv,body,deps) : body.action === "status" ? await releaseJournalStatus(pilotEnv) : await pumpReleaseJournal(pilotEnv,deps);
     return reply({...result,recipient_verified:true});
-  } catch { return reply({ok:false,error:"release_dispatch_failed"},502); }
+  } catch (error) {
+    const kinds = new Map([
+      ["download_page_unavailable","source_assets_unavailable"], ["assets_binding_unavailable","source_assets_unavailable"],
+      ["source_release_mismatch","source_release_mismatch"], ["live_unavailable","live_integrity_unavailable"],
+      ["live_checksum_mismatch","live_integrity_mismatch"], ["live_hash_mismatch","live_integrity_mismatch"],
+      ["live_release_mismatch","live_integrity_mismatch"], ["live_size_mismatch","live_integrity_mismatch"]
+    ]);
+    return reply({ok:false,error:"release_dispatch_failed",error_kind:kinds.get(error?.message)||"dispatch_unavailable"},502);
+  }
 }
