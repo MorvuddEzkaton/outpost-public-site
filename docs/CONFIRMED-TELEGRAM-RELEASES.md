@@ -127,6 +127,22 @@ database/subscriber access or bot token. It can call only the fixed canonical ti
 endpoint using the pump key. `release/telegram-scheduler.template.json` has the
 switch OFF, no cron triggers and no public Worker route. It has not been deployed.
 
+The relay uses native-compatible `redirect:manual`, an honest
+`OutPOSt-Release-Scheduler/1.0` API identifier and one 45-second request to the fixed
+endpoint. It never follows redirects, repeats a failed request itself, confirms a
+release or accepts a request-selected recipient. Responses are bounded to 8 KiB;
+success requires an acknowledged `subscribers` audience and integer counters within
+the dispatcher's three-recipient batch. Unknown, failed and integrity-blocked
+deliveries produce an attention result with safe aggregate counters, not a false
+success. Raw response bodies, errors, destinations and secrets are never logged.
+An ordinary cooldown/retry is left to the journal, not resubmitted immediately.
+Disabled/preview ticks make no request. The public fetch handler remains 404.
+
+`test_telegram_release_scheduler.mjs` checks these cases without real networking;
+the mandatory pre-publication `test_telegram_transport_workerd.mjs` also executes
+the relay in actual workerd with all outbound requests intercepted. Node-only
+success cannot substitute for this native-runtime check.
+
 After separate owner approval and quota checks, a private operational config may
 enable `OUTPOST_RELEASE_SCHEDULER_ENABLED=1` and `*/5 * * * *`. Cron expressions use
 UTC; this five-minute interval does not depend on local timezone. Each tick handles
@@ -214,6 +230,36 @@ persistent 429 cooldown. Unknown outcomes are quarantined, never automatically
 resent. Large deployments require measured Free-plan HTTP/D1 budgets before a
 five-minute schedule is enabled; a batch bound is not a guarantee of total daily
 quota or completion time. No paid plan is enabled by these changes.
+
+## Next rollout decision after the accepted private test
+
+The owner has confirmed receipt of the private test; a repeated protected pilot
+produced no additional message. Its one stored positive acknowledgement stays in
+the isolated pilot namespace. The workflow switch was returned OFF. This is not
+subscriber activation or permission to replay that completed private test.
+
+The next proposed policy is **future verified releases only**: no retroactive
+announcement of the already published OutPOSt 0.24.40 or Accounting 1.0.2, no
+reset of existing cursors, no import of recipients and no unrequested mass send.
+A one-time current-release notice, if wanted, requires a separate owner decision.
+Only users with an existing explicit updates subscription may enter a real queue.
+
+Before that rollout, record owner go/no-go for audience and five-minute scheduling;
+read aggregate subscription volume without copying identities; review Free-plan
+quota/completion estimates; prepare fresh encrypted backup/restore evidence; and
+review the ordinary dispatcher's two scoped Pages credentials plus protected-runner
+confirmation credential. The short-lived pilot capabilities are not ordinary
+dispatcher credentials and cannot be silently promoted into long-lived authority.
+Pin the new reviewed configuration through the existing production provenance
+process, retaining preview isolation, exact source, all six checks, normal PR merge
+and protected production approval. Plan a code/configuration rollback that switches
+the sender and relay OFF without erasing delivery acknowledgements or subscriber
+cursors. Do not enable the legacy visitor-triggered engine as a fallback.
+
+Enabling a relay does not automatically confirm a release: the current confirmation
+workflow remains owner-dispatched/protected-main only. Any future automated release
+confirmation needs a separately reviewed trusted publication-success boundary;
+never add an untrusted PR/workflow-run credential path just to make it automatic.
 
 This preparation does not add automatic pruning. Acknowledged `(product, version,
 recipient)` evidence must not be deleted while repeat confirmation is allowed:

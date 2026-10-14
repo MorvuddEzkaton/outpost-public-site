@@ -51,6 +51,10 @@ def verify_scheduler_config(config: dict) -> list[str]:
 if __name__ == "__main__":
     errors = verify((ROOT / ".github/workflows/confirm-telegram-release.yml").read_text(encoding="utf-8"))
     errors += verify_scheduler_config(json.loads((ROOT / "release/telegram-scheduler.template.json").read_text(encoding="utf-8")))
+    for name in ("public-site-smoke.yml", "prepare-public-release.yml", "prepare-accounting-release.yml"):
+        text = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
+        if "node scripts/test_telegram_release_scheduler.mjs" not in text:
+            errors.append("offline scheduler regression missing from " + name)
     if errors:
         print("Confirmed release workflow: FAIL\n" + "\n".join(errors)); sys.exit(1)
     print("Confirmed release workflow: PASS; owner/trusted-main/manual/production approval, receipt and live checks, read-only defaults")
