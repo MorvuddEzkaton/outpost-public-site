@@ -16,8 +16,9 @@ from release_integrity import IntegrityError, load_receipt, verify_registry
 ROOT = Path(__file__).resolve().parents[1]
 ENDPOINT = "https://outpost.com.ua/api/telegram/releases/dispatch"
 PILOT_ENDPOINT = "https://outpost.com.ua/api/telegram/releases/pilot"
+CLIENT_USER_AGENT = "OutPOSt-Release-Confirmation/1.0 (+https://outpost.com.ua)"
 SAFE_PILOT_ERRORS = {"source_assets_unavailable", "source_release_mismatch", "live_integrity_unavailable",
-                     "live_integrity_mismatch", "dispatch_unavailable", "unauthorized", "pilot_recipient_mismatch"}
+                     "live_integrity_mismatch", "dispatch_unavailable", "unauthorized", "pilot_recipient_mismatch", "access_denied"}
 
 
 def confirmation_payload(root: Path, product: str, source_sha: str) -> dict:
@@ -68,7 +69,8 @@ def request_dispatch(payload: dict, key: str) -> dict:
     pilot = os.environ.get("OUTPOST_RELEASE_DELIVERY_MODE") == "pilot"
     body = {**payload,"expected_admin_chat_id":os.environ["OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID"]} if pilot else payload
     request = urllib.request.Request(PILOT_ENDPOINT if pilot else ENDPOINT, method="POST", data=json.dumps(body).encode(),
-                headers={"Content-Type": "application/json", "X-OutPost-Release-Key": key})
+                headers={"Content-Type": "application/json", "Accept": "application/json",
+                         "User-Agent": CLIENT_USER_AGENT, "X-OutPost-Release-Key": key})
     opener = urllib.request.build_opener(NoRedirect())
     try:
         with opener.open(request, timeout=60) as response:
@@ -77,7 +79,7 @@ def request_dispatch(payload: dict, key: str) -> dict:
                 raise IntegrityError("bounded dispatch response required")
             data = json.loads(raw)
     except urllib.error.HTTPError as error:
-        code = "dispatch_unavailable"
+        code = "access_denied" if error.code == 403 else "dispatch_unavailable"
         if pilot:
             try:
                 raw = error.read(8193)

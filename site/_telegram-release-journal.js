@@ -98,7 +98,9 @@ async function boundedBytes(response, limit) {
   return bytes.subarray(0, size);
 }
 async function liveFetch(path, fetcher) {
-  const response = await fetcher(ORIGIN + path, { redirect: "manual", headers: { Accept: "*/*" }, signal: AbortSignal.timeout(15000) });
+  const response = await fetcher(ORIGIN + path, { redirect: "manual", headers: {
+    Accept: "*/*", "User-Agent": "OutPOSt-Release-Verification/1.0 (+https://outpost.com.ua)"
+  }, signal: AbortSignal.timeout(15000) });
   require(response.status === 200, "live_unavailable"); return response;
 }
 export async function verifyConfirmedReleaseLive(env, release, fetcher = fetch) {

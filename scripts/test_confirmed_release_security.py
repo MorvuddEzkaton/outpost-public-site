@@ -108,6 +108,10 @@ class ConfirmedReleaseSecurity(unittest.TestCase):
             result=confirm.request_dispatch({"action":"tick"},"synthetic-no-real-key")
             request=factory.return_value.open.call_args.args[0]
             self.assertEqual(request.full_url,confirm.PILOT_ENDPOINT)
+            self.assertEqual(request.get_header("User-agent"),confirm.CLIENT_USER_AGENT)
+            self.assertEqual(request.get_header("Accept"),"application/json")
+            self.assertTrue(confirm.CLIENT_USER_AGENT.startswith("OutPOSt-Release-Confirmation/"))
+            self.assertNotIn("Mozilla",confirm.CLIENT_USER_AGENT)
             self.assertEqual(json.loads(request.data),{"action":"tick","expected_admin_chat_id":"101"})
             self.assertEqual(response.limit,8193)
             self.assertTrue(result["recipient_verified"])
@@ -122,6 +126,15 @@ class ConfirmedReleaseSecurity(unittest.TestCase):
                     confirm.request_dispatch({"action":"confirm"},"synthetic-no-real-key")
                 self.assertEqual(str(result.exception),expected)
                 self.assertNotIn("PRIVATE DATA",str(result.exception))
+
+    def test_html_access_denial_is_identified_without_exposing_the_error_page(self):
+        failure=urllib.error.HTTPError(confirm.PILOT_ENDPOINT,403,"Forbidden",{},io.BytesIO(b'<html>PRIVATE COOKIE AND EDGE CHALLENGE</html>'))
+        with patch.dict(os.environ,{"OUTPOST_RELEASE_DELIVERY_MODE":"pilot","OUTPOST_RELEASE_PILOT_EXPECTED_CHAT_ID":"101"},clear=True), patch.object(confirm.urllib.request,"build_opener") as opener:
+            opener.return_value.open.side_effect=failure
+            with self.assertRaises(IntegrityError) as result:
+                confirm.request_dispatch({"action":"confirm"},"synthetic-no-real-key")
+            self.assertEqual(str(result.exception),"pilot_access_denied")
+            self.assertNotIn("PRIVATE",str(result.exception))
 
     def test_current_baseline_without_reviewed_receipt_cannot_announce(self):
         # Historical verified binaries are not silently promoted into new

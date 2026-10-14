@@ -60,6 +60,12 @@ function pilotFixture(){
  return {...f,call,confirmKey,pumpKey,verifiers,body:{...release,action:'confirm',expected_admin_chat_id:'101'}};
 }
 try{
+ await scenario('public file verification identifies the real API client without forwarding credentials',async()=>{
+  const f=fixture();const headers=[];
+  await verifyConfirmedReleaseLive(f.env,f.release('outpost'),async(url,init)=>{headers.push(init.headers);return f.live(url,init);});
+  same(headers.length,3);
+  for(const value of headers){same(value['User-Agent'],'OutPOSt-Release-Verification/1.0 (+https://outpost.com.ua)');check(!/authorization|cookie|x-outpost-release-key/i.test(Object.keys(value).join(',')));check(!value['User-Agent'].includes('Mozilla'));}
+ });
  await scenario('asset-binding version getter uses canonical path when html alias redirects',async()=>{
   const f=fixture();const html=await (await f.env.ASSETS.fetch()).text();const paths=[];
   f.env.ASSETS.fetch=async request=>{const path=new URL(request.url).pathname;paths.push(path);return path==='/download'?new Response(html):new Response(null,{status:308,headers:{Location:'/download'}});};
