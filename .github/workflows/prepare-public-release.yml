@@ -286,6 +286,7 @@ jobs:
           node --check scripts/test_telegram_release_journal.mjs
           node --check scripts/telegram_release_scheduler.mjs
           node --check site/_telegram-release-journal.js
+          node --check site/_telegram-pilot-credentials.js
           node --check site/assets/outpost-demo-v1.js
           node --check site/assets/outpost-demo-modules-v1.js
           node --check site/assets/outpost-demo-returns-v1.js
