@@ -43,13 +43,13 @@ function fixture(){
   const live=async(url,init)=>{
     fetched.push(String(url));same(init.redirect,'manual');check(String(url).startsWith('https://outpost.com.ua/'),'Verifier escaped canonical origin');
     const path=new URL(url).pathname;
-    if(path==='/download.html')return new Response(html());
+    if(path==='/download')return new Response(html());
     if(path.endsWith('.sha256.txt'))return new Response(hash+' *'+path.split('/').at(-1).replace('.sha256.txt','.exe'));
     return new Response(bytes);
   };
   const sender=async(env,payload)=>sendJournalMessage(env,payload,async(url,init)=>{check(String(url).startsWith('https://api.telegram.org/bot'),'Unexpected synthetic sender target');sent.push(JSON.parse(init.body));return response();});
   const deps={now:()=>now,verifyLive:(env,r)=>verifyConfirmedReleaseLive(env,r,live),send:sender};
-  return {db,env,versions,sent,fetched,release,deps,advance(ms){now+=ms;},setResponse(fn){response=fn;},confirm(p='outpost'){return confirmRelease(env,release(p),deps);},pump(){return pumpReleaseJournal(env,deps);}};
+  return {db,env,versions,sent,fetched,release,deps,live,advance(ms){now+=ms;},setResponse(fn){response=fn;},confirm(p='outpost'){return confirmRelease(env,release(p),deps);},pump(){return pumpReleaseJournal(env,deps);}};
 }
 function pilotFixture(){
  const f=fixture();delete f.env.TELEGRAM_RELEASE_DELIVERY_MODE;f.env.TELEGRAM_ADMIN_CHAT_ID='101';
@@ -60,6 +60,10 @@ function pilotFixture(){
  return {...f,call,confirmKey,pumpKey,verifiers,body:{...release,action:'confirm',expected_admin_chat_id:'101'}};
 }
 try{
+ await scenario('live verifier uses canonical download and does not depend on redirected html alias',async()=>{
+  const f=fixture();await verifyConfirmedReleaseLive(f.env,f.release('outpost'),async(url,init)=>new URL(url).pathname==='/download.html'?new Response(null,{status:308,headers:{Location:'/download'}}):f.live(url,init));
+  check(f.fetched.includes('https://outpost.com.ua/download'));check(!f.fetched.includes('https://outpost.com.ua/download.html'));
+ });
  await scenario('public pilot verifier is not a credential; keys expire and roles are distinct',async()=>{
   const f=pilotFixture();same(await pilotCredentialRole(f.confirmKey,f.verifiers,100000),'confirm');same(await pilotCredentialRole(f.pumpKey,f.verifiers,100000),'pump');
   for(const key of [f.verifiers.confirm_sha256,f.verifiers.pump_sha256,'wrong',''])same(await pilotCredentialRole(key,f.verifiers,100000),null);

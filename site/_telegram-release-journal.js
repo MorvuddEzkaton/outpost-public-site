@@ -105,7 +105,7 @@ export async function verifyConfirmedReleaseLive(env, release, fetcher = fetch) 
   const r = validateRelease(release);
   const own = await currentReleaseVersions(env);
   require(own[r.product] === r.version, "source_release_mismatch");
-  const page = await liveFetch("/download.html", fetcher);
+  const page = await liveFetch("/download", fetcher);
   const html = new TextDecoder().decode(await boundedBytes(page, 512 * 1024));
   const prefix = r.product === "accounting" ? "OutPOSt-Accounting-Setup-v" : "OutPOSt-Setup-v";
   const versions = new Set([...html.matchAll(new RegExp(prefix + "(\\d+\\.\\d+\\.\\d+)\\.exe", "g"))].map(x => x[1]));
