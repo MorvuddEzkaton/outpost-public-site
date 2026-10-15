@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "minimum_exclusive": {
+    "outpost": "0.24.40",
+    "accounting": "1.0.2"
+  }
+}

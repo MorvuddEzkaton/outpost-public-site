@@ -353,6 +353,8 @@ jobs:
           node scripts/test_telegram_release_journal.mjs
           python scripts/verify_confirmed_release_workflow.py
           python scripts/test_confirmed_release_security.py
+          python scripts/test_confirm_published_releases.py
+          python -m py_compile scripts/confirm_published_releases.py scripts/test_confirm_published_releases.py
           python -m py_compile scripts/confirm_telegram_release.py scripts/verify_confirmed_release_workflow.py scripts/test_confirmed_release_security.py
 
       - name: Guard generated Support Center against Telegram FAQ

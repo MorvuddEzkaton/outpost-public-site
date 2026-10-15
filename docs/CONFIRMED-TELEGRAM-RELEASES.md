@@ -120,6 +120,47 @@ versions and rollbacks block dispatch. Confirmation itself sends NO messages.
 Idempotent confirmation keeps the original recipient cutoff and immutable artifact
 facts. A redeploy of identical bytes does not create another announcement.
 
+## Future-only automatic confirmation after publication (OFF)
+
+The owner selected future releases only. The shared, non-secret
+`site/_telegram-release-policy.json` fixes an exclusive baseline: OutPOSt0.24.40
+and Accounting1.0.2. Older/equal versions cannot create subscriber confirmations,
+even through the authenticated manual route, and are rejected before SQL or live
+requests. Any historical pending/retry notice is cancelled without sending or
+resetting its subscriber cursor. Unknown outcomes remain quarantined. The fixed
+private pilot stays in its separate namespace and is not replayed by this change.
+
+The existing three-job protected publisher has a final opt-in confirmation step,
+not an untrusted `workflow_run`, a new privileged workflow or a direct broadcast.
+It runs only on push-main after successful live checks AND successful upload of
+the immutable final publication journal. Its separate
+`OUTPOST_AUTOMATIC_RELEASE_CONFIRMATION_ENABLED=1` switch and `subscribers` mode
+must be deliberately activated; this change sets neither. It receives only the
+confirmation key, never a pump key/bot token, and calls only `action:confirm`.
+
+`confirm_published_releases.py` validates trusted exact-source Linux CI, first run
+attempt, live_pass journal/current-run result artifact URL, unchanged site package,
+future-only policy, immutable artifact registry and reviewed Windows receipts.
+Before any confirmation request it freshly verifies the actual canonical source,
+deployment, owner review and protected environment. Current/historical baselines
+need no key, network or SQL. A website-only redeploy cannot create an old notice.
+Each eligible product is independently confirmed once; a lost/mismatched reply is
+reported as unconfirmed without local retries. Server-side confirmation is still
+idempotent and independently rechecks current live installer bytes.
+
+Notification acceptance is intentionally separate from code-publication acceptance.
+Known blocks/transport failures produce `ok:false`, safe product/version outcomes
+and an explicit GitHub warning/step summary, not a fake delivery success or code
+rollback. The original live_pass journal and its two-artifact history remain
+unchanged; the publisher's `release_announced:false` still means its code writer
+does not announce a release. Only a later pump's stored positive acknowledgement
+can establish delivery. No additional artifact, recipient identifier, credential,
+raw error or provider response is logged. Unexpected local faults still fail closed.
+
+Ordinary scoped credentials, compatible pinned configuration/rollback, backup,
+quota checks and scheduler activation remain a separate operational go/no-go.
+The existing short-lived pilot credentials are not promoted to ordinary keys.
+
 ## Independent scheduled pump
 
 `scripts/telegram_release_scheduler.mjs` is a separate Cron Worker relay with no
@@ -256,10 +297,10 @@ and protected production approval. Plan a code/configuration rollback that switc
 the sender and relay OFF without erasing delivery acknowledgements or subscriber
 cursors. Do not enable the legacy visitor-triggered engine as a fallback.
 
-Enabling a relay does not automatically confirm a release: the current confirmation
-workflow remains owner-dispatched/protected-main only. Any future automated release
-confirmation needs a separately reviewed trusted publication-success boundary;
-never add an untrusted PR/workflow-run credential path just to make it automatic.
+Enabling a relay does not itself confirm a release. The separate manual workflow
+remains owner-dispatched/protected-main only; the prepared automatic path above
+is a distinct OFF-by-default final step of the already protected successful
+publisher. Never add an untrusted PR/workflow-run credential path to activate it.
 
 This preparation does not add automatic pruning. Acknowledged `(product, version,
 recipient)` evidence must not be deleted while repeat confirmation is allowed:

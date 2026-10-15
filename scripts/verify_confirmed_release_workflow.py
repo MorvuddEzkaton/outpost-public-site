@@ -55,6 +55,8 @@ if __name__ == "__main__":
         text = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
         if "node scripts/test_telegram_release_scheduler.mjs" not in text:
             errors.append("offline scheduler regression missing from " + name)
+        if "python scripts/test_confirm_published_releases.py" not in text:
+            errors.append("future-only publication confirmation regression missing from " + name)
     if errors:
         print("Confirmed release workflow: FAIL\n" + "\n".join(errors)); sys.exit(1)
     print("Confirmed release workflow: PASS; owner/trusted-main/manual/production approval, receipt and live checks, read-only defaults")

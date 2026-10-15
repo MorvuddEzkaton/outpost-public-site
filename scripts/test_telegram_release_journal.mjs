@@ -3,7 +3,8 @@ import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { confirmRelease, pumpReleaseJournal, releaseJournalStatus, handleReleaseDispatch,
-  verifyConfirmedReleaseLive, sendJournalMessage, validateRelease, deliveryPolicy, handleReleasePilot } from '../site/_telegram-release-journal.js';
+  verifyConfirmedReleaseLive, sendJournalMessage, validateRelease, deliveryPolicy, handleReleasePilot,
+  isFutureNotifiableRelease, ensureReleaseJournal } from '../site/_telegram-release-journal.js';
 import {pilotCredentialRole} from '../site/_telegram-pilot-credentials.js';
 import { maybeNotifyTelegramRelease, handleTelegramWebhook, currentReleaseVersions } from '../site/_telegram-support.js';
 import worker from '../site/_worker.js';
@@ -60,6 +61,40 @@ function pilotFixture(){
  return {...f,call,confirmKey,pumpKey,verifiers,body:{...release,action:'confirm',expected_admin_chat_id:'101'}};
 }
 try{
+ await scenario('owner cutoff admits only future versions of each independent product',async()=>{
+  for(const [product,version,wanted] of [['outpost','0.24.39',false],['outpost','0.24.40',false],['outpost','0.24.41',true],
+    ['accounting','1.0.1',false],['accounting','1.0.2',false],['accounting','1.0.3',true],['accounting','1.0.10',true],
+    ['other','99.0.0',false],['outpost','01.2.3',false],['outpost','9007199254740992.0.0',false]])same(isFutureNotifiableRelease(product,version),wanted);
+ });
+ await scenario('historical subscriber confirmations are blocked before SQL and live verification',async()=>{
+  for(const [product,version] of [['outpost','0.24.40'],['outpost','0.24.39'],['accounting','1.0.2'],['accounting','1.0.1']]){
+   const f=fixture();f.versions[product]=version;f.db.subscribe();const before=f.db.row().last_notified_version;
+   await f.confirm(product).then(()=>assert.fail('Historical subscriber announcement allowed'),error=>same(error.message,'historical_release_not_notifiable'));
+   same(f.db.queries,0);same(f.fetched.length,0);same(f.sent.length,0);same(f.db.row().last_notified_version,before);
+  }
+ });
+ await scenario('direct authenticated ordinary route cannot announce the current historical release',async()=>{
+  const f=fixture();f.versions.outpost='0.24.40';const {installer,...release}=f.release('outpost');
+  const response=await handleReleaseDispatch(new Request('https://outpost.com.ua/api/telegram/releases/dispatch',{method:'POST',
+   headers:{'x-outpost-release-key':f.env.TELEGRAM_RELEASE_CONFIRM_KEY},body:JSON.stringify({...release,action:'confirm'})}),f.env);
+  same(response.status,502);same(f.db.queries,0);same(f.fetched.length,0);same(f.sent.length,0);
+ });
+ await scenario('historical pending/retry queue is suppressed without send or cursor reset; unknown stays quarantined',async()=>{
+  for(const state of ['pending','retry','unknown']){
+   const f=fixture();f.versions.outpost='0.24.40';f.db.subscribe('101',{outpost:'0.24.39',accounting:'1.0.2'});
+   await ensureReleaseJournal(f.db);const r=f.release('outpost');
+   f.db.sql.prepare('INSERT INTO telegram_release_events VALUES(?,?,?,?,?,?,?)').run(r.product,r.version,r.installer,r.sha256,r.size_bytes,r.source_sha,new Date(0).toISOString());
+   f.db.sql.prepare('INSERT INTO telegram_release_deliveries(product,version,chat_id,state,attempts) VALUES(?,?,?,?,?)').run(r.product,r.version,'101',state,1);
+   const before=f.db.row().last_notified_version;await f.pump();
+   same(f.sent.length,0);same(f.fetched.length,0);same(f.db.row().last_notified_version,before);
+   same(f.db.delivery().state,state==='unknown'?'unknown':'cancelled');same(f.db.delivery().attempts,1);
+  }
+ });
+ await scenario('fixed private pilot remains isolated from subscriber cutoff',async()=>{
+  const f=fixture();f.versions.outpost='0.24.40';f.env.TELEGRAM_RELEASE_DELIVERY_MODE='pilot';f.env.TELEGRAM_ADMIN_CHAT_ID='101';
+  await f.confirm();await f.pump();same(f.sent.length,1);same(f.db.row(),undefined);
+  check(!f.db.sql.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='telegram_release_events'").get());
+ });
  await scenario('Telegram sender uses workerd-compatible manual mode and persists a valid acknowledgement',async()=>{
   let calls=0;const result=await sendJournalMessage({TELEGRAM_BOT_TOKEN:'synthetic-token'},{chat_id:'101',text:'offline'},async(url,init)=>{
    calls++;same(init.redirect,'manual');return Response.json({ok:true,result:{message_id:321}});
