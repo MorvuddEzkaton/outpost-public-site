@@ -444,6 +444,9 @@ test("cashier page documents current FEFO while keeping older base-sale screensh
 
 test("shared real screenshot carousels have equal-sized stages and same-page lightbox", async ({page}) => {
   const cases = [
+    {path:"/modules",groups:[7,8]},
+    {path:"/avtomatyzatsiya-magazynu",groups:[4,8]},
+    {path:"/features",groups:[7]},
     {path:"/prodazh-v-borg",groups:[7]},
     {path:"/oblik-tovariv-u-magazyni",groups:[5,8,6]},
     {path:"/avtomatyzatsiya-zakupivel-i-skladu",groups:[6,6]},
@@ -670,6 +673,11 @@ test("store automation page reflects current director and batch capabilities", a
     await expect(page.locator("main")).toContainText("Партії, строки придатності та FEFO-контроль");
     await expect(page.locator("main")).toContainText("59 тем у 14 категоріях");
     await expect(page.locator("main")).toContainText("явні переміщення та списання конкретних партій");
+    const directorTour = page.locator("#director-payroll-tour");
+    await expect(directorTour.getByRole("heading",{name:"Від огляду магазину до контрольованої виплати зарплатні"})).toBeVisible();
+    await expect(directorTour.locator("figure.tour-shot")).toHaveCount(8);
+    await expect(directorTour).toContainText("v0.24.22");
+    await expect(directorTour).toContainText("Це управлінський розрахунок винагороди, а не податкова або кадрова звітність");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   }
@@ -779,6 +787,11 @@ test("features page presents current inventory, FEFO, analytics and director wor
     await expect(page.locator("#management")).toContainText("кнопку «Справка»");
     await expect(page.locator("#modules")).toContainText("Вісім робочих модулів для щоденних задач магазину");
     await expect(page.locator("#modules")).toContainText("Партії, строки та FEFO");
+    const featureTour = page.locator(".feature-tour");
+    await expect(featureTour.locator("figure.tour-shot")).toHaveCount(7);
+    await expect(featureTour.locator("img[src='/assets/screenshots/02422/director-payroll/01-ohliad-dyrektora.webp']")).toHaveCount(1);
+    await expect(featureTour.locator("a[href='/interfeis#director-v02422']")).toHaveText("Повний директорський сценарій →");
+    await expect(featureTour).toContainText("Локальний огляд, динаміка, результати продавців і управлінська зарплатня");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   }
@@ -807,7 +820,10 @@ test("modules page presents current module capabilities without milestone histor
     await expect(page.locator(".modules-hero")).toContainText("МОДУЛЬНИЙ ЦЕНТР");
     await expect(page.locator("#purchase-orders a[href='/avtomatyzatsiya-zakupivel-i-skladu']")).toHaveCount(1);
     await expect(page.locator("#promotions-loyalty a[href='/avtomatyzatsiya-rozdribnoi-torgivli']")).toHaveCount(1);
-    await expect(page.locator("#batch-expiry a[href='/oblik-tovariv-u-magazyni']")).toHaveCount(1);
+    await expect(page.locator("#batch-expiry a[href='#batch-registry-tour']")).toHaveCount(1);
+    await expect(page.locator("#batch-registry-tour figure.tour-shot")).toHaveCount(7);
+    await expect(page.locator("#batch-registry-tour")).toContainText("v0.24.19");
+    await expect(page.locator("#batch-registry-tour .tour-note a[href='/oblik-tovariv-u-magazyni']")).toHaveCount(1);
     await expect(page.locator("#labels-printing a[href='/tsinnyky-ta-etyketky']")).toHaveCount(1);
     await expect(page.locator(".feature-tour img[src='/assets/screenshots/02414/labels/01-editor.webp']")).toHaveCount(1);
     await expect(page.locator(".feature-tour img[src='/assets/screenshots/02414/labels/02-library.webp']")).toHaveCount(1);
@@ -1059,6 +1075,83 @@ test("debt walkthrough has seven compact bottom-positioned slides, overlaid arro
   await expect(slider.locator(".live-shot-next")).toBeDisabled();
   await slider.locator(".live-shot-prev").click();
   await expect(slider.locator(".live-shot-counter")).toHaveText("Крок 6 із 7");
+});
+
+test("migrated batch and payroll tours keep all steps, intrinsic dimensions and keyboard isolation", async ({page}) => {
+  test.setTimeout(120000);
+  const cases = [
+    {path:"/modules",selector:"#batch-registry-tour",count:7,prefix:"/assets/screenshots/02419/batch-expiry/"},
+    {path:"/avtomatyzatsiya-magazynu",selector:"#director-payroll-tour",count:8,prefix:"/assets/screenshots/02422/director-payroll/"},
+  ];
+  for (const width of [1280,390,360]) {
+    await page.setViewportSize({width,height:900});
+    for (const item of cases) {
+      await page.goto(origin + item.path, {waitUntil:"load"});
+      const ids = await page.locator("[id]").evaluateAll(nodes => nodes.map(n=>n.id));
+      expect(new Set(ids).size, "duplicate page IDs").toBe(ids.length);
+      const tour = page.locator(item.selector);
+      const carousel = tour.locator(".live-shot-carousel");
+      const figures = carousel.locator("figure.tour-shot");
+      await expect(figures).toHaveCount(item.count);
+      await expect(carousel.locator(".live-shot-prev")).toBeDisabled();
+      const sources = await figures.locator("img").evaluateAll(nodes => nodes.map(n=>n.getAttribute("src")));
+      expect(new Set(sources).size).toBe(item.count);
+      expect(sources.every(src=>src.startsWith(item.prefix))).toBe(true);
+      const heights = [];
+      for (let i=0;i<item.count;i++) {
+        if (i) {await carousel.focus();await page.keyboard.press("ArrowRight");}
+        const figure = figures.nth(i);
+        await expect(figure).toBeVisible();
+        await expect(carousel.locator(".live-shot-counter")).toHaveText(`Крок ${i+1} із ${item.count}`);
+        const opener = figure.locator("a:has(img)");
+        await opener.scrollIntoViewIfNeeded();
+        const img = opener.locator("img");
+        await expect(img).toHaveJSProperty("complete",true);
+        const dimensions = await img.evaluate(n=>({actual:[n.naturalWidth,n.naturalHeight],declared:[Number(n.getAttribute("width")),Number(n.getAttribute("height"))],alt:n.getAttribute("alt")}));
+        expect(dimensions.actual[0]).toBeGreaterThan(0);
+        expect(dimensions.declared).toEqual(dimensions.actual);
+        expect(dimensions.alt?.trim()).toBeTruthy();
+        const caption = figure.locator("figcaption");
+        const captionSize = await caption.evaluate(n=>({scroll:n.scrollHeight,client:n.clientHeight}));
+        expect(captionSize.scroll, `${item.path} ${width}px step${i+1}: clipped caption`).toBeLessThanOrEqual(captionSize.client+1);
+        const figureBox = await figure.boundingBox();
+        const imageBox = await opener.boundingBox();
+        const captionBox = await caption.boundingBox();
+        expect(captionBox.y).toBeGreaterThanOrEqual(imageBox.y+imageBox.height-2);
+        heights.push(figureBox.height);
+        if (i===0 && width!==360) await page.screenshot({path:path.join(artifactRoot,`migrated-${slugFor(item.path)}-${width}.png`),fullPage:false});
+        await opener.focus();
+        await page.keyboard.press("Enter");
+        const viewer = page.locator("dialog.live-shot-dialog");
+        await expect(viewer).toBeVisible();
+        await expect(viewer.locator("img")).toHaveAttribute("src",sources[i]);
+        await expect(viewer.locator(".live-shot-dialog-count")).toHaveText(`${i+1} / ${item.count}`);
+        if (i===0 && width===1280) await page.screenshot({path:path.join(artifactRoot,`migrated-${slugFor(item.path)}-viewer.png`),fullPage:false});
+        await page.keyboard.press("ArrowRight");
+        await expect(viewer.locator("img")).toHaveAttribute("src",sources[(i+1)%item.count]);
+        await page.keyboard.press("ArrowLeft");
+        await expect(viewer.locator("img")).toHaveAttribute("src",sources[i]);
+        await viewer.evaluate(node=>{node.dataset.qaClosed="0";node.addEventListener("close",()=>{node.dataset.qaClosed="1";},{once:true});});
+        await page.keyboard.press("Escape");
+        await expect(viewer).toHaveAttribute("data-qa-closed","1");
+        await expect(viewer).toBeHidden();
+        await expect(opener).toBeFocused();
+      }
+      expect(Math.max(...heights)-Math.min(...heights)).toBeLessThanOrEqual(3);
+      await expect(carousel.locator(".live-shot-next")).toBeDisabled();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)).toBeLessThanOrEqual(1);
+    }
+    await page.goto(origin+"/features",{waitUntil:"load"});
+    const carousel = page.locator(".feature-tour .live-shot-carousel");
+    for(let i=0;i<6;i++){await carousel.focus();await page.keyboard.press("ArrowRight");}
+    const last = carousel.locator("figure.tour-shot").nth(6);
+    await expect(last).toBeVisible();
+    await expect(last.getByRole("link",{name:"Повний директорський сценарій →"})).toHaveAttribute("href","/interfeis#director-v02422");
+    const target = page.locator("#director-v02422");
+    await last.getByRole("link",{name:"Повний директорський сценарій →"}).click();
+    await expect(page).toHaveURL(origin+"/interfeis#director-v02422");
+    await expect(target).toBeVisible();
+  }
 });
 
 test("screenshot viewer keeps its headline centered at mobile width", async ({page}) => {
