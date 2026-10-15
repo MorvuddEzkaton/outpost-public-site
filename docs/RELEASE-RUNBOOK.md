@@ -1,8 +1,14 @@
 # Release preparation — two independent products
 
-Migration checkpoint: 2026-10-12. This is preparation, **not** production publication.
-Production cutover, live verification and confirmed Telegram dispatch are still
-separate migration gates. Current products remain OutPOSt 0.24.39 / Accounting 1.0.2.
+Operational checkpoint: 2026-10-15. The new public repository is the production
+source; the protected publisher, post-live future-only confirmation and scheduled
+pump are active. Current products at this checkpoint are OutPOSt 0.24.40 and
+Accounting 1.0.2. Preparation, merged source, accepted live publication and an
+acknowledged Telegram delivery are four different facts. Do not conflate them.
+
+The release-preparation Actions remain OFF, as does repository Actions permission
+to create PRs. Use the local topic-branch path below without changing either
+setting. The manual Telegram pilot is also OFF and must not be replayed.
 
 ## Trust and evidence
 
@@ -37,7 +43,7 @@ attestation is a real release or committed to `release/evidence`.
 
 ## Immutable downloads
 
-`release/artifact-registry.json` contains the 22 audited existing artifact pairs.
+`release/artifact-registry.json` contains the audited artifact pairs (23 at this checkpoint).
 It is append-only, with exact installer and checksum-file digests. All historical
 URLs and bytes must remain. The CI compares it with the **exact PR base**. Initial
 registry bootstrapping is limited to the recorded independent public root commit
@@ -88,7 +94,7 @@ and checksum remain unchanged. Changelog notes must be authored, not invented by
 
 `prepare-public-release.yml` and `prepare-accounting-release.yml` are manual only,
 trusted-main/owner/repository restricted and inactive until
-`OUTPOST_RELEASE_PREPARATION_ENABLED=1` is deliberately configured after migration review.
+`OUTPOST_RELEASE_PREPARATION_ENABLED=1` is deliberately configured under a separate reviewed plan.
 Do not enable it as a shortcut around a failed test, review, or incomplete migration.
 Default workflow permissions stay read-only; only these gated preparation jobs request
 contents/PR write permissions. They check out trusted main and prove staging contains
@@ -108,16 +114,47 @@ Required workflows run on every main PR. A workflow that did not run remains pen
 head. A workflow_dispatch diagnostic run does not substitute for required PR checks.
 No fabricated check statuses, renamed required contexts, or reduced review rules.
 
-## Publication remains gated
+## Current local preparation path
 
-Next gates: isolated Cloudflare preview, private D1 backups/restore drill, approved
-deployment provenance, explicit owner cutover, actual installer/page re-download and
-live PASS. Only then may a confirmed `release_published` event trigger the future
-delivery journal. The journal/disabled Cron relay and protected confirmation workflow
-are now prepared in CONFIRMED-TELEGRAM-RELEASES.md, not activated. Existing visitor-
-triggered production Telegram logic is unchanged during preparation; never test it
-against real subscribers or reset their cursors. Deliberate journal activation
-disables that legacy sender, preventing two concurrent sending engines.
+1. Verify a clean checkout and fresh remote main; record that exact SHA as the
+   rollback/source base. Create a `codex/...` topic from it. Do not overwrite a
+   dirty checkout, force-push main/staging or merge unrelated staging changes.
+2. Add only the product's inputs above. Review the trusted Windows evidence and
+   authored notes, run its dry-run, inspect the plan, then run `--apply`.
+3. Review every changed file, immutable registry append and the unchanged other
+   product. Run `python scripts/run_production_quality.py`, the browser suites and
+   redacted source/history scans. A local PASS is not actual GitHub CI or Windows acceptance.
+4. Push only the topic and open a reviewable PR through the existing authorized
+   path. Obtain exact-head owner review and all six real required PR checks. When
+   Codex acts under explicit owner delegation, identify that as delegated approval,
+   not an independent human review. Do not let the PR-authoring bot self-approve.
+5. After normal merge, require both publisher quality jobs, the protected production
+   approval, one identified upload and all 20 live contracts. Preserve the two
+   immutable publisher journals and their source/run/deployment linkage. See
+   PRODUCTION-PUBLISHER.md; never rerun an ambiguous or already-used source.
+6. Inspect the separate confirmation result for the genuinely new product and the
+   pump's persisted acknowledgement. A green deploy or `release_announced:false`
+   in the code writer's journal does not establish either delivery success or failure.
+   See CONFIRMED-TELEGRAM-RELEASES.md for pending/unknown outcomes.
+
+Do not synchronize staging as a side effect of publication. The optional gated
+preparation workflows require a separately prepared staging descendant of fresh
+main with exactly the input allowlist; current staging need not already meet it.
+
+## Publication and remaining acceptance
+
+The existing production domain, D1 bindings, subscriber rows/cursors and private
+services are preserved. Legacy visitor-triggered announcements are disabled;
+only confirmed future releases enter the delivery journal. Never reset cursors,
+announce baseline versions, create a fake release or repeat the completed pilot
+to make an acceptance checklist green.
+
+Both-product offline independence/negative tests and current live artifacts are
+verified. The next genuinely new approved release of **each** product must still
+record installer/download/changelog/metadata live PASS and its own positive
+Telegram acknowledgement without a duplicate. An empty Cron or the earlier
+private OutPOSt pilot is not that end-to-end proof. Track this pending acceptance
+in the private migration report; no new Windows build is authorized by these docs.
 
 Preparation is not idempotent publication: repeat apply to an already-current version
 fails closed rather than making another release. An interrupted/partially applied

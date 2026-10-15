@@ -11,4 +11,8 @@ This public repository starts an independent history. Historical rollback refere
 - Record D1 writes after deployment before rollback; do not erase fresh subscriptions/CMS/analytics by restoring an old database blindly.
 - Keep the original private repository and production deployment until approved migration and rollback verification succeed.
 
-The reusable safe-rollback PR workflow remains available for same-release public-site source changes after the new repository becomes the production source. Its presence does not authorize migration cutover or D1 restoration.
+The new repository is the production source (checkpoint 2026-10-15). The reusable
+safe-rollback PR workflow is for reviewed same-release source recovery, not automatic
+cutover, application downgrade or D1 restoration. Use the current
+[ROLLBACK-RUNBOOK.md](ROLLBACK-RUNBOOK.md) and compatible protected-publisher baseline;
+do not confuse a prepared recovery PR with an accepted live rollback.
