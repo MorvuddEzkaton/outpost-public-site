@@ -4,10 +4,28 @@ import re
 import sys
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / '.github/workflows/deploy-public-production.yml'
+NOTIFICATION_STEP = '''      - name: Confirm future releases only after accepted live publication
+        if: >-
+          success() && github.event_name == 'push' &&
+          steps.live.outcome == 'success' && steps.result.outcome == 'success' &&
+          vars.OUTPOST_AUTOMATIC_RELEASE_CONFIRMATION_ENABLED == '1' &&
+          vars.OUTPOST_RELEASE_DELIVERY_MODE == 'subscribers'
+        env:
+          OUTPOST_AUTOMATIC_RELEASE_CONFIRMATION_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_RELEASE_CONFIRMATION_ENABLED }}
+          OUTPOST_RELEASE_DELIVERY_MODE: ${{ vars.OUTPOST_RELEASE_DELIVERY_MODE }}
+          OUTPOST_SAVED_RESULT_URL: ${{ steps.result.outputs.artifact-url }}
+          OUTPOST_RELEASE_CONFIRM_KEY: ${{ secrets.OUTPOST_RELEASE_CONFIRM_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.OUTPOST_PAGES_DEPLOY_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/confirm_published_releases.py --journal "$RUNNER_TEMP/outpost-production-journal.json" --apply'''
 
 def verify(text):
     text = re.sub(r'(?m)^\s*#.*$', '', text)
     errors = []
+    if not text.rstrip().endswith(NOTIFICATION_STEP) or text.count(NOTIFICATION_STEP) != 1:
+        errors.append('exact disabled post-result confirmation step required; no writer credential expansion')
+    writer = text.removesuffix(NOTIFICATION_STEP + '\n')
     markers = [
         "vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED == '1'", "vars.OUTPOST_PRODUCTION_WRITER_ENABLED == '1'",
         "github.repository == 'MorvuddEzkaton/outpost-public-site'", "github.ref == 'refs/heads/main'",
@@ -28,12 +46,14 @@ def verify(text):
         errors.append('writer requires exactly the three reviewed jobs')
     for name in ['pull_request:', 'pull_request_target:', 'workflow_run:', 'schedule:', 'continue-on-error:',
                  'contents: write', 'pull-requests: write', 'deployments: write', 'secrets.TELEGRAM',
-                 'OUTPOST_RELEASE_CONFIRM_KEY', 'printenv', 'set -x', '|| true', 'secrets.CLOUDFLARE_API_TOKEN']:
+                 'printenv', 'set -x', '|| true', 'secrets.CLOUDFLARE_API_TOKEN']:
         if name in text:
             errors.append('unsafe writer bypass or privilege: ' + name)
     if text.count('ref: ${{ github.sha }}') != 3 or text.count('persist-credentials: false') != 3:
         errors.append('all quality and protected checkouts must be exact and unpersisted')
-    if text.count('if-no-files-found: error') != 2 or text.count('secrets.OUTPOST_PAGES_DEPLOY_TOKEN') != 4:
+    if 'OUTPOST_RELEASE_CONFIRM_KEY' in writer or 'OUTPOST_RELEASE_PUMP_KEY' in text or 'confirm_published_releases.py' in writer:
+        errors.append('confirmation credential/code must be confined to the exact post-result step, never a pump')
+    if text.count('if-no-files-found: error') != 2 or writer.count('secrets.OUTPOST_PAGES_DEPLOY_TOKEN') != 4 or text.count('secrets.OUTPOST_PAGES_DEPLOY_TOKEN') != 5:
         errors.append('both durable artifacts and all four authenticated operations must retain their guards')
     if not re.search(r'^on:\n  push:\n    branches:\n      - main\n  workflow_dispatch:', text, re.MULTILINE):
         errors.append('only push-main and owner manual dispatch may trigger writer')
@@ -46,6 +66,8 @@ def verify(text):
                  text.find('production_publisher.py rollback '), text.find('name: Save final journal')]
     if min(positions) < 0 or positions != sorted(positions):
         errors.append('durable intent/upload/live/conditional rollback/final journal order is required')
+    if '        id: result' not in writer or text.find(NOTIFICATION_STEP) < positions[-1]:
+        errors.append('notification must follow the separately saved final result, never control rollback')
     runtime_test = text.find('run: node scripts/test_telegram_transport_workerd.mjs')
     install = text.find('npm ci --ignore-scripts')
     if not (0 <= install < runtime_test < positions[0]):

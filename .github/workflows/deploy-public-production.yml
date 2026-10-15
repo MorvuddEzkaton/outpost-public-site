@@ -147,6 +147,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/production_publisher.py rollback --journal "$RUNNER_TEMP/outpost-production-journal.json"
       - name: Save final journal even on failure; never upload credentials or raw logs
+        id: result
         if: ${{ always() && steps.plan.outcome == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -154,3 +155,18 @@ jobs:
           path: ${{ runner.temp }}/outpost-production-journal.json
           if-no-files-found: error
           retention-days: 7
+      - name: Confirm future releases only after accepted live publication
+        if: >-
+          success() && github.event_name == 'push' &&
+          steps.live.outcome == 'success' && steps.result.outcome == 'success' &&
+          vars.OUTPOST_AUTOMATIC_RELEASE_CONFIRMATION_ENABLED == '1' &&
+          vars.OUTPOST_RELEASE_DELIVERY_MODE == 'subscribers'
+        env:
+          OUTPOST_AUTOMATIC_RELEASE_CONFIRMATION_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_RELEASE_CONFIRMATION_ENABLED }}
+          OUTPOST_RELEASE_DELIVERY_MODE: ${{ vars.OUTPOST_RELEASE_DELIVERY_MODE }}
+          OUTPOST_SAVED_RESULT_URL: ${{ steps.result.outputs.artifact-url }}
+          OUTPOST_RELEASE_CONFIRM_KEY: ${{ secrets.OUTPOST_RELEASE_CONFIRM_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.OUTPOST_PAGES_DEPLOY_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/confirm_published_releases.py --journal "$RUNNER_TEMP/outpost-production-journal.json" --apply

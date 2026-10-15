@@ -1,6 +1,7 @@
 import { currentReleaseVersions, isNewerRelease, releaseCursorFromStorage, serializeReleaseCursor,
   releaseNotificationText, releaseLinksKeyboard } from "./_telegram-support.js";
 import { pilotCredentialRole } from "./_telegram-pilot-credentials.js";
+import notificationPolicy from "./_telegram-release-policy.json" with {type:"json"};
 
 export const RELEASE_DISPATCH_PATH = "/api/telegram/releases/dispatch";
 export const RELEASE_PILOT_PATH = "/api/telegram/releases/pilot";
@@ -10,6 +11,12 @@ const MAX_BATCH = 3; // Conservative D1/HTTP subrequest budget on Workers Free.
 const LEASE_MS = 120000;
 const MAX_ATTEMPTS = 8;
 const PRODUCTS = new Set(["outpost", "accounting"]);
+
+export function isFutureNotifiableRelease(product,version){
+  return PRODUCTS.has(product) && /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(version) &&
+    version.split('.').every(x=>Number.isSafeInteger(Number(x))) &&
+    isNewerRelease(version,notificationPolicy.minimum_exclusive[product]);
+}
 
 function require(ok, code) { if (!ok) throw new Error(code); }
 function ready(env) {
@@ -125,7 +132,9 @@ export async function verifyConfirmedReleaseLive(env, release, fetcher = fetch) 
 }
 
 export async function confirmRelease(env, input, deps = {}) {
-  const db = database(env); const release = validateRelease(input);
+  const policy=deliveryPolicy(env),release=validateRelease(input);
+  require(policy.mode!=="subscribers" || isFutureNotifiableRelease(release.product,release.version),"historical_release_not_notifiable");
+  const db = database(env);
   const verify = deps.verifyLive || verifyConfirmedReleaseLive;
   await verify(env, release); // No journal/queue write before exact live verification.
   await ensureReleaseJournal(db);
@@ -232,6 +241,14 @@ export async function pumpReleaseJournal(env, deps = {}) {
   const result = {ok:true,audience:db.policy.mode,examined:0,sent:0,retry:0,unknown:0,cancelled:0,blocked:0,failed:0};
   for (const job of pending.results || []) {
     result.examined++;
+    if(db.policy.mode==="subscribers" && !isFutureNotifiableRelease(job.product,job.version)){
+      // Suppress any historical queued notice without a send, cursor reset,
+      // confirmation rewrite or retry of an unknown delivery.
+      await db.prepare(`UPDATE telegram_release_deliveries SET state='cancelled',error_kind='historical_release_suppressed'
+        WHERE product=? AND version=? AND chat_id=? AND state IN ('pending','retry')`)
+        .bind(job.product,job.version,job.chat_id).run();
+      result.cancelled++;continue;
+    }
     const event = job.product+":"+job.version;
     if (!verified.has(event) && !blocked.has(event)) {
       try { await (deps.verifyLive || verifyConfirmedReleaseLive)(env,job); verified.add(event); }
