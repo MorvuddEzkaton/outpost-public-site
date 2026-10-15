@@ -1,4 +1,8 @@
-# Protected production provenance — preparation, not activation
+# Protected production provenance
+
+Operational checkpoint: 2026-10-15. This read-only gate is used by the active
+protected publisher/live verification. It cannot enable a writer, change settings
+or send a message. Future-only notification acceptance remains a separate fact.
 
 The Pages publication path must preserve the exact currently reviewed `wrangler.jsonc`.
 Publishing without that file can clear its configuration marker even when D1
@@ -39,11 +43,11 @@ The confirmation workflow performs this gate after Windows-receipt validation an
 before canonical download verification or use of the confirmation key. Preview
 health reports both release engines as disabled and exposes no bot credentials.
 
-## Credentials and remaining work
+## Credential boundary and accepted operation
 
 No token/environment protection/activation variable is created by these scripts.
 The default command without `--check` is OFFLINE validation only, never remote PASS.
-The required future environment secrets are `CLOUDFLARE_ACCOUNT_ID` and a dedicated
+The required protected environment secrets are `CLOUDFLARE_ACCOUNT_ID` and a dedicated
 `OUTPOST_PAGES_DEPLOY_TOKEN`; never reuse an owner's broad interactive OAuth session
 in public CI. Keep the bot/webhook/setup secrets only in Cloudflare.
 
@@ -55,15 +59,14 @@ permissions, protected main/production and expiry; obtaining and storing that
 credential needs a separate explicit owner decision. A narrower broker would be a
 separate reviewed architecture, not an implied new service.
 
-The dormant writer is now prepared separately in [PRODUCTION-PUBLISHER.md](PRODUCTION-PUBLISHER.md).
-Neither package activates it, creates confirmed-release keys, enables the scheduled
-pump, resolves unknown delivery states, changes quota or announces current versions.
-The existing live/confirmation diagnostics fail closed until prerequisites are ready.
-Actual protected deployment->live->release end-to-end acceptance remains separate.
-The source-declared mode suppresses the legacy sender only when a separately
-approved deployment actually applies it. It does not deliver messages without
-operational keys, release confirmation and a separately approved pump. Adding
-health fields or merging this source does not itself establish live mode acceptance.
+The active writer is described in [PRODUCTION-PUBLISHER.md](PRODUCTION-PUBLISHER.md).
+Separately accepted stages applied the compatible configuration, scoped keys and
+five-minute pump. These scripts do not themselves create keys, activate a schedule,
+resolve unknown delivery, change quota or announce current baseline versions.
+Protected publication/live acceptance has real evidence; a genuine next-release
+delivery for each desktop product remains separately pending. The source-declared
+mode suppresses the legacy sender only when actual runtime health confirms it.
+Merging code or adding health fields alone cannot establish any of these facts.
 
 An encrypted secret's value cannot be compared through Pages metadata. The proof
 checks names/types and safe mode, not cryptographic equality of hidden values.

@@ -2,6 +2,11 @@
 
 Bot: `@OutPOStUA_bot`
 
+Operational checkpoint: 2026-10-15. Future-only confirmed release notifications and
+one five-minute pump are active; the old visitor-triggered sender is disabled.
+Delivery/uncertainty/current cutoffs are documented in
+[CONFIRMED-TELEGRAM-RELEASES.md](CONFIRMED-TELEGRAM-RELEASES.md).
+
 The public site links directly to the bot, while Telegram Bot API traffic is handled by the isolated `site/_telegram-support.js` module. Controlled FAQ content lives in `site/_telegram-faq.js`.
 
 Routes:
@@ -22,7 +27,9 @@ Configure the sensitive values as encrypted secrets for the production Pages env
 - `TELEGRAM_ADMIN_CHAT_ID` — private Telegram chat ID of the OutPOSt support operator.
 - `TELEGRAM_PUBLIC_ENABLED` — runtime switch; `1` enables the public Telegram entry and release-notification checks.
 
-Preview/staging secrets are optional. Do not reuse production secrets in preview unless there is a specific testing need.
+Preview/staging must not reuse production secrets. Use isolated data and no
+production Telegram writes; a real private transport test needs its own narrow
+authorization and cannot disable preview isolation.
 
 ## Main bot menu
 
@@ -96,13 +103,18 @@ No name, Telegram username, email, phone number, customer identity, license, sto
 
 The schema is documented in `analytics/0002_telegram_update_subscribers.sql`; runtime also uses `CREATE TABLE IF NOT EXISTS` so no manual D1 migration is required for first use.
 
-### Notification behavior
+### Subscription cursors
 
 When a user subscribes, `last_notified_version` is initialized to a serialized two-product cursor containing the currently published OutPOSt version and, when available, the current Бухгалтерія version. This prevents an immediate retroactive notification about releases the user already sees.
 
 Legacy rows that still contain one plain OutPOSt version are migrated silently on the next release check: the existing OutPOSt cursor is preserved and the currently published Accounting version is used as the Accounting baseline, so old subscribers do not receive a retroactive Accounting announcement.
 
-The Pages Worker schedules a background release check on ordinary GET requests to `/`, `/download` and `/download.html` when Telegram is enabled. The check:
+### Historical visitor-triggered mode — disabled in accepted production
+
+The legacy path, only when confirmed mode is OFF, schedules a background release
+check on GET `/`, `/download` and `/download.html`. It is retained for historical
+compatibility, not the current delivery engine. Do not re-enable it to repair a
+missing notice. That legacy check:
 
 1. reads the official OutPOSt and Бухгалтерія versions independently from the static download page;
 2. compares each product against that subscriber's stored cursor;
@@ -114,13 +126,14 @@ Compare-and-swap cursor updates reduce parallel duplicate attempts in this legac
 
 The release check runs through `ctx.waitUntil` and never changes the HTTP response for the public site, CMS, public-question proxy or installer download.
 
-### Prepared confirmed-release mode (OFF by default)
+### Current confirmed-release mode
 
 The separately gated mode in [CONFIRMED-TELEGRAM-RELEASES.md](CONFIRMED-TELEGRAM-RELEASES.md)
-disables legacy visitor-triggered sending when deliberately enabled. Its additive
+disables legacy visitor-triggered sending in the accepted production runtime. Its additive
 journal requires verified live installer bytes/versions and protected confirmation,
 then advances each product cursor only after a positive Telegram acknowledgement.
-A separate disabled Cron relay can pump the journal independently of page visits.
+A separately accepted five-minute Cron relay pumps independently of page visits;
+the checked-in template stays intentionally disabled, not a replacement operational config.
 Uncertain delivery is quarantined rather than automatically repeated. Source/tests
 alone are not a real-bot test, production activation, or permission to broadcast.
 

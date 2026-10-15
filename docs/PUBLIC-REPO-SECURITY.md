@@ -20,5 +20,11 @@ Workflow/release/runtime changes need protected review. Owner-reviewed Windows r
 digests are public attestations, not signing credentials or executable test reports.
 See RELEASE-RUNBOOK.md for their trust boundary. A web CI PASS is not Windows acceptance.
 
-Production activation variables remain unset, new-repository secrets are absent, and
-the existing production deployment is unchanged until separate owner go/no-go.
+Operational checkpoint: 2026-10-15. The separately approved protected publisher and
+future-only Telegram confirmation/pump are active. Repository-level secrets remain
+absent; scoped publication/confirmation credentials exist only behind the protected
+production environment. PR checks cannot access them. Desktop-preparation Actions,
+manual pilot and infrastructure-maintenance gates remain OFF. See
+[RELEASE-RUNBOOK.md](RELEASE-RUNBOOK.md) and
+[CONFIRMED-TELEGRAM-RELEASES.md](CONFIRMED-TELEGRAM-RELEASES.md) for current operation.
+These facts do not authorize new keys, settings changes, broadcasts or bypasses.

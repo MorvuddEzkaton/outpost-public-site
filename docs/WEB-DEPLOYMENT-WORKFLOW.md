@@ -1,16 +1,17 @@
 # OutPOSt public deployment workflow
 
-Protected provenance preparation: see [PRODUCTION-PROVENANCE-GATE.md](PRODUCTION-PROVENANCE-GATE.md).
-Once deliberately activated, live verification waits for an actual reviewed exact-SHA
+Protected provenance: see [PRODUCTION-PROVENANCE-GATE.md](PRODUCTION-PROVENANCE-GATE.md).
+Live verification waits for an actual reviewed exact-SHA
 successful Pages deployment and safe confirmed notification mode before canonical GETs.
-This read-only gate does not itself publish. A separate dormant protected writer is
-prepared in [PRODUCTION-PUBLISHER.md](PRODUCTION-PUBLISHER.md); it is not activated.
+This read-only gate does not itself publish. The active protected writer is
+described in [PRODUCTION-PUBLISHER.md](PRODUCTION-PUBLISHER.md).
 
-Migration preparation date: 2026-10-12. The owner-approved source-only cutover has
-published reviewed public source to the existing Pages project. The old private Git
-integration identity remains for recovery, with its automatic production deployment
-disabled. That completed source-only step did not activate new automatic publication,
-new credentials, notification modes or a scheduled sender.
+Operational checkpoint: 2026-10-15. Reviewed public source is published to the
+existing Pages project/domain through the protected publisher. The old private Git
+integration is retained for recovery with its production autodeploy disabled.
+Subsequent separately approved stages activated future-only post-live confirmation
+and one five-minute pump; the manual pilot and desktop-preparation Actions remain OFF.
+The initial 12 October source-only cutover alone did not establish these later facts.
 
 ## Branches and checks
 
@@ -24,9 +25,16 @@ Evaluate the actual PR required-check panel, not only a commit-wide list of hist
 
 ## Deployment authority
 
-Creating this repository, merging the initial snapshot or seeing green static CI does not authorize production deployment. OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED stays unset until the explicit cutover plan is approved. The live-production workflow is inactive until then; a skipped live job does not certify the live site.
+Creating a repository, merging source or seeing green static CI is not live acceptance.
+OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED and OUTPOST_PRODUCTION_WRITER_ENABLED are
+currently enabled under owner authorization, not set by documentation or PR jobs.
+Both publisher quality jobs, exact-source review and protected production approval
+remain required. A skipped live/publish job is not PASS.
 
-Preferred future path: validate controlled Wrangler deployment to the existing Pages project so domains, private bindings and encrypted secrets can remain intact. Confirm this against the actual project before use. Disable conflicting old automatic deployments only during approved cutover, not during repository preparation.
+The accepted path uses controlled pinned Wrangler publication to the existing
+project, retaining domains/private bindings/encrypted secrets and strict compatible
+baseline equality. Do not reconnect Git, re-enable the conflicting old autodeploy,
+repeat a completed bootstrap or silently change provider settings.
 
 Infrastructure maintenance has a separate opt-in variable and protected environment. Do not provision an account-wide maintenance token merely to publish website content.
 
@@ -40,4 +48,8 @@ Preview integrations fail closed: noncanonical/HTTP/nonstandard-port hosts canno
 
 OutPOSt and Accounting releases are independent immutable artifacts with checksums, acceptance evidence, truthful status and retained history. Complete static/browser/staging checks before deployment and exact live installer/page checks afterward. Telegram requires a confirmed release event, not merely a version change or website visit.
 
-Before cutover: private settings/D1 backups, isolated restore drill, health baseline, precise rollback and explicit owner go/no-go. Keep the original repository/project until verified stability. Do not overwrite newer D1 records with older snapshots during rollback.
+Private settings/D1 backups, independent local restore, compatible baseline and
+explicit go/no-go were accepted during cutover/activation. They are dated evidence,
+not permission to overwrite newer D1 data. Keep the original repository and recovery
+points; portable/offsite recovery remains unclaimed. For the next publication follow
+RELEASE-RUNBOOK.md and ROLLBACK-RUNBOOK.md, not a replay of migration executors.
