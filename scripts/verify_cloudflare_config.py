@@ -10,10 +10,11 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "wrangler.jsonc"
 LEGACY_CONFIG_HASH = "a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d"
-APPROVED_CONFIG_HASH = "1250f89a51fd987f0829d2e9772afd658943d956666259661ceaecfe212bfcf6"
+CONFIRMED_MODE_CONFIG_HASH = "1250f89a51fd987f0829d2e9772afd658943d956666259661ceaecfe212bfcf6"
+APPROVED_CONFIG_HASH = "3012a7735ac006a502bfc89de7721fd57ba4d40b112f3ecb73b4e212f1db8a5b"
 # A production-only upload must not require or silently change preview settings.
 EXPECTED_PREVIEW_CONFIG_HASH = LEGACY_CONFIG_HASH
-EXPECTED_PRODUCTION_VARS = {"TELEGRAM_CONFIRMED_RELEASES_ENABLED": "1"}
+EXPECTED_PRODUCTION_VARS = {"TELEGRAM_CONFIRMED_RELEASES_ENABLED": "1", "TELEGRAM_RELEASE_DELIVERY_MODE": "subscribers"}
 
 EXPECTED = {
     "name": "outpost-web",
@@ -51,7 +52,7 @@ def configuration_errors(data) -> list[str]:
     if not isinstance(environments, dict) or set(environments) != {"preview"} or not isinstance(preview_candidate, dict) or set(preview_config) != {"vars", "d1_databases"}:
         errors.append("only the explicit preview configuration is allowed")
     if data.get("vars") != EXPECTED_PRODUCTION_VARS:
-        errors.append("production must declare exactly the nonsecret confirmed-mode flag as string 1")
+        errors.append("production must declare exactly confirmed mode string 1 and subscriber delivery mode")
     if preview_config.get("vars") != {}:
         errors.append("preview must explicitly override vars with an empty object")
     for key, expected in EXPECTED.items():
@@ -92,7 +93,7 @@ def main() -> int:
         return 1
 
     print("Cloudflare config guard: PASS")
-    print("  Exact reviewed configuration: production mode flag, isolated preview vars, unchanged runtime and D1 bindings")
+    print("  Exact reviewed configuration: confirmed subscriber mode, isolated preview vars, unchanged runtime and D1 bindings")
     return 0
 
 

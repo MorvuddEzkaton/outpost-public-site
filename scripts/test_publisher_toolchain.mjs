@@ -44,14 +44,16 @@ if(!installed&&process.env.GITHUB_ACTIONS!=='true'){
    const productionBindings=api.unstable_convertConfigBindingsToStartWorkerBindings(production);
    const previewBindings=api.unstable_convertConfigBindingsToStartWorkerBindings(preview);
    const flag=productionBindings.TELEGRAM_CONFIRMED_RELEASES_ENABLED;
+   const delivery=productionBindings.TELEGRAM_RELEASE_DELIVERY_MODE;
    if(flag?.type!=='plain_text'||flag.value!=='1'||previewBindings.TELEGRAM_CONFIRMED_RELEASES_ENABLED!==undefined)throw Error('Official runtime binding serialization mismatch');
-   if(JSON.stringify(production.vars)!==JSON.stringify({TELEGRAM_CONFIRMED_RELEASES_ENABLED:'1'})||Object.keys(preview.vars).length!==0)throw Error('Variable contract or preview inheritance changed');
+   if(delivery?.type!=='plain_text'||delivery.value!=='subscribers'||previewBindings.TELEGRAM_RELEASE_DELIVERY_MODE!==undefined)throw Error('Official subscriber binding serialization mismatch');
+   if(JSON.stringify(production.vars)!==JSON.stringify({TELEGRAM_CONFIRMED_RELEASES_ENABLED:'1',TELEGRAM_RELEASE_DELIVERY_MODE:'subscribers'})||Object.keys(preview.vars).length!==0)throw Error('Variable contract or preview inheritance changed');
    stage='compiled-worker-import';
    const worker=(await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].contents).toString('base64'))).default;
    const support={TELEGRAM_BOT_TOKEN:'SYNTHETIC-NOT-A-TOKEN',TELEGRAM_WEBHOOK_SECRET:'SYNTHETIC-ONLY',TELEGRAM_ADMIN_CHAT_ID:'SYNTHETIC-ONLY',TELEGRAM_PUBLIC_ENABLED:'1'};
    const db={prepare(){sql++;throw Error('No SQL allowed');},withSession(){sql++;throw Error('No SQL allowed');}};
    const context={waitUntil(){background++;throw Error('No background delivery allowed');}};
-   const runtime={...support,TELEGRAM_CONFIRMED_RELEASES_ENABLED:flag.value,ANALYTICS_DB:db,ASSETS:{fetch(){return new Response('SYNTHETIC ONLY');}}};
+   const runtime={...support,TELEGRAM_CONFIRMED_RELEASES_ENABLED:flag.value,TELEGRAM_RELEASE_DELIVERY_MODE:delivery.value,ANALYTICS_DB:db,ASSETS:{fetch(){return new Response('SYNTHETIC ONLY');}}};
    stage='compiled-worker-health';
    const health=await (await worker.fetch(new Request('https://outpost.com.ua/api/telegram/health'),runtime,context)).json();
    if(health.release_mode_schema!==1||!health.enabled||!health.confirmed_releases_enabled||health.legacy_release_notifications_enabled)throw Error('Compiled worker did not receive declared safe mode');
@@ -62,12 +64,20 @@ if(!installed&&process.env.GITHUB_ACTIONS!=='true'){
     const response=await worker.fetch(new Request('https://outpost.com.ua/api/telegram/releases/dispatch',{method:'POST',headers:{'Content-Type':'application/json','x-outpost-release-key':'SYNTHETIC-ONLY'},body:JSON.stringify({action})}),runtime,context);
     if(response.status!==401)throw Error('Missing operational key must reject before SQL/delivery');
    }
+   stage='compiled-subscriber-historical-cutoff';
+   const confirmKey='SYNTHETIC-CONFIRM-CAPABILITY-NOT-A-REAL-KEY';
+   const ordinary={...runtime,TELEGRAM_RELEASE_CONFIRM_KEY:confirmKey,TELEGRAM_RELEASE_PUMP_KEY:'SYNTHETIC-PUMP-CAPABILITY-NOT-A-REAL-KEY'};
+   for(const [product,version] of [['outpost','0.24.40'],['accounting','1.0.2']]){
+    const body={action:'confirm',product,version,sha256:'a'.repeat(64),size_bytes:1024,source_sha:'b'.repeat(40)};
+    const response=await worker.fetch(new Request('https://outpost.com.ua/api/telegram/releases/dispatch',{method:'POST',headers:{'Content-Type':'application/json','x-outpost-release-key':confirmKey},body:JSON.stringify(body)}),ordinary,context);
+    if(response.status!==502||(await response.json()).error!=='release_dispatch_failed')throw Error('Declared subscriber mode must reject historical confirmation before SQL');
+   }
    stage='compiled-preview';
    const previewHealth=await (await worker.fetch(new Request('https://example.pages.dev/api/telegram/health'),{...support,...preview.vars},context)).json();
    if(!previewHealth.integrations_disabled||previewHealth.enabled||previewHealth.confirmed_releases_enabled||previewHealth.legacy_release_notifications_enabled)throw Error('Compiled preview is not isolated');
    if(network||sql||background)throw Error('Unexpected offline side effect');
    console.log(JSON.stringify({pass:true,platform:process.platform,locked_installation:!installed,worker_bundle_bytes:bundle.outputFiles[0].contents.length,wrangler_version:wrangler.version,
-    official_parser_and_binding_serialization:true,production_mode:'1',preview_mode_absent:true,compiled_worker_mode_verified:true,network_calls:network,database_calls:sql,background_tasks:background,production_calls:0,
+    official_parser_and_binding_serialization:true,production_mode:'1',production_delivery_mode:'subscribers',preview_mode_absent:true,preview_delivery_mode_absent:true,compiled_worker_mode_verified:true,historical_cutoff_before_sql:true,network_calls:network,database_calls:sql,background_tasks:background,production_calls:0,
     live_deployment_acceptance:false}));
   }finally{globalThis.fetch=originalFetch;}
  }catch{

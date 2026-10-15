@@ -16,7 +16,12 @@ restored, not accepted. Do not substitute a synthetic environment or metadata fo
 actual canonical health, resubmit that source, or silently convert the flag to a
 secret/change other bindings.
 
-The current exact file pin is `1250f89a51fd987f0829d2e9772afd658943d956666259661ceaecfe212bfcf6`.
+The current exact file pin is `3012a7735ac006a502bfc89de7721fd57ba4d40b112f3ecb73b4e212f1db8a5b`.
+Production now also declares `TELEGRAM_RELEASE_DELIVERY_MODE="subscribers"`;
+preview still explicitly overrides **both** flags with empty vars. The owner has
+separately authorized future-only subscriber activation after a fresh encrypted
+backup/restore, two new scoped ordinary keys and capacity checks. This source PR
+does not supply keys, perform the configuration transition or enable the relay.
 Runtime date and both D1 environments are unchanged. Remote **preview** retains
 its independent legacy configuration marker
 `a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d`:
@@ -24,7 +29,9 @@ production publication must not force a preview upload or mutate its settings.
 Unexpected variables/values/fields or either environment's marker drift block.
 The full stable project fingerprint and baseline environment equality remain strict.
 
-Historical evidence understands only these two explicitly reviewed pins; current
+Historical evidence understands only three explicitly reviewed pins: the original
+vars-free pin, confirmed-only `1250f89a51fd987f0829d2e9772afd658943d956666259661ceaecfe212bfcf6`,
+and the current subscriber pin. Current
 operational intents/packages accept only the current pin. Legacy resolved evidence
 is not discarded, but legacy intents cannot authorize a new upload. Unknown or
 unresolved old attempts still quarantine all source SHAs. No checkpoint rewrite,
@@ -37,6 +44,13 @@ and its compatible live baseline privately, then revalidate them immediately
 before the first protected run. Reuse an accepted baseline; do not create another
 manual bootstrap merely to obtain a fresh source SHA. Old preview or legacy-mode
 deployment metadata alone cannot qualify as a compatible code-only rollback target.
+An intentional subscriber binding/config transition requires a new compatible
+baseline: temporarily pause the writer while retaining every review/check and
+environment gate, use one separately authorized exact-source/config bootstrap,
+verify its owned identity, minimal permitted metadata delta and actual runtime,
+then accept all live contracts before resuming normal protected publication.
+Do not weaken baseline environment equality, fake CI context, reuse a completed
+executor, silently rotate existing bot secrets or replay an ambiguous upload.
 [Cloudflare Pages configuration source of truth](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).
 
 ## Dormant by default

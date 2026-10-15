@@ -19,12 +19,13 @@ from urllib.request import Request, build_opener
 import production_deployment_gate as gate
 import production_history as history
 import production_checkpoints as checkpoints
-from verify_cloudflare_config import APPROVED_CONFIG_HASH, LEGACY_CONFIG_HASH
+from verify_cloudflare_config import APPROVED_CONFIG_HASH, LEGACY_CONFIG_HASH, CONFIRMED_MODE_CONFIG_HASH
 
 WRANGLER_VERSION = '4.142.0'
 # Only already reviewed pins are understood by the read-only historical validator.
-# Current plan/upload/live/rollback never accepts the legacy vars-free config.
-EVIDENCE_CONFIG_HASHES = frozenset({LEGACY_CONFIG_HASH, APPROVED_CONFIG_HASH})
+# Current plan/upload/live/rollback accepts only the current subscriber config.
+# Older exact pins validate immutable resolved evidence, NEVER new operations.
+EVIDENCE_CONFIG_HASHES = frozenset({LEGACY_CONFIG_HASH, CONFIRMED_MODE_CONFIG_HASH, APPROVED_CONFIG_HASH})
 TERMINAL = {'success', 'failure', 'canceled', 'skipped'}
 PAGES_PER_PAGE = 20
 MAX_PRODUCTION_DEPLOYMENTS = 1000

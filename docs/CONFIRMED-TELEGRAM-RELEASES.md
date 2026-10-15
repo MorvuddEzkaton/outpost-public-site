@@ -274,6 +274,25 @@ quota or completion time. No paid plan is enabled by these changes.
 
 ## Next rollout decision after the accepted private test
 
+### Authorized next stage — future-only ordinary runtime preparation
+
+The owner selected future releases only and has authorized fresh encrypted
+subscription backup/restore, two new scoped ordinary keys, related configuration
+for the existing website and one five-minute relay. This PR pins the ordinary
+subscriber runtime flag in production source, with preview vars still empty;
+it does not itself execute that operational authorization. Both current versions
+remain excluded by the shared fixed cutoff. A successful private pilot is not a
+subscriber announcement and its expiring capabilities are never promoted.
+
+The writer is paused for the dedicated configuration transition; all six source
+checks, exact-head delegated owner review and protected production approval stay
+required. A compatible, verified code/config baseline must exist before the normal
+writer resumes. Confirmation, relay delivery and positive Telegram acknowledgement
+are separate facts: do not infer a message from a successful website deployment.
+No billing or plan update, current-release event, cursor reset or private-test
+replay belongs to this activation. The public scheduler template remains OFF with
+no Cron; operational configuration and key values stay outside the public repo.
+
 The owner has confirmed receipt of the private test; a repeated protected pilot
 produced no additional message. Its one stored positive acknowledgement stays in
 the isolated pilot namespace. The workflow switch was returned OFF. This is not

@@ -169,12 +169,15 @@ class PublisherTests(unittest.TestCase):
             publisher.preflight(self.env, self.root, self.client)
 
     def test_legacy_hash_is_historical_evidence_only_not_operational(self):
-        old = deepcopy(self.journal.data); old['configuration_sha256'] = publisher.LEGACY_CONFIG_HASH
-        publisher.validate_journal_evidence(old, SHA, self.env['GITHUB_RUN_ID'])
-        with self.assertRaisesRegex(gate.GateError, 'current_journal_configuration_mismatch'):
-            publisher.validate_journal(old, self.env)
-        with patch.object(gate, 'local_source', return_value=(json.loads((gate.ROOT/'wrangler.jsonc').read_text()), publisher.LEGACY_CONFIG_HASH)):
-            with self.assertRaises(gate.GateError): publisher.preflight(self.env, self.root, self.client)
+        for previous in [publisher.LEGACY_CONFIG_HASH, publisher.CONFIRMED_MODE_CONFIG_HASH]:
+            old = deepcopy(self.journal.data); old['configuration_sha256'] = previous
+            with self.subTest(previous=previous):
+                publisher.validate_journal_evidence(old, SHA, self.env['GITHUB_RUN_ID'])
+                with self.assertRaisesRegex(gate.GateError, 'current_journal_configuration_mismatch'):
+                    publisher.validate_journal(old, self.env)
+                with patch.object(gate, 'local_source', return_value=(json.loads((gate.ROOT/'wrangler.jsonc').read_text()), previous)):
+                    with self.assertRaises(gate.GateError): publisher.preflight(self.env, self.root, self.client)
+        self.assertEqual(publisher.EVIDENCE_CONFIG_HASHES, frozenset({publisher.LEGACY_CONFIG_HASH, publisher.CONFIRMED_MODE_CONFIG_HASH, publisher.APPROVED_CONFIG_HASH}))
         for value in ['0'*64, 'f'*64]:
             other = deepcopy(old); other['configuration_sha256'] = value
             with self.subTest(value=value), self.assertRaises(gate.GateError): publisher.validate_journal_evidence(other, SHA, self.env['GITHUB_RUN_ID'])
