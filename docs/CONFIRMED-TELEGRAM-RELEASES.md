@@ -10,7 +10,7 @@ announce an old version, change recipients, rotate keys or enable another sender
 OutPOSt 0.24.40 was published before the notification workflow/ordinary credentials
 and scheduler were active. The code writer's `release_announced:false` did not prove
 a message had been sent. The owner chose **future releases only**, not a catch-up
-announcement. Shared `release/telegram-subscriber-policy.json` therefore excludes
+announcement. Shared `site/_telegram-release-policy.json` therefore excludes
 OutPOSt 0.24.40 and Accounting 1.0.2 and older versions.
 
 The accepted private OutPOSt pilot received one positive stored acknowledgement;
