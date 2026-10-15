@@ -17,7 +17,7 @@ try{
  const preview=await worker.fetch(new Request('https://example.pages.dev/api/telegram/health'),{...env,TELEGRAM_CONFIRMED_RELEASES_ENABLED:'1'},{waitUntil(){throw Error('Health cannot enqueue work');}});
  const p=await preview.json();check(p.release_mode_schema===1&&p.integrations_disabled&&!p.confirmed_releases_enabled&&!p.legacy_release_notifications_enabled,'Preview must disable both engines');
  const config=JSON.parse(fs.readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
- check(JSON.stringify(config.vars)===JSON.stringify({TELEGRAM_CONFIRMED_RELEASES_ENABLED:'1'}),'Production flag must come from reviewed configuration, not just project metadata');
+ check(JSON.stringify(config.vars)===JSON.stringify({TELEGRAM_CONFIRMED_RELEASES_ENABLED:'1',TELEGRAM_RELEASE_DELIVERY_MODE:'subscribers'}),'Production flags must come from reviewed configuration, not just project metadata');
  check(config.env.preview.vars&&Object.keys(config.env.preview.vars).length===0,'Preview vars must explicitly prevent production inheritance');
  const productionEnv={...env,...config.vars};
  const productionHealth=await (await worker.fetch(new Request('https://outpost.com.ua/api/telegram/health'),productionEnv,{waitUntil(){throw Error('Health cannot enqueue work');}})).json();
