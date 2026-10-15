@@ -1,64 +1,77 @@
-# OutPOSt Accounting pre-release runbook
+# OutPOSt Бухгалтерія — незалежний pre-release
 
-Цей процес призначений **лише для OutPOSt Бухгалтерії**. Він не є релізом основного OutPOSt і не має права змінювати стабільний `OutPOSt-Setup-v*.exe`, його checksum або `site/changelog.html`.
+Стан на 2026-10-15: захищений видавець сайту працює; Action **Prepare Accounting
+pre-release PR** та дозвіл Actions створювати PR залишаються вимкненими. Використовуйте
+локальний шлях нижче без зміни цих налаштувань. Повна схема підтвердження Windows,
+правила доступу та незмінності — у [RELEASE-RUNBOOK.md](RELEASE-RUNBOOK.md).
 
-## Що підготувати
+## Три вхідні файли
 
-1. Переконайтесь, що `main` і `staging` синхронізовані та зелений production уже має rollback backup.
-2. Додайте в `staging` **рівно один новий файл**:
-   `site/downloads/OutPOSt-Accounting-Setup-v<VERSION>.exe`
-3. Не додавайте checksum вручну. Не змінюйте разом із цим HTML, manifest, stable OutPOSt installer або changelog.
+На чистій `codex/...` гілці від свіжого main збережіть точний SHA бази та підготуйте
+справді новий погоджений Windows `net48/x86` реліз `X.Y.Z`:
 
-Наприклад:
-`site/downloads/OutPOSt-Accounting-Setup-v0.403.exe`
+```text
+A  site/downloads/OutPOSt-Accounting-Setup-vX.Y.Z.exe
+A  release/evidence/accounting-vX.Y.Z.json
+M  site/changelog.html
+```
 
-## Запуск
+Звірте продукт, версію, довжину, SHA-256 і реальний стан підпису з приватними
+Windows-звітами. Receipt — перевірене засвідчення, не цифровий підпис і не доказ
+виконання тестів сам по собі. Звіти, бази та приватні шляхи не публікуйте.
 
-У GitHub Actions вручну запустіть **Prepare Accounting pre-release PR** і задайте:
+Самостійно напишіть правдиву історію змін. Цільовий блок має `id="accounting-XYZ"`
+(версія без крапок) і видимий заголовок `Бухгалтерія X.Y.Z`; попередню історію
+збережіть. Checksum нового інсталятора створить інструмент, вручну він не потрібен.
+Не додавайте runtime, конфігурацію, інсталятори чи версію основного OutPOSt.
 
-- `version` — версія, що точно відповідає імені EXE;
-- `rc_acceptance` — `PASS` тільки якщо Windows RC acceptance реально пройдено, інакше `NOT_VERIFIED`;
-- `authenticode` — `signed` тільки якщо цей конкретний installer справді підписаний, інакше `unsigned`.
+## Перевірка й підготовка
 
-## Що workflow робить автоматично
+```text
+python scripts/prepare_accounting_release.py X.Y.Z
+python scripts/prepare_accounting_release.py X.Y.Z --apply
+python scripts/prepare_accounting_release.py --check-current
+python scripts/run_production_quality.py
+```
 
-- перевіряє, що `staging` базується на актуальному `main`;
-- відмовляється працювати, якщо в `staging` є щось крім одного нового Accounting EXE;
-- робить dry-run;
-- створює backup поточного `main`;
-- створює ізольовану `accounting-release/...` гілку;
-- обчислює byte size та SHA-256 з самого EXE;
-- генерує `.sha256.txt`;
-- оновлює `release/accounting-release.json`;
-- синхронізує поточну версію/розмір/SHA/RC/AuthentiCode на `/buhgalteriya` та в правій Accounting-половині `/download`;
-- оновлює тільки `lastmod` `/buhgalteriya` у sitemap;
-- прибирає попередню публічну Accounting EXE/checksum пару;
-- запускає повний static release gate: SEO/contextual/FAQ/demo guards, workflow-quality regressions, release-gate parity, sitemap freshness/parity, product maturity, host/privacy та Open Graph image-dimension offline regressions, Accounting synthetic regression і stable OutPOSt release guards;
-- відкриває PR у `main`.
+Перший запуск лише показує план; перед `--apply` перегляньте його. Інструмент:
 
-## Що workflow не робить
+- рахує SHA/довжину з EXE та створює checksum;
+- оновлює `release/accounting-release.json`, Accounting-блок `/download`,
+  `/buhgalteriya`, позначені згадки `/features` і відповідні дати sitemap;
+- додає запис у незмінний реєстр артефактів;
+- **залишає** всі попередні EXE/checksum та основний OutPOSt без змін;
+- не виконує deploy, розсилку, синхронізацію staging або звернення до приватних сервісів.
 
-- не merge'ить PR;
-- не push'ить у `main` або `staging`;
-- не запускає Cloudflare deploy напряму;
-- не змінює stable OutPOSt installer/checksum/changelog;
-- не викликає Cabinet, Director, Sync, D1, ПРРО або інші protected endpoints.
+`--rc-acceptance` / `--authenticode` — лише додаткові твердження, що звіряються
+з receipt; вони не можуть замінити його чи створити PASS. Публічний статус
+pre-release/unsigned не підвищуйте без фактичного підтвердження. Дата receipt
+не може передувати lastmod змінюваних сторінок.
 
-## Перед merge
+Повтор підготовки вже поточної версії відхиляється. Частковий локальний результат
+спочатку дослідіть у власній topic-гілці; не перезаписуйте старі артефакти.
+Окремо виконайте browser suites, сканування вихідних файлів/історії з приховуванням
+секретів, `git diff --check` та перегляд усього diff.
 
-PR має пройти повний `Public site smoke checks`. Окремо перевіряйте, що diff містить лише Accounting release artifacts/manifest/pages/sitemap та не містить protected runtime або stable OutPOSt release змін.
+## PR, публікація та сповіщення
 
-Перед merge створіть точний backup актуального `main`.
+Потрібні погодження власника й **усі шість** реальних required checks на точному
+head SHA. Не покладайтеся на застарілий PR або лише один зелений smoke.
+Після merge — дві перевірки захищеного видавця, approval production, один
+ідентифікований deploy та його два незмінні журнали з усіма 20 live contracts PASS.
+Серед них є фактичний EXE/checksum, Accounting-сторінки/manifest, головний OutPOSt,
+навігація, sitemap, privacy/headers і межі інтеграцій. Зелений CI сайту не є Windows acceptance.
 
-## Після merge
+Після live PASS автоматичне підтвердження допускає лише справді нову версію.
+Доставку встановлюйте за збереженим позитивним підтвердженням Telegram від
+планувальника, не за самим merge/deploy. Accounting 1.0.2 повторно не оголошуйте;
+наступний реальний реліз потребує окремого end-to-end підтвердження без дубля.
 
-1. Синхронізуйте `staging` на exact merge SHA.
-2. Дочекайтесь `Verify live production`.
-3. Обов'язково має пройти `Verify live Accounting pre-release`: він перевіряє `/buhgalteriya`, `/download`, checksum, 1-byte HTTP Range нового EXE, top-level навігацію та deployed shared JS.
-4. Загальний `Verify live production` також має підтвердити sitemap parity, canonical/alternate-host normalization, відсутність Cloudflare RUM, security headers, structured/social metadata, фактичні dimensions Open Graph PNG та product-maturity contract.
-5. Переконайтесь, що фінальний `Verify live customer Cabinet entry` також зелений.
-6. Створіть post-merge green backup.
+Опційний Action, якщо його окремо дозволять пізніше, перевіряє походження staging
+від свіжого main та **три** вхідні файли до виконання коду staging. Він готує лише
+ізольований PR; автоматично не створює backup-гілку, не merge-ить і не видаляє
+старі інсталятори. Не перезаписуйте staging після публікації.
 
-## Канонічне джерело release-фактів
-
-`release/accounting-release.json` — єдине джерело поточної Accounting версії, filename, byte size, SHA-256, RC/AuthentiCode статусу та дати публікації для release tooling і guards.
+Відновлення — за точним SHA/прийнятим deployment, а не силовим переписуванням main
+чи баз: [ROLLBACK-RUNBOOK.md](ROLLBACK-RUNBOOK.md). Сповіщення та невизначений
+результат доставки: [CONFIRMED-TELEGRAM-RELEASES.md](CONFIRMED-TELEGRAM-RELEASES.md).

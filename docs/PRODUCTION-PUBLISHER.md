@@ -1,11 +1,20 @@
-# Protected Pages publisher — prepared, not activated
+# Protected Pages publisher — active operation
+
+Operational checkpoint: 2026-10-15. The protected publisher and rollback switch
+are enabled, automatic future-only confirmation is enabled, ordinary subscriber
+mode and one five-minute relay are active. The manual pilot and desktop-release
+preparation Actions remain OFF. These dated facts do not authorize changing flags.
+The accepted configuration transition established a compatible baseline; use the
+normal protected pipeline, not another bootstrap or replay of an accepted source.
+The current baseline versions do not generate notices. Genuine next-release
+delivery acceptance for each desktop product remains separate and pending.
 
 This is source publication to the existing `outpost-web` Pages project. It does not
 publish a new desktop release, announce versions, create resources, or change
 DNS, secrets, D1 or Git integration. It uploads only the exact reviewed Wrangler
 configuration; it does not patch provider settings.
 
-## Declared runtime mode (source preparation only)
+## Declared runtime mode and accepted transition
 
 The nonsecret `TELEGRAM_CONFIRMED_RELEASES_ENABLED="1"` is declared in production
 `vars`, with `env.preview.vars={}` explicitly preventing inheritance. A plain-text
@@ -19,9 +28,9 @@ secret/change other bindings.
 The current exact file pin is `3012a7735ac006a502bfc89de7721fd57ba4d40b112f3ecb73b4e212f1db8a5b`.
 Production now also declares `TELEGRAM_RELEASE_DELIVERY_MODE="subscribers"`;
 preview still explicitly overrides **both** flags with empty vars. The owner has
-separately authorized future-only subscriber activation after a fresh encrypted
-backup/restore, two new scoped ordinary keys and capacity checks. This source PR
-does not supply keys, perform the configuration transition or enable the relay.
+separately authorized and accepted future-only subscriber activation after a fresh
+encrypted backup/restore, two new scoped ordinary keys and capacity checks.
+Source configuration never supplies those keys or enables the relay by itself.
 Runtime date and both D1 environments are unchanged. Remote **preview** retains
 its independent legacy configuration marker
 `a3d4877bd8247b79f20c1e90cfce6577d28a62cd276870acd6942df782ecc49d`:
@@ -37,11 +46,10 @@ is not discarded, but legacy intents cannot authorize a new upload. Unknown or
 unresolved old attempts still quarantine all source SHAs. No checkpoint rewrite,
 retention reset, history pruning or automatic-recovery override is added.
 
-This source/config change does **not** publish, activate a writer, create keys,
-initialize release SQL, enable a scheduler or announce a desktop release. Before
-protected writer acceptance, retain the separately approved successful bootstrap
-and its compatible live baseline privately, then revalidate them immediately
-before the first protected run. Reuse an accepted baseline; do not create another
+The accepted source/config bootstrap was a separately authorized manual transition,
+not a protected CI publication. It initialized no fake desktop release. Retain its
+verified compatible live baseline privately and revalidate it immediately before
+the next protected run. Reuse that accepted baseline; do not create another
 manual bootstrap merely to obtain a fresh source SHA. Old preview or legacy-mode
 deployment metadata alone cannot qualify as a compatible code-only rollback target.
 An intentional subscriber binding/config transition requires a new compatible
@@ -53,7 +61,7 @@ Do not weaken baseline environment equality, fake CI context, reuse a completed
 executor, silently rotate existing bot secrets or replay an ambiguous upload.
 [Cloudflare Pages configuration source of truth](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).
 
-## Dormant by default
+## Enabled through protected gates; dormant unless explicitly enabled elsewhere
 
 `deploy-public-production.yml` is gated by both
 `OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED=1` and
@@ -250,7 +258,7 @@ it does not consume credentials or contact any service.
   A legacy metadata snapshot is not proof that the new runtime binding applies.
   Recovery must not overwrite hidden secret values or restore SQL over new data.
 
-## Separate activation decision
+## Credential scope and historical activation prerequisites
 
 The CI credential must be dedicated to the selected account with Pages Edit,
 expiry and no D1/DNS/Workers mutation permissions. It is **account-level**, not a
@@ -258,19 +266,20 @@ provider-enforced per-project token; a code allowlist does not narrow the token'
 inherent rights. Never copy an owner's broad interactive OAuth profile into CI.
 [Official CI credential permissions](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/).
 
-Before activation: human code review; explicit deployment/credential/mode/rollback
+The completed activation required owner code review; explicit deployment/credential/mode/rollback
 approval; controlled bootstrap of the new health schema; deliberate confirmed-mode
 transition without an unsolicited broadcast; and a real protected pipeline acceptance
 against the existing project. A separately approved manual bootstrap can establish
 a compatible live baseline, but does not activate or certify this protected writer.
 Its accepted source must not be resubmitted as the writer's first trial: both its
 real deployment and any dormant workflow run participate in no-replay guards.
-Use a new reviewed source with meaningful preparation changes, retain the accepted
-baseline privately, and obtain activation approval before its first protected run.
+Use a new reviewed source with meaningful changes and retain the accepted baseline
+privately. Preserve the existing protected approval for every production run.
 Do not rerun a skipped/manual-bootstrap source, weaken environment equality or
-clear history to manufacture a first acceptance. The scheduler, release-confirmation
-linkage, receipt provenance, future resolved-run checkpoint capture/review and actual
-notification acceptance remain separate work. No new Windows build/evidence is implied.
+clear history to manufacture a first acceptance. Scheduler and release-confirmation
+linkage are now active; actual next-release notification acceptance, receipt provenance
+and ongoing resolved-run checkpoint capture/review remain separate evidence.
+No new Windows build/evidence is implied.
 
 Keep the exact reviewed configuration as the source of truth, not a generated preview
 configuration or a config-free upload.
