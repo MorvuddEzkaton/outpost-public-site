@@ -4,7 +4,8 @@
   "pages_build_output_dir": "./site",
   "compatibility_date": "2026-08-22",
   "vars": {
-    "TELEGRAM_CONFIRMED_RELEASES_ENABLED": "1"
+    "TELEGRAM_CONFIRMED_RELEASES_ENABLED": "1",
+    "TELEGRAM_RELEASE_DELIVERY_MODE": "subscribers"
   },
   "d1_databases": [
     {

@@ -141,6 +141,25 @@ class GateTests(unittest.TestCase):
             changed = project(); changed['deployment_configs']['preview']['wrangler_config_hash'] = value
             with self.subTest(marker=value), self.assertRaises(gate.GateError): gate.validate_project(changed, config, HASH)
 
+    def test_subscriber_mode_cannot_be_omitted_changed_or_inherited_by_preview(self):
+        config = json.loads((gate.ROOT/'wrangler.jsonc').read_text(encoding='utf-8'))
+        self.assertEqual(config['vars'], {'TELEGRAM_CONFIRMED_RELEASES_ENABLED':'1', 'TELEGRAM_RELEASE_DELIVERY_MODE':'subscribers'})
+        for mode in [None, '', 'pilot', 'off', 'SUBSCRIBERS', 1, True]:
+            changed = deepcopy(config)
+            if mode is None: del changed['vars']['TELEGRAM_RELEASE_DELIVERY_MODE']
+            else: changed['vars']['TELEGRAM_RELEASE_DELIVERY_MODE'] = mode
+            with self.subTest(mode=mode), self.assertRaises(gate.GateError): gate.validate_project(project(), changed, HASH)
+        changed = deepcopy(config); changed['env']['preview']['vars'] = deepcopy(config['vars'])
+        with self.assertRaises(gate.GateError): gate.validate_project(project(), changed, HASH)
+
+    def test_previous_confirmed_only_config_is_historical_not_current(self):
+        from verify_cloudflare_config import CONFIRMED_MODE_CONFIG_HASH
+        config = json.loads((gate.ROOT/'wrangler.jsonc').read_text(encoding='utf-8'))
+        changed = project(); changed['deployment_configs']['production']['wrangler_config_hash'] = CONFIRMED_MODE_CONFIG_HASH
+        with self.assertRaises(gate.GateError): gate.validate_project(changed, config, APPROVED_CONFIG_HASH)
+        self.assertNotEqual(APPROVED_CONFIG_HASH, CONFIRMED_MODE_CONFIG_HASH)
+        self.assertEqual(EXPECTED_PREVIEW_CONFIG_HASH, LEGACY_CONFIG_HASH)
+
     def test_successful_exact_canonical_only(self):
         self.assertEqual(gate.validate_deployment(project(), SHA, DEPLOYMENT), DEPLOYMENT)
         for mutation in ['environment', 'failure', 'queued', 'sha', 'dirty', 'branch', 'identity', 'secrets']:
