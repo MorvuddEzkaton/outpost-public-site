@@ -248,7 +248,10 @@ def skipped_without_intent(client, run):
                      job.get('head_sha') == run['head_sha'] and job.get('status') == 'completed',
                      'skipped_publication_proof_incomplete')
     job = next(job for job in jobs if job['name'] == 'publish')
-    gate.require(job.get('conclusion') == 'skipped' and job.get('steps') == [] and
+    # Cancelling an environment wait yields a cancelled job, not a skipped job.
+    # Admit it only with the same provider proof that no runner ever started.
+    gate.require((job.get('conclusion') == 'skipped' or
+                  job.get('conclusion') == 'cancelled' and run.get('conclusion') == 'cancelled') and job.get('steps') == [] and
                  (job.get('runner_id') is None or type(job.get('runner_id')) is int and job['runner_id'] == 0) and
                  not job.get('runner_name'),
                  'missing_publication_journal_inspect_only')

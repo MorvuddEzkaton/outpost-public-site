@@ -116,6 +116,23 @@ class CheckpointTests(unittest.TestCase):
             with self.subTest(kind=kind), self.assertRaises(gate.GateError):
                 checkpoints.validate(self.reseal(value), VALIDATOR)
 
+    def test_cancelled_unstarted_provider_proof_can_be_preserved_without_relabeling(self):
+        value = deepcopy(self.value)
+        record = value['records'][0]
+        record['run']['conclusion'] = 'cancelled'
+        record['proof']['conclusion'] = 'cancelled'
+        checkpoints.validate(self.reseal(value), VALIDATOR)
+        self.assertEqual(value['records'][0]['proof']['conclusion'], 'cancelled')
+        for field, val in [('steps', [{'name': 'Set up job'}]), ('runner_id', 5),
+                           ('runner_id', False), ('runner_name', 'runner')]:
+            changed = deepcopy(value)
+            changed['records'][0]['proof'][field] = val
+            with self.subTest(field=field), self.assertRaises(gate.GateError):
+                checkpoints.validate(self.reseal(changed), VALIDATOR)
+        value['records'][0]['run']['conclusion'] = 'success'
+        with self.assertRaises(gate.GateError):
+            checkpoints.validate(self.reseal(value), VALIDATOR)
+
     def test_deleted_or_changed_past_rows_are_not_append_only(self):
         for change in (checkpoints.genesis(), {**self.value, 'records': self.value['records'][:1]}):
             with self.assertRaises(gate.GateError):

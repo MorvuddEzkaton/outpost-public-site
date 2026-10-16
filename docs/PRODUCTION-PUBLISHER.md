@@ -155,6 +155,16 @@ provider history has expired. These read-only guards do not create a transaction
 store or guarantee protection against a privileged owner replacing reviewed code,
 or an independent Cloudflare writer.
 
+An obsolete run cancelled while waiting for environment approval can also prove
+that no publication started. The run and its `publish` job must both be completed
+with conclusion `cancelled`; the actual job must have no steps, no runner name and
+no assigned runner ID. All three job identities, source, first attempt, complete
+history and absence of journal artifacts remain required. The real `cancelled`
+conclusion is retained in evidence/checkpoints. Any assigned runner, any executed
+step, missing/ambiguous proof, partial journal or unknown upload still blocks.
+Inspect pending production runs before merging a newer source; never approve an
+obsolete source just to clear its environment wait.
+
 [GitHub run-number identity contract](https://docs.github.com/en/actions/reference/workflows-and-actions/variables),
 [artifact identity, digest and archive download](https://docs.github.com/en/rest/actions/artifacts).
 
