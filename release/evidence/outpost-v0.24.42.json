@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "kind": "owner-reviewed-windows-release",
+  "product": "outpost",
+  "version": "0.24.42",
+  "installer": "OutPOSt-Setup-v0.24.42.exe",
+  "size_bytes": 15428261,
+  "sha256": "B44BA8F936AD863493F1DD5B5E114F9AB86D35324DD982AFC1F1B4D975384E66",
+  "payload_manifest_sha256": "62524BD9DE7FA78656596D8E1F67A17473408265753533BD63B06A10A8254D20",
+  "release_report_sha256": "E56C7CA150FE5E6DD811C427868E073157814863DEC5EDBC870525EEDFBB4E5B",
+  "windows_report_sha256": "6A1EBF4F06132C8B9EDF547C9B2A670F6858CEAD18B0CDDFB7B44EFF244EB639",
+  "windows_acceptance": "PASS",
+  "runtime": "net48",
+  "architecture": "x86",
+  "app_authenticode": "NotSigned",
+  "setup_authenticode": "NotSigned",
+  "published_date": "2026-10-16",
+  "approved_for_publication": true
+}
