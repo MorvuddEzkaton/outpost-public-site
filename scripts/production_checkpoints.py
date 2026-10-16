@@ -77,7 +77,8 @@ def validate(value, journal_validator):
                              proof['name'] == 'publish' and proof['run_id'] == run['id'] and
                              type(proof['run_id']) is int and type(proof['run_attempt']) is int and
                              proof['run_attempt'] == 1 and proof['head_sha'] == run['head_sha'] and
-                             proof['status'] == 'completed' and proof['conclusion'] == 'skipped' and
+                             proof['status'] == 'completed' and (proof['conclusion'] == 'skipped' or
+                             proof['conclusion'] == 'cancelled' and run['conclusion'] == 'cancelled') and
                              proof['steps'] == [] and proof['runner_id'] in (None, 0) and
                              (proof['runner_id'] is None or type(proof['runner_id']) is int) and
                              proof['runner_name'] is None, 'invalid_checkpoint_skipped_proof')

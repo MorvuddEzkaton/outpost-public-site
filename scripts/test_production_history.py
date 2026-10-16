@@ -246,6 +246,44 @@ class HistoryTests(unittest.TestCase):
         with self.assertRaises(gate.GateError):
             self.clear()
 
+    def test_cancelled_environment_wait_without_runner_is_not_an_upload(self):
+        self.prior['conclusion'] = 'cancelled'
+        self.client.records[self.prior['id']] = []
+        jobs = self.client.skipped_publication_jobs(self.prior)
+        jobs[2].update(conclusion='cancelled', steps=[], runner_id=None, runner_name=None)
+        with self.prior_jobs(jobs):
+            self.clear()
+
+    def prior_jobs(self, jobs):
+        original = self.client.skipped_publication_jobs
+        return patch.object(self.client, 'skipped_publication_jobs',
+                            side_effect=lambda run: deepcopy(jobs) if run['id'] == self.prior['id'] else original(run))
+
+    def test_cancelled_job_with_any_execution_evidence_still_blocks_upload(self):
+        self.prior['conclusion'] = 'cancelled'
+        self.client.records[self.prior['id']] = []
+        original = self.client.skipped_publication_jobs(self.prior)
+        original[2].update(conclusion='cancelled', steps=[], runner_id=None, runner_name=None)
+        for field, value in [('steps', [{'name': 'Set up job'}]), ('runner_id', 5),
+                             ('runner_id', False), ('runner_name', 'runner'), ('status', 'in_progress'),
+                             ('run_attempt', 2), ('head_sha', SHA), ('run_id', 999)]:
+            jobs = deepcopy(original)
+            jobs[2][field] = value
+            with self.subTest(field=field), self.prior_jobs(jobs), self.assertRaises(gate.GateError):
+                self.execute(lambda *_: self.fail('must not upload after an executed or unproven cancellation'))
+            self.assertEqual(self.journal.data['state'], 'prepared')
+        self.prior['conclusion'] = 'success'
+        with self.prior_jobs(original), self.assertRaises(gate.GateError):
+            self.clear()
+
+    def test_cancelled_empty_job_cannot_hide_an_existing_unknown_upload(self):
+        self.prior['conclusion'] = 'cancelled'
+        self.set_result('upload_unknown')
+        jobs = self.client.skipped_publication_jobs(self.prior)
+        jobs[2].update(conclusion='cancelled', steps=[], runner_id=None, runner_name=None)
+        with self.prior_jobs(jobs), self.assertRaises(gate.GateError):
+            self.execute(lambda *_: self.fail('a cancelled result must not hide an unknown upload'))
+
     def test_intent_cannot_itself_be_an_upload_or_contain_a_foreign_source(self):
         original = deepcopy(self.intent)
         for mutate in (lambda row: row.update(source_sha=SHA), lambda row: row.update(run_id='1234'),
