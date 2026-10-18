@@ -372,7 +372,12 @@
 
   function switchView(view) {
     activeView = view;
-    $$(".demo-nav").forEach(btn => btn.classList.toggle("is-active", btn.dataset.view === view));
+    $$(".demo-nav").forEach(btn => {
+      const current = btn.dataset.view === view;
+      btn.classList.toggle("is-active", current);
+      if (current) btn.setAttribute("aria-current", "page");
+      else btn.removeAttribute("aria-current");
+    });
     $$(".demo-view").forEach(panel => panel.classList.toggle("is-active", panel.dataset.viewPanel === view));
     renderView(view);
     if (view === "sale") window.setTimeout(() => $("#product-search")?.focus(), 20);

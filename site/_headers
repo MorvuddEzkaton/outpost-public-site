@@ -10,6 +10,9 @@
 /assets/outpost-demo-v1.css
   Cache-Control: no-cache, max-age=0, must-revalidate
 
+/assets/outpost-demo-modern.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
 /assets/outpost-demo-v1.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 

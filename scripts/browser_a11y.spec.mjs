@@ -117,3 +117,21 @@ test("all sitemap pages pass browser WCAG A/AA checks", async ({ browser }) => {
   await context.close();
   expect(failures, failures.join("\n")).toEqual([]);
 });
+
+test("modern demo sale, dashboard and settings pass WCAG checks in all themes", async ({page}) => {
+  test.setTimeout(120_000);
+  const failures = [];
+  await page.setViewportSize({width:1280,height:960});
+  await page.goto(origin + '/demo', {waitUntil:'load'});
+  for (const theme of ['light','dark','contrast']) {
+    await page.locator('.demo-nav[data-view="settings"]').click();
+    await page.locator('#appearance-theme').selectOption(theme);
+    await page.locator('#appearance-apply').click();
+    for (const view of ['sale','home','settings']) {
+      await page.locator(`.demo-nav[data-view="${view}"]`).click();
+      const results = await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa']).analyze();
+      for (const violation of results.violations) failures.push(formatViolation(`/demo ${theme}/${view}`,violation));
+    }
+  }
+  expect(failures,failures.join('\n')).toEqual([]);
+});
