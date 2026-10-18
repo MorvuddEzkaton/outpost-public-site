@@ -10,12 +10,13 @@
 <title>OutPOSt — онлайн-демо</title>
 <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png"/>
 <link rel="stylesheet" href="/assets/outpost-demo-v1.css?v=desktop-ui-10"/>
+<link rel="stylesheet" href="/assets/outpost-demo-modern.css?v=modern-20261018"/>
 </head>
-<body>
+<body class="modern-demo">
 <a class="skip-link" href="#demo-main">До демо</a>
 
 <div class="demo-webbar">
-  <span><strong>Онлайн-демо OutPOSt</strong> · preview, не версія Windows · анонімізований зріз ≈5% бази · зміни зберігаються тільки у браузері</span>
+  <span><strong>Онлайн-демо OutPOSt</strong> · preview, не версія Windows · зміни зберігаються тільки у браузері</span>
   <div>
     <a href="/">На сайт</a>
     <button type="button" data-reset-demo>Скинути демо</button>
@@ -33,20 +34,20 @@
       <img src="/assets/outpost-logo.png" alt="" width="30" height="30"/>
       <div>
         <div class="sidebar-title">OutPOSt</div>
-        <div class="sidebar-store">Магазин</div>
+        <div class="sidebar-store">Демонстраційний магазин</div>
       </div>
     </div>
 
     <nav class="sidebar-nav">
-      <button class="demo-nav" type="button" data-view="home">Головна</button>
-      <button class="demo-nav is-active" type="button" data-view="sale">Продаж</button>
-      <button class="demo-nav" type="button" data-view="purchases">Закупівлі</button>
-      <button class="demo-nav" type="button" data-view="stockops">Списання / Інвентаризація</button>
-      <button class="demo-nav" type="button" data-view="products">Товари / Склад</button>
-      <button class="demo-nav" type="button" data-view="customers">Повернення боргу</button>
-      <button class="demo-nav" type="button" data-view="finance">Фінанси</button>
-      <button class="demo-nav" type="button" data-view="reports">Звіти</button>
-      <button class="demo-nav" type="button" data-view="settings">Налаштування</button>
+      <button class="demo-nav" type="button" data-view="home"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z M9 20v-7h6v7"/></svg>Головна</button>
+      <button class="demo-nav is-active" type="button" data-view="sale" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v17l-3-2-2 2-2-2-3 2Z M10 8h4 M10 12h4"/></svg>Продаж</button>
+      <button class="demo-nav" type="button" data-view="purchases"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v14H4Z M8 7V5a4 4 0 0 1 8 0v2 M9 12h6 M12 9v6"/></svg>Закупівлі</button>
+      <button class="demo-nav" type="button" data-view="stockops"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4Z M3 7v10l9 4 9-4V7 M12 11v10 M7 5l10 4"/></svg>Списання / Інвентаризація</button>
+      <button class="demo-nav" type="button" data-view="products"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Товари / Склад</button>
+      <button class="demo-nav" type="button" data-view="customers"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg>Повернення боргу</button>
+      <button class="demo-nav" type="button" data-view="finance"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18 M15 15h3"/></svg>Фінанси</button>
+      <button class="demo-nav" type="button" data-view="reports"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v18h17 M8 17v-6 M13 17V7 M18 17V4"/></svg>Звіти</button>
+      <button class="demo-nav" type="button" data-view="settings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h16"/><rect x="7" y="4" width="3" height="4" rx="1"/><rect x="14" y="10" width="3" height="4" rx="1"/><rect x="8" y="16" width="3" height="4" rx="1"/></svg>Налаштування</button>
     </nav>
 
     <div class="sidebar-demo-note">
@@ -125,7 +126,7 @@
       <div class="barcode-panel">
         <div class="barcode-main">
           <label for="product-search">Штрих-код / код:</label>
-          <input id="product-search" class="barcode-input" type="search" autocomplete="off" autofocus/>
+          <input id="product-search" class="barcode-input" type="search" placeholder="Введіть штрих-код, код або назву товару" autocomplete="off" autofocus/>
         </div>
         <div class="barcode-actions">
           <button class="win-btn win-btn-primary" type="button" id="focus-product-search">Пошук товару (F7)</button>
@@ -909,7 +910,7 @@
 <script src="/assets/demo-products-v2-3.js?v=20260912-a" defer></script>
 <script src="/assets/demo-products-v2-4.js?v=20260912-a" defer></script>
 <script src="/assets/demo-profile-v2.js?v=20260912-a" defer></script>
-<script src="/assets/outpost-demo-v1.js?v=desktop-ui-15" defer></script>
+<script src="/assets/outpost-demo-v1.js?v=modern-20261018" defer></script>
 <script src="/assets/outpost-demo-modules-v1.js?v=finance-inventory-4" defer></script>
 <script src="/assets/outpost-demo-returns-v1.js?v=sale-returns-1" defer></script>
 <script src="/assets/outpost-demo-products-v1.js?v=products-stock-2" defer></script>

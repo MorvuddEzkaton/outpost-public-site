@@ -774,6 +774,37 @@ test("online demo is clearly separated from the full desktop product", async ({p
   }
 });
 
+test("modern demo keeps every section usable across desktop, tablet and narrow phones", async ({page}) => {
+  test.setTimeout(90_000);
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  for (const width of [1440, 780, 390, 320]) {
+    await page.setViewportSize({width,height:960});
+    await page.goto(origin + "/demo", {waitUntil:"load"});
+    for (const view of ["sale","home","purchases","stockops","products","customers","finance","reports","settings"]) {
+      const nav = page.locator(`.demo-nav[data-view="${view}"]`);
+      await nav.click();
+      await expect(nav).toHaveAttribute("aria-current", "page");
+      await expect(page.locator(`.demo-view[data-view-panel="${view}"]`)).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+      expect(overflow, `${view} at ${width}px`).toBeLessThanOrEqual(1);
+    }
+    await page.locator('#appearance-theme').selectOption('dark');
+    await page.locator('#appearance-accent').selectOption('purple');
+    await page.locator('#appearance-font').selectOption('18');
+    await page.locator('#appearance-apply').click();
+    await page.locator('.demo-nav[data-view="sale"]').click();
+    await page.locator('#focus-product-search').click();
+    await expect(page.locator('#product-search-dialog')).toBeVisible();
+    const dialogOverflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+    expect(dialogOverflow, `search dialog at ${width}px with enlarged text`).toBeLessThanOrEqual(1);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#product-search-dialog')).not.toBeVisible();
+    await page.screenshot({path:path.join(artifactRoot, `modern-demo-${width}.png`),fullPage:true});
+  }
+  expect(errors).toEqual([]);
+});
+
 test("features page presents current inventory, FEFO, analytics and director workflows", async ({page}) => {
   for (const width of [1280,390]) {
     await page.setViewportSize({width,height:900});
