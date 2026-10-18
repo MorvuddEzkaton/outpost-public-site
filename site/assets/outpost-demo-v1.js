@@ -1419,6 +1419,7 @@
     getCartTotal: cartTotal,
     getSelectedCartProductId: () => selectedCartProductId,
     getAppearance: () => ({ ...appearance }),
+    navigate: switchView,
     saveState,
     renderAll,
     money,

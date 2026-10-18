@@ -9,7 +9,7 @@
 <link rel="canonical" href="https://outpost.com.ua/demo"/>
 <title>OutPOSt — онлайн-демо</title>
 <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png"/>
-<link rel="stylesheet" href="/assets/outpost-demo-v1.css?v=modern-20261018"/>
+<link rel="stylesheet" href="/assets/outpost-demo-v1.css?v=command-center-20261018"/>
 </head>
 <body class="modern-demo">
 <a class="skip-link" href="#demo-main">До демо</a>
@@ -38,14 +38,17 @@
     </div>
 
     <nav class="sidebar-nav">
+      <span class="sidebar-section" aria-hidden="true">ГОЛОВНЕ</span>
       <button class="demo-nav" type="button" data-view="home"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z M9 20v-7h6v7"/></svg>Головна</button>
       <button class="demo-nav is-active" type="button" data-view="sale" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v17l-3-2-2 2-2-2-3 2Z M10 8h4 M10 12h4"/></svg>Продаж</button>
       <button class="demo-nav" type="button" data-view="purchases"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v14H4Z M8 7V5a4 4 0 0 1 8 0v2 M9 12h6 M12 9v6"/></svg>Закупівлі</button>
+      <span class="sidebar-section" aria-hidden="true">ОБЛІК</span>
       <button class="demo-nav" type="button" data-view="stockops"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4Z M3 7v10l9 4 9-4V7 M12 11v10 M7 5l10 4"/></svg>Списання / Інвентаризація</button>
       <button class="demo-nav" type="button" data-view="products"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Товари / Склад</button>
       <button class="demo-nav" type="button" data-view="customers"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg>Повернення боргу</button>
       <button class="demo-nav" type="button" data-view="finance"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18 M15 15h3"/></svg>Фінанси</button>
       <button class="demo-nav" type="button" data-view="reports"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v18h17 M8 17v-6 M13 17V7 M18 17V4"/></svg>Звіти</button>
+      <span class="sidebar-section" aria-hidden="true">СИСТЕМА</span>
       <button class="demo-nav" type="button" data-view="settings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h16"/><rect x="7" y="4" width="3" height="4" rx="1"/><rect x="14" y="10" width="3" height="4" rx="1"/><rect x="8" y="16" width="3" height="4" rx="1"/></svg>Налаштування</button>
     </nav>
 
@@ -64,47 +67,42 @@
   <main class="demo-main" id="demo-main">
     <section class="demo-view" data-view-panel="home" aria-labelledby="home-title">
       <div class="app-page-head dark-titlebar">
-        <h1 id="home-title">Головна</h1>
-        <span class="app-version">web demo · preview</span>
+        <div><h1 id="home-title">Головна</h1><p class="home-context">Робочий простір магазину</p></div>
+        <div class="home-header-meta"><span class="home-mode-badge">СУЧАСНИЙ</span><span class="app-version">web demo · preview</span></div>
       </div>
 
-      <div class="workday-wrap">
-        <h2 class="workday-title">Контроль робочого дня</h2>
-
-        <div class="shift-banner">
-          <div>
-            <span>КАСОВА ЗМІНА</span>
-            <strong id="home-shift-status">Відкрита</strong>
-            <small id="home-shift-meta">Зміна #1 · демонстраційна</small>
+      <div class="command-center" id="command-center">
+        <div class="dashboard-statuses" aria-label="Стан магазину">
+          <div class="dashboard-status dashboard-shift" id="dashboard-shift-card">
+            <div><span>Касова зміна</span><strong id="home-shift-status">Відкрита</strong><small id="home-shift-meta" class="visually-hidden"></small></div>
+            <button class="win-btn" type="button" id="home-shift-action">Закрити зміну</button>
           </div>
-          <button class="yellow-btn" type="button" id="home-shift-action">Закрити зміну</button>
+          <button class="dashboard-status" type="button" data-dashboard-info="fiscal"><span>Фіскалізація</span><small>Не підключено · демо</small><i aria-hidden="true"></i></button>
+          <button class="dashboard-status" type="button" data-dashboard-info="fiscal"><span>Фіскальна черга</span><small>Не підключено · демо</small><i aria-hidden="true"></i></button>
+          <button class="dashboard-status" type="button" data-dashboard-info="cloud"><span>Cloud</span><small>Не підключено · демо</small><i aria-hidden="true"></i></button>
+          <button class="dashboard-status" type="button" data-dashboard-info="backup"><span>Резервна копія</span><small>Дані у цьому браузері</small><i aria-hidden="true"></i></button>
         </div>
-
-        <div class="workday-tabs">
-          <button type="button" class="workday-tab is-active">Робочий день</button>
-          <button type="button" class="workday-tab">Скоро закінчиться (<span id="home-low-tab">0</span>)</button>
+        <div class="dashboard-heading">
+          <h2>Командний центр магазину</h2>
+          <div><button class="win-btn" type="button" id="dashboard-configure">Налаштувати екран</button><button class="win-btn" type="button" id="dashboard-refresh">Оновити</button></div>
         </div>
-
-        <div class="workday-metrics">
-          <div class="metric"><span>Сума в касі</span><strong id="home-cash">—</strong><small>поточний відомий залишок</small></div>
-          <div class="metric"><span>Надійшло сьогодні в касу</span><strong id="home-cash-sales">—</strong><small>тільки готівка з продажів</small></div>
-          <div class="metric"><span>Надійшло сьогодні на картку</span><strong id="home-card-sales">—</strong><small>тільки карткові продажі</small></div>
-          <div class="metric"><span>Чеків сьогодні</span><strong id="home-checks">—</strong></div>
-          <div class="metric"><span>Виручка сьогодні</span><strong id="home-sales">—</strong></div>
-          <div class="metric"><span>Повернення сьогодні</span><strong id="home-returns">0,00 грн</strong></div>
-          <div class="metric"><span>Вартість залишку</span><strong id="home-stock-value">—</strong></div>
-          <div class="metric"><span>Скоро закінчиться</span><strong id="home-low-stock">—</strong><small>менше 5 одиниць</small></div>
+        <div class="dashboard-kpis" id="dashboard-kpis" aria-label="Показники магазину"></div>
+        <div class="dashboard-sections" id="dashboard-sections">
+          <section class="dashboard-panel" data-dashboard-section="Chart" aria-labelledby="dashboard-chart-title">
+            <h3 id="dashboard-chart-title">Продажі за період</h3>
+            <div class="dashboard-chart-controls" aria-label="Вигляд графіка">
+              <button class="win-btn" type="button" data-dashboard-period="1">Сьогодні</button><button class="win-btn" type="button" data-dashboard-period="7">7 днів</button><button class="win-btn" type="button" data-dashboard-period="14">14 днів</button><button class="win-btn" type="button" data-dashboard-period="30">30 днів</button><button class="win-btn" type="button" data-dashboard-chart="bars">Стовпчики</button><button class="win-btn" type="button" data-dashboard-chart="line">Лінія</button>
+            </div>
+            <p class="dashboard-chart-subtitle" id="dashboard-chart-subtitle">Оплати продажів за способами оплати</p>
+            <div id="dashboard-chart"></div>
+            <div class="dashboard-chart-legend"><span><i class="chart-cash"></i>Готівка</span><span><i class="chart-card"></i>Картка</span><span><i class="chart-other"></i>Інші оплати</span></div>
+            <p class="visually-hidden" id="dashboard-chart-summary"></p>
+          </section>
+          <section class="dashboard-panel" data-dashboard-section="Attention" aria-labelledby="dashboard-attention-title"><h3 id="dashboard-attention-title">Потребує уваги</h3><div id="dashboard-attention"></div></section>
+          <section class="dashboard-panel" data-dashboard-section="LowStockTable" aria-labelledby="dashboard-low-title"><div class="dashboard-panel-heading"><h3 id="dashboard-low-title">Скоро закінчиться</h3><button class="win-btn" type="button" data-dashboard-view="products">Переглянути всі ›</button></div><div class="dashboard-table-wrap" tabindex="0" role="region" aria-label="Залишки товарів"><table class="desktop-table"><thead><tr><th>Код</th><th>Товар</th><th>Залишок</th><th>Ціна</th></tr></thead><tbody id="dashboard-low-stock"></tbody></table></div></section>
+          <section class="dashboard-panel" data-dashboard-section="SupplierDebtTable" aria-labelledby="dashboard-supplier-title"><div class="dashboard-panel-heading"><h3 id="dashboard-supplier-title">Борги постачальникам</h3><button class="win-btn" type="button" data-dashboard-info="supplier">Переглянути всі ›</button></div><div class="dashboard-table-wrap" tabindex="0" role="region" aria-label="Борги постачальникам"><table class="desktop-table"><thead><tr><th>Постачальник</th><th>Сплачено</th><th>Борг</th></tr></thead><tbody id="dashboard-suppliers"></tbody></table></div></section>
         </div>
-
-        <button class="yellow-btn workday-cashout" type="button" id="home-show-withdrawals">Вилучені кошти сьогодні</button>
-
-        <div class="extra-info-bar">
-          <div>
-            <strong>Додаткова інформація</strong>
-            <span>Товари, категорії, приходи, борги та технічний очікуваний залишок каси.</span>
-          </div>
-          <button class="yellow-btn" type="button" id="open-extra-info">Відкрити</button>
-        </div>
+        <div class="dashboard-footer"><p id="dashboard-updated"></p><div><button class="win-btn" type="button" id="home-show-withdrawals">Вилучені кошти сьогодні</button><button class="win-btn" type="button" id="open-extra-info">Додаткова інформація</button></div></div>
       </div>
     </section>
 
@@ -904,13 +902,28 @@
   </form>
 </dialog>
 
+<dialog class="demo-dialog dashboard-layout-dialog" id="dashboard-layout-dialog" aria-labelledby="dashboard-layout-title">
+  <form method="dialog">
+    <button class="dialog-close" type="button" id="dashboard-layout-close" aria-label="Закрити налаштування головної">×</button>
+    <h2 id="dashboard-layout-title">Налаштувати головний екран</h2>
+    <p>Позначте потрібні блоки та змініть їх порядок кнопками ↑ / ↓. Вигляд зберігається у цьому браузері.</p>
+    <div class="dashboard-layout-tabs" role="tablist" aria-label="Блоки головної">
+      <button class="win-btn" type="button" role="tab" id="dashboard-metrics-tab" aria-controls="dashboard-metrics-options" aria-selected="true" data-dashboard-settings-tab="metrics">Показники</button>
+      <button class="win-btn" type="button" role="tab" id="dashboard-panels-tab" aria-controls="dashboard-panels-options" aria-selected="false" tabindex="-1" data-dashboard-settings-tab="sections">Інформаційні панелі</button>
+    </div>
+    <div class="dashboard-layout-options" role="tabpanel" id="dashboard-metrics-options" aria-labelledby="dashboard-metrics-tab"></div>
+    <div class="dashboard-layout-options" role="tabpanel" id="dashboard-panels-options" aria-labelledby="dashboard-panels-tab" hidden></div>
+    <div class="dashboard-layout-footer"><button class="win-btn" type="button" id="dashboard-layout-defaults">За замовчуванням</button><div><button class="win-btn" type="button" id="dashboard-layout-cancel">Скасувати</button><button class="win-btn win-btn-primary" type="button" id="dashboard-layout-save">Зберегти</button></div></div>
+  </form>
+</dialog>
+
 <script src="/assets/demo-products-v2-1.js?v=20260912-a" defer></script>
 <script src="/assets/demo-products-v2-2.js?v=20260912-a" defer></script>
 <script src="/assets/demo-products-v2-3.js?v=20260912-a" defer></script>
 <script src="/assets/demo-products-v2-4.js?v=20260912-a" defer></script>
 <script src="/assets/demo-profile-v2.js?v=20260912-a" defer></script>
-<script src="/assets/outpost-demo-v1.js?v=modern-20261018" defer></script>
-<script src="/assets/outpost-demo-modules-v1.js?v=finance-inventory-4" defer></script>
+<script src="/assets/outpost-demo-v1.js?v=command-center-20261018" defer></script>
+<script src="/assets/outpost-demo-modules-v1.js?v=command-center-20261018" defer></script>
 <script src="/assets/outpost-demo-returns-v1.js?v=sale-returns-1" defer></script>
 <script src="/assets/outpost-demo-products-v1.js?v=products-stock-2" defer></script>
 </body>

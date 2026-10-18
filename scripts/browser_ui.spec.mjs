@@ -807,6 +807,27 @@ test("modern demo keeps every section usable across desktop, tablet and narrow p
   expect(errors).toEqual([]);
 });
 
+test("demo home follows the native Modern command center hierarchy", async ({page}) => {
+  await page.setViewportSize({width:1068,height:900});
+  await page.goto(origin+'/demo',{waitUntil:'load'});
+  await page.locator('.demo-nav[data-view="home"]').click();
+  await expect(page.getByRole('heading',{name:'Командний центр магазину',exact:true})).toBeVisible();
+  await expect(page.locator('.dashboard-status')).toHaveCount(5);
+  await expect(page.locator('.dashboard-kpi')).toHaveCount(11);
+  const order=await page.locator('.dashboard-kpi').evaluateAll(nodes=>nodes.map(n=>n.dataset.dashboardMetric));
+  expect(order).toEqual(['CashBalance','Revenue','Receipts','Cash','Card','Returns','StockValue','LowStock','NegativeStock','SupplierDebt','FiscalProblems']);
+  const boxes=await page.locator('.dashboard-kpi').evaluateAll(nodes=>nodes.map(n=>({top:n.getBoundingClientRect().top,height:n.getBoundingClientRect().height})));
+  expect(new Set(boxes.slice(0,4).map(b=>b.top)).size).toBe(1);
+  expect(boxes[0].height).toBeLessThan(90);
+  const panels=await page.locator('.dashboard-panel').evaluateAll(nodes=>nodes.map(n=>n.dataset.dashboardSection));
+  expect(panels).toEqual(['Chart','Attention','LowStockTable','SupplierDebtTable']);
+  await expect(page.locator('#dashboard-chart svg')).toHaveAccessibleName('Оплати продажів за 7 днів');
+  await expect(page.locator('#dashboard-low-stock tr')).toHaveCount(5);
+  const box=await page.locator('#command-center').boundingBox();
+  expect(Math.round(box.width)).toBe(842);
+  await page.screenshot({path:path.join(artifactRoot,'command-center-native-size.png'),clip:{x:box.x,y:box.y,width:box.width,height:510}});
+});
+
 test("features page presents current inventory, FEFO, analytics and director workflows", async ({page}) => {
   for (const width of [1280,390]) {
     await page.setViewportSize({width,height:900});
