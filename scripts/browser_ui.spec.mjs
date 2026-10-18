@@ -447,7 +447,11 @@ test("shared real screenshot carousels have equal-sized stages and same-page lig
     {path:"/modules",groups:[7,8]},
     {path:"/avtomatyzatsiya-magazynu",groups:[4,8]},
     {path:"/features",groups:[7]},
-    {path:"/prodazh-v-borg",groups:[7]},
+    {path:"/prodazh-v-borg",groups:[7,1]},
+    {path:"/programa-dlya-fop",groups:[5]},
+    {path:"/programa-dlya-nevelykogo-magazynu",groups:[6]},
+    {path:"/offline-programa-dlya-magazynu",groups:[5]},
+    {path:"/support",groups:[1]},
     {path:"/oblik-tovariv-u-magazyni",groups:[5,8,6]},
     {path:"/avtomatyzatsiya-zakupivel-i-skladu",groups:[6,6]},
     {path:"/avtomatyzatsiya-rozdribnoi-torgivli",groups:[6]},
@@ -1151,6 +1155,64 @@ test("migrated batch and payroll tours keep all steps, intrinsic dimensions and 
     await last.getByRole("link",{name:"Повний директорський сценарій →"}).click();
     await expect(page).toHaveURL(origin+"/interfeis#director-v02422");
     await expect(target).toBeVisible();
+  }
+});
+
+test("remaining migrated galleries load every image and keep separate debt flows", async ({page}) => {
+  test.setTimeout(120000);
+  const cases = [
+    {path:"/programa-dlya-fop",selector:".feature-tour.single-shot-slider",count:5},
+    {path:"/programa-dlya-nevelykogo-magazynu",selector:".feature-tour.single-shot-slider",count:6},
+    {path:"/offline-programa-dlya-magazynu",selector:".feature-tour.single-shot-slider",count:5},
+    {path:"/support",selector:".feature-tour.single-shot-slider",count:1,asset:"/assets/screenshots/02410/help/01-help-window.webp"},
+    {path:"/prodazh-v-borg",selector:".feature-tour.single-shot-slider",count:1,asset:"/assets/screenshots/02410/debt-sale/08-underpayment-to-debt.webp"},
+  ];
+  for(const width of [1280,390,360]) {
+    await page.setViewportSize({width,height:900});
+    for(const item of cases) {
+      await page.goto(origin+item.path,{waitUntil:"load"});
+      const tour=page.locator(item.selector);
+      const carousel=tour.locator(".live-shot-carousel");
+      const figures=tour.locator("figure.tour-shot");
+      await expect(figures).toHaveCount(item.count);
+      const ids=await page.locator("[id]").evaluateAll(nodes=>nodes.map(n=>n.id));
+      expect(new Set(ids).size).toBe(ids.length);
+      if(item.path==="/prodazh-v-borg") {
+        await expect(page.locator(".debt-single-slider figure.debt-story-item")).toHaveCount(7);
+        await expect(tour).toContainText("25,40 грн");
+      }
+      if(item.path==="/support") {
+        await expect(tour).toContainText("0.24.10");
+        await expect(page.locator('link[rel="stylesheet"][href="/assets/feature-tour-v1.css"]')).toHaveCount(1);
+      }
+      for(let i=0;i<item.count;i++) {
+        if(i) await carousel.locator(".live-shot-next").click();
+        const figure=figures.nth(i);
+        await expect(figure).toBeVisible();
+        const opener=figure.locator("a:has(img)");
+        await opener.scrollIntoViewIfNeeded();
+        const img=opener.locator("img");
+        await expect(img).toHaveJSProperty("complete",true);
+        const dims=await img.evaluate(n=>({actual:[n.naturalWidth,n.naturalHeight],declared:[Number(n.getAttribute("width")),Number(n.getAttribute("height"))]}));
+        expect(dims.actual[0]).toBeGreaterThan(0);
+        expect(dims.declared).toEqual(dims.actual);
+        expect(await img.evaluate(n=>getComputedStyle(n).objectFit)).toBe("contain");
+        const source=await img.getAttribute("src");
+        if(item.asset) expect(source).toBe(item.asset);
+        const caption=await figure.locator("figcaption").evaluate(n=>({scroll:n.scrollHeight,client:n.clientHeight}));
+        expect(caption.scroll).toBeLessThanOrEqual(caption.client+1);
+        await opener.focus();await page.keyboard.press("Enter");
+        const viewer=page.locator("dialog.live-shot-dialog");
+        await expect(viewer).toBeVisible();
+        await expect(viewer.locator("img")).toHaveAttribute("src",source);
+        await expect(viewer.locator(".live-shot-dialog-count")).toHaveText(`${i+1} / ${item.count}`);
+        await page.keyboard.press("Escape");
+        await expect(viewer).toBeHidden();
+        await expect(opener).toBeFocused();
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)).toBeLessThanOrEqual(1);
+      if(item.asset&&width!==360) await tour.screenshot({path:path.join(artifactRoot,`remaining-${slugFor(item.path)}-${width}.png`)});
+    }
   }
 });
 

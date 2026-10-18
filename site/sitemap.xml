@@ -13,7 +13,7 @@
   <url><loc>https://outpost.com.ua/changelog</loc><lastmod>2026-10-16</lastmod><changefreq>monthly</changefreq><priority>0.80</priority></url>
   <url>
     <loc>https://outpost.com.ua/programa-dlya-nevelykogo-magazynu</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -25,13 +25,13 @@
   </url>
   <url>
     <loc>https://outpost.com.ua/prodazh-v-borg</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://outpost.com.ua/programa-dlya-fop</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -43,7 +43,7 @@
   </url>
   <url>
     <loc>https://outpost.com.ua/offline-programa-dlya-magazynu</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -59,5 +59,5 @@
   <url><loc>https://outpost.com.ua/buhgalterskyi-oblik-dlya-magazynu</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
   <url><loc>https://outpost.com.ua/avtomatyzatsiya-zakupivel-i-skladu</loc><lastmod>2026-10-16</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
   <url><loc>https://outpost.com.ua/avtomatyzatsiya-rozdribnoi-torgivli</loc><lastmod>2026-10-16</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
-  <url><loc>https://outpost.com.ua/support</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.78</priority></url>
+  <url><loc>https://outpost.com.ua/support</loc><lastmod>2026-10-18</lastmod><changefreq>monthly</changefreq><priority>0.78</priority></url>
 </urlset>

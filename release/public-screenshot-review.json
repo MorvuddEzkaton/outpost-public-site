@@ -53,6 +53,11 @@
       "status": "reviewed-public-demo"
     },
     {
+      "file": "site/assets/screenshots/02410/debt-sale/08-underpayment-to-debt.webp",
+      "sha256": "1676ec31735d5c6176cb9a92f21cad2cd649604d88ff2182c3de16a11e2227c8",
+      "status": "reviewed-public-demo"
+    },
+    {
       "file": "site/assets/screenshots/02410/eakcyz/01-control-center.webp",
       "sha256": "20eda2b7315dce8b74b198e09910c05b3d0dd3d7ec28ec5329817e55f7dfdafc",
       "status": "reviewed-public-demo"
@@ -65,6 +70,11 @@
     {
       "file": "site/assets/screenshots/02410/finance.webp",
       "sha256": "1c0aee410ebb2caefbb1f60a6d747ff8bc2569449a6f167c729b6e6523c1f053",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/02410/help/01-help-window.webp",
+      "sha256": "009af1186c541a85194c638bd9101d59d36dc088fad55d662ae56ed837c3653c",
       "status": "reviewed-public-demo"
     },
     {
