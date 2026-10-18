@@ -781,6 +781,8 @@ test("modern demo keeps every section usable across desktop, tablet and narrow p
   for (const width of [1440, 780, 390, 320]) {
     await page.setViewportSize({width,height:960});
     await page.goto(origin + "/demo", {waitUntil:"load"});
+    const paymentHeights = await page.locator('.pay-btn').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().height));
+    expect(paymentHeights.every(height => height >= 44), `payment target height at ${width}px`).toBe(true);
     for (const view of ["sale","home","purchases","stockops","products","customers","finance","reports","settings"]) {
       const nav = page.locator(`.demo-nav[data-view="${view}"]`);
       await nav.click();

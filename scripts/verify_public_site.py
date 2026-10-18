@@ -118,7 +118,6 @@ REQUIRED_SOCIAL_META = (
 
 DEMO_REVALIDATE_ASSETS = (
     "/assets/outpost-demo-v1.css",
-    "/assets/outpost-demo-modern.css",
     "/assets/outpost-demo-v1.js",
     "/assets/outpost-demo-modules-v1.js",
     "/assets/outpost-demo-returns-v1.js",
@@ -758,8 +757,8 @@ def check_demo_runtime_cache(errors: list[str]) -> None:
     demo = read_text(demo_path)
     if '/assets/outpost-demo-v1.js?v=modern-20261018' not in demo:
         errors.append("site/demo.html: primary demo runtime cache key must be modern-20261018")
-    if '/assets/outpost-demo-modern.css?v=modern-20261018' not in demo:
-        errors.append("site/demo.html: Modern presentation stylesheet must be versioned and included")
+    if '/assets/outpost-demo-v1.css?v=modern-20261018' not in demo:
+        errors.append("site/demo.html: demo stylesheet cache key must be modern-20261018")
 
 
 def main() -> int:
