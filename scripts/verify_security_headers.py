@@ -78,11 +78,10 @@ def parse_headers(text: str) -> tuple[list[str], dict[str, str]]:
 
 def header_route_errors(routes: list[str]) -> list[str]:
     """Shared fail-closed source/live contract: global security plus exact demo cache routes."""
-    # Global CSP applies to every route. Only these six narrow cache overrides
+    # Global CSP applies to every route. Only these five narrow cache overrides
     # may follow it; extra wildcard/public routes would weaken the boundary.
     allowed_demo_cache_routes = {
         "/assets/outpost-demo-v1.css",
-        "/assets/outpost-demo-modern.css",
         "/assets/outpost-demo-v1.js",
         "/assets/outpost-demo-modules-v1.js",
         "/assets/outpost-demo-returns-v1.js",
@@ -93,7 +92,7 @@ def header_route_errors(routes: list[str]) -> list[str]:
         or set(routes[1:]) != allowed_demo_cache_routes
     ):
         return [
-            "site/_headers: expected one global /* CSP plus exactly six "
+            "site/_headers: expected one global /* CSP plus exactly five "
             f"narrow demo revalidation rules; got {routes!r}"
         ]
     return []

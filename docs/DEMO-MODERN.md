@@ -6,8 +6,9 @@ The `/demo` presentation follows the desktop Modern design: Segoe UI, a light
 Navigation uses decorative inline SVGs and exposes the current section through
 `aria-current`. The existing official logo is reused.
 
-`outpost-demo-modern.css` is the presentation layer over the established workflow
-stylesheet. Keep it after `outpost-demo-v1.css`. Semantic surface, field, muted-text,
+The Modern section at the end of `outpost-demo-v1.css` is the presentation layer
+over the established workflow styles. Keeping one versioned stylesheet reuses
+the existing, live-verified demo cache revalidation path. Semantic surface, field, muted-text,
 selection and action colors cover light, dark and high-contrast modes. Action
 background and accent text colors are separate so all four selectable accents can
 meet text contrast requirements. Existing saved appearance choices and demo data
@@ -24,5 +25,6 @@ Windows product. Its noindex metadata and visible limitations remain in place.
 Validation lives in the existing browser suites: all nine sections at 1440, 780,
 390 and 320px; current navigation semantics; enlarged-text search dialogs; local
 appearance persistence; and WCAG A/AA scans across light, dark and contrast modes.
+Payment controls retain a minimum 44px height even with the base control styles.
 The existing payment, keyboard, inventory, purchase and return regressions continue
 to exercise the unchanged workflow contracts.

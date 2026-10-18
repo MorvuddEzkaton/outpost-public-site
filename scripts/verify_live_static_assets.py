@@ -28,7 +28,6 @@ ORIGIN = "https://outpost.com.ua"
 
 DEMO_REVALIDATE_PATHS = {
     "/assets/outpost-demo-v1.css",
-    "/assets/outpost-demo-modern.css",
     "/assets/outpost-demo-v1.js",
     "/assets/outpost-demo-modules-v1.js",
     "/assets/outpost-demo-returns-v1.js",
