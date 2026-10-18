@@ -33,7 +33,7 @@
       s.nextDemoProduct = 1;
       changed = true;
     }
-    if (changed) api.saveState();
+    if (changed) api.saveState(false);
     return s;
   }
 
@@ -105,6 +105,8 @@
     const product = api.productById(productId);
     if (!product) return [];
     const movements = [];
+    const opening=(s.stockOpening?.quantities||[]).find(row=>row.productId===productId);
+    if(opening)movements.push({at:s.stockOpening.at,type:"Початковий залишок",qty:Number(opening.qty),cost:Number(product.cost||0),referenceType:"Початок демо-місяця",referenceId:"DEMO-OPENING",user:"Демо-касир"});
 
     (s.purchases || []).forEach(function (purchase) {
       if (purchase.productId !== productId) return;
@@ -168,7 +170,7 @@
       if (inventory.status !== "posted") return;
       const item = (inventory.items || []).find(function (candidate) { return candidate.productId === productId; });
       if (!item || item.actual == null) return;
-      const difference = api.round2(Number(item.actual) - Number(item.expected));
+      const difference = api.roundQty(Number(item.actual) - Number(item.expected));
       if (Math.abs(difference) < 0.0001) return;
       movements.push({
         at: inventory.postedAt || inventory.startedAt,
@@ -274,6 +276,10 @@
     if (minimumPrice > price && price >= 0) {
       if (error) error.textContent = "Мінімальна ціна не може бути більшою за роздрібну.";
       return;
+    }
+    if(!code||s.products.some(product=>String(api.productCode(product))===code)){
+      if(error)error.textContent="Такий внутрішній код уже використовується. Вкажіть унікальний код товару.";
+      $("#product-new-code")?.focus();return;
     }
     if (barcode && s.products.some(function (product) {
       return String(product.barcode || "").toLowerCase() === barcode.toLowerCase();

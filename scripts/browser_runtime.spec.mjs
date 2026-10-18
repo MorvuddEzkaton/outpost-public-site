@@ -173,6 +173,7 @@ test("demo finance, write-off and inventory flows stay connected", async ({ brow
     () => page.evaluate(() => Boolean(window.OUTPOST_DEMO_API && window.OUTPOST_DEMO_MODULES)),
     { message: "demo integration APIs should initialize" },
   ).toBe(true);
+  const initialFixture=await page.evaluate(()=>{const s=window.OUTPOST_DEMO_API.getState();return {shifts:s.cashShifts.length,shiftId:s.currentCashShift.id,nextShift:s.nextCashShift,returns:s.returns.length,nextReturn:s.nextReturn,writeoffs:s.writeoffs.length,nextWriteoff:s.nextWriteoff,inventories:s.inventories.length};});
 
   await page.locator('[data-view="finance"]').click();
   await expect(page.locator('[data-view-panel="finance"]')).toHaveClass(/is-active/);
@@ -207,7 +208,7 @@ test("demo finance, write-off and inventory flows stay connected", async ({ brow
     }));
   });
   expect(cashState).toEqual([
-    { type: "CashOut", amount: 25.5, direction: "out", hasSupplier: true },
+    { type: "SupplierPayment", amount: 25.5, direction: "out", hasSupplier: true },
     { type: "CashIn", amount: 125.5, direction: "in", hasSupplier: false },
   ]);
 
@@ -243,8 +244,8 @@ test("demo finance, write-off and inventory flows stay connected", async ({ brow
     };
   });
   expect(closedShiftState.current).toBeNull();
-  expect(closedShiftState.count).toBe(1);
-  expect(closedShiftState.id).toBe(1);
+  expect(closedShiftState.count).toBe(initialFixture.shifts+1);
+  expect(closedShiftState.id).toBe(initialFixture.shiftId);
   expect(closedShiftState.actual).toBe(actualClosingBalance);
   expect(closedShiftState.expected).toBe(beforeCloseShift.expected);
   expect(closedShiftState.difference).toBe(5);
@@ -268,7 +269,7 @@ test("demo finance, write-off and inventory flows stay connected", async ({ brow
       expected: summary.expected,
     };
   });
-  expect(reopenedShiftState.id).toBe(2);
+  expect(reopenedShiftState.id).toBe(initialFixture.nextShift);
   expect(reopenedShiftState.opening).toBe(actualClosingBalance);
   expect(reopenedShiftState.sales).toBe(0);
   expect(reopenedShiftState.cashIn).toBe(0);
@@ -346,8 +347,8 @@ test("demo finance, write-off and inventory flows stay connected", async ({ brow
       homeReturns: document.querySelector("#home-returns")?.textContent || "",
     };
   }, { target: saleReturnTarget, saleId: cashSaleForReturn.id });
-  expect(returnState.returnsCount).toBe(1);
-  expect(returnState.returnId).toBe("RET-000001");
+  expect(returnState.returnsCount).toBe(initialFixture.returns+1);
+  expect(returnState.returnId).toBe('RET-'+String(initialFixture.nextReturn).padStart(6,'0'));
   expect(returnState.saleId).toBe(cashSaleForReturn.id);
   expect(returnState.total).toBe(cashSaleForReturn.total);
   expect(returnState.returnedQty).toBe(1);
@@ -357,7 +358,7 @@ test("demo finance, write-off and inventory flows stay connected", async ({ brow
   expect(returnState.cashExpected).toBe(actualClosingBalance);
   expect(returnState.homeReturns).not.toBe("0,00 грн");
   await expect(page.locator(`[data-return-sale="${cashSaleForReturn.id}"]`)).toBeDisabled();
-  await expect(page.locator("#returns-history")).toContainText("RET-000001");
+  await expect(page.locator("#returns-history")).toContainText(returnState.returnId);
 
   await page.locator('[data-view="stockops"]').click();
   await expect(page.locator('[data-view-panel="stockops"]')).toHaveClass(/is-active/);
@@ -385,8 +386,8 @@ test("demo finance, write-off and inventory flows stay connected", async ({ brow
       expectedStock: window.OUTPOST_DEMO_API.round2(before - 2),
     };
   }, { productId: writeoffProductId, before: stockBeforeWriteoff });
-  expect(writeoffState.writeoffCount).toBe(1);
-  expect(writeoffState.firstId).toBe("WO-000001");
+  expect(writeoffState.writeoffCount).toBe(initialFixture.writeoffs+1);
+  expect(writeoffState.firstId).toBe('WO-'+String(initialFixture.nextWriteoff).padStart(6,'0'));
   expect(writeoffState.stock).toBe(writeoffState.expectedStock);
 
   await page.locator('[data-stock-tab="inventory"]').click();
@@ -450,20 +451,20 @@ test("demo finance, write-off and inventory flows stay connected", async ({ brow
     return {
       writeoffs: state.writeoffs?.length || 0,
       inventories: state.inventories?.length || 0,
-      demoCashMovements: state.cashMovements.filter((movement) => movement.affectsCash === true).length,
+      demoCashMovements: state.cashMovements.filter((movement) => movement.affectsCash === true && !movement.demoSeed).length,
       returns: state.returns?.length || 0,
       cashShifts: state.cashShifts?.length || 0,
       currentShiftId: state.currentCashShift?.id || null,
       currentOpening: state.currentCashShift?.openingBalance ?? null,
     };
   })).toEqual({
-    writeoffs: 0,
-    inventories: 0,
+    writeoffs: initialFixture.writeoffs,
+    inventories: initialFixture.inventories,
     demoCashMovements: 0,
-    returns: 0,
-    cashShifts: 0,
-    currentShiftId: 1,
-    currentOpening: 1000,
+    returns: initialFixture.returns,
+    cashShifts: initialFixture.shifts,
+    currentShiftId: initialFixture.shiftId,
+    currentOpening: 2000,
   });
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
@@ -1358,7 +1359,7 @@ test("demo F6 enters Purchases with the primary action focused", async ({ browse
 });
 
 
-test("demo unfinished parallel-check tabs explain their reduced scope", async ({ browser }) => {
+test("demo parallel checks isolate carts and preserve unfinished sales on reload", async ({ browser }) => {
   test.setTimeout(30_000);
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const page = await context.newPage();
@@ -1368,13 +1369,20 @@ test("demo unfinished parallel-check tabs explain their reduced scope", async ({
   await page.goto(origin + "/demo", { waitUntil: "load", timeout: 20_000 });
   const tabs = page.locator(".client-tab");
   await expect(tabs.nth(0)).toHaveClass(/is-active/);
+  const barcode=await page.evaluate(()=>window.OUTPOST_DEMO_API.getState().products.find(p=>p.barcode).barcode);
+  await page.locator('#product-search').fill(barcode);await page.locator('#product-search').press('Enter');
+  await expect(page.locator('#cart-count')).toHaveText('1 поз.');
   await tabs.nth(1).click();
-  await expect(page.locator("#toast")).toContainText("Кілька паралельних чеків");
-  await expect(tabs.nth(0)).toHaveClass(/is-active/);
-  await expect(tabs.nth(1)).not.toHaveClass(/is-active/);
+  await expect(tabs.nth(1)).toHaveClass(/is-active/);await expect(page.locator('#cart-count')).toHaveText('0 поз.');
+  await page.locator('#product-search').fill(barcode);await page.locator('#product-search').press('Enter');
+  await page.locator('[data-cart-quantity]').fill('2');await page.locator('[data-cart-quantity]').press('Tab');
+  await page.reload({waitUntil:'load'});await expect(tabs.nth(1)).toHaveClass(/is-active/);
+  await expect(page.locator('[data-cart-quantity]')).toHaveValue('2');
+  await page.locator('[data-pay="card"]').click();await expect(page.locator('#cart-count')).toHaveText('0 поз.');
+  await tabs.nth(0).click();await expect(page.locator('[data-cart-quantity]')).toHaveValue('1');
 
   await page.locator(".client-tab-add").click();
-  await expect(page.locator("#toast")).toContainText("Поточний чек працює у вкладці «Клієнт 1»");
+  await expect(tabs).toHaveCount(5);await expect(tabs.nth(4)).toHaveClass(/is-active/);await expect(page.locator('#cart-count')).toHaveText('0 поз.');
 
   await page.keyboard.press("F1");
   await expect(page.locator("#seller-help-dialog")).toContainText("↑ / ↓");
@@ -1409,16 +1417,11 @@ test("demo main navigation and browser-only scope stay intact", async ({ browser
   const browserOnlyLabels = (await page.locator("[data-demo-info]").allTextContents())
     .map((value) => value.replace(/\s+/g, " ").trim())
     .sort();
-  // All intentionally unavailable browser-only actions must remain labelled,
-  // including parallel checks, which are implemented only in desktop Retail.
+  // The remaining explicitly desktop-only tools retain their limitation labels.
   expect(browserOnlyLabels).toEqual([
-    "+",
     "Відкрити імпортер",
     "Відкрити папку даних",
     "Керувати користувачами",
-    "Клієнт 2",
-    "Клієнт 3",
-    "Клієнт 4",
     "Обрізати залишки до ±999",
     "Повна очистка БД",
   ].sort());
@@ -1568,6 +1571,86 @@ test("demo discounted cash sale returns the exact paid amount", async ({ browser
   await context.close();
 });
 
+
+test('fictional month reports open historical receipts and reconcile net revenue',async({page})=>{
+  await page.goto(origin+'/demo',{waitUntil:'load'});
+  const expected=await page.evaluate(()=>{const s=window.OUTPOST_DEMO_API.getState();return {receipts:s.sales.length,net:window.OUTPOST_DEMO_API.round2(s.sales.reduce((n,x)=>n+x.total,0)-s.returns.reduce((n,x)=>n+x.total,0)),firstDay:s.datasetMeta.from};});
+  expect(expected.receipts).toBeGreaterThan(1000);
+  await page.locator('[data-view="reports"]').click();
+  await expect(page.locator('#report-daily tr')).toHaveCount(30);
+  await expect(page.locator('#report-products tr')).toHaveCount(12);
+  const netText=await page.evaluate(n=>window.OUTPOST_DEMO_API.money(n),expected.net);
+  await expect(page.locator('#stats-grid .desktop-card').first()).toContainText(netText);
+  await page.locator('#reports-period').selectOption('1');await expect(page.locator('#report-daily tr')).toHaveCount(1);
+  await page.locator('#reports-period').selectOption('30');
+  await page.locator('[data-report-day="'+expected.firstDay+'"]').click();
+  await expect(page.locator('#history-from')).toHaveValue(expected.firstDay);await expect(page.locator('#sales-history tr')).not.toHaveCount(0);
+  await page.locator('[data-open-sale]').first().click();await expect(page.locator('#demo-document-dialog')).toBeVisible();
+  await expect(page.locator('#demo-document-lines tr')).not.toHaveCount(0);
+  await page.keyboard.press('F7');await expect(page.locator('#product-search-dialog')).toBeHidden();await page.keyboard.press('Escape');
+  await page.locator('#history-payment').selectOption('card');
+  const methods=await page.locator('#sales-history tr').evaluateAll(rows=>rows.map(r=>r.children[2]?.textContent));expect(methods.length).toBeGreaterThan(0);expect(methods.every(x=>x==='Картка')).toBe(true);
+});
+
+test('purchase drafts survive switching and reload then post exactly once with fractional quantities',async({page})=>{
+  await page.goto(origin+'/demo',{waitUntil:'load'});await page.locator('[data-view="purchases"]').click();
+  await page.locator('#open-purchase-item').click();const product=await page.evaluate(()=>window.OUTPOST_DEMO_API.getState().products[0]);
+  await page.locator('#purchase-item-qty').fill('0.568');await page.locator('#add-purchase-draft-line').click();
+  await expect(page.locator('#purchase-draft-lines')).toContainText('0,568');
+  const firstId=await page.locator('#purchase-session-id').innerText();
+  await page.locator('#new-purchase-session').click();await page.locator('#open-purchase-item').click();await page.locator('#purchase-item-qty').fill('2');await page.locator('#add-purchase-draft-line').click();
+  const secondId=await page.locator('#purchase-session-id').innerText();expect(secondId).not.toBe(firstId);
+  await page.reload({waitUntil:'load'});await page.locator('[data-view="purchases"]').click();await expect(page.locator('#purchase-session-id')).toHaveText(secondId);
+  await page.locator('[data-open-purchase-draft="'+firstId+'"]').click();await expect(page.locator('#purchase-draft-lines')).toContainText('0,568');
+  const before=await page.evaluate(()=>{const s=window.OUTPOST_DEMO_API.getState();return {stock:s.products[0].stock,count:s.purchases.length,supplierDebt:s.suppliers.find(p=>p.id===s.purchaseDraft.supplierId).debt,cost:s.purchaseDraft.lines[0].cost};});
+  await page.locator('#post-purchase-session').click();await page.locator('#confirm-post-purchase-session').click();
+  const after=await page.evaluate(id=>{const s=window.OUTPOST_DEMO_API.getState();return {stock:s.products[0].stock,posted:s.purchases.filter(p=>p.sessionId===id),drafts:s.purchaseDrafts.map(d=>d.id),count:s.purchases.length,supplierDebt:s.suppliers.find(p=>p.id===s.purchaseDraft.supplierId).debt};},firstId);
+  expect(after.stock).toBeCloseTo(before.stock+.568,3);expect(after.posted).toHaveLength(1);expect(after.posted[0].qty).toBe(.568);expect(after.drafts).toContain(secondId);expect(after.count).toBe(before.count+1);expect(after.supplierDebt).toBeCloseTo(before.supplierDebt+Math.round(.568*before.cost*100)/100,2);
+  await page.reload({waitUntil:'load'});expect(await page.evaluate(id=>window.OUTPOST_DEMO_API.getState().purchases.filter(p=>p.sessionId===id).length,firstId)).toBe(1);
+});
+
+test('inventory snapshot posting preserves fractional sales made while counting',async({page})=>{
+  await page.goto(origin+'/demo',{waitUntil:'load'});const product=await page.evaluate(()=>window.OUTPOST_DEMO_API.getState().products.find(p=>p.stock>2&&p.barcode));
+  await page.locator('[data-view="stockops"]').click();await page.locator('[data-stock-tab="inventory"]').click();await page.locator('#new-inventory').click();await page.locator('#create-inventory').click();
+  const id=await page.evaluate(()=>window.OUTPOST_DEMO_API.getState().inventories[0].id);
+  await page.locator('[data-inventory-actual="'+product.id+'"]').fill(String(product.stock-.125));await page.locator('[data-inventory-actual="'+product.id+'"]').dispatchEvent('change');await page.locator('#inventory-save-close').click();
+  await page.locator('[data-view="sale"]').click();await page.locator('#product-search').fill(product.barcode);await page.locator('#product-search').press('Enter');await page.locator('[data-cart-quantity="'+product.id+'"]').fill('0.568');await page.locator('[data-cart-quantity="'+product.id+'"]').press('Tab');
+  await page.locator('[data-pay="card"]').click();
+  const sale=await page.evaluate(()=>window.OUTPOST_DEMO_API.getState().sales[0]);expect(sale.lines[0].qty).toBe(.568);
+  await page.locator('[data-view="stockops"]').click();await page.locator('[data-stock-tab="inventory"]').click();await page.locator('[data-inventory-id="'+id+'"]').dblclick();
+  page.once('dialog',d=>d.accept());await page.locator('#inventory-post').click();
+  const result=await page.evaluate(({id,pid})=>{const s=window.OUTPOST_DEMO_API.getState();return {stock:s.products.find(p=>p.id===pid).stock,status:s.inventories.find(i=>i.id===id).status};},{id,pid:product.id});
+  expect(result.status).toBe('posted');expect(result.stock).toBeCloseTo(product.stock-.568-.125,3);
+});
+
+test('write-off drafts preserve fractional quantities across closing and reload',async({page})=>{
+  await page.goto(origin+'/demo',{waitUntil:'load'});await page.locator('[data-view="stockops"]').click();await page.locator('#new-writeoff').click();const pid=await page.locator('#writeoff-product').inputValue();
+  const before=await page.evaluate(id=>{const s=window.OUTPOST_DEMO_API.getState();return {stock:s.products.find(p=>p.id===id).stock,count:s.writeoffs.length};},pid);
+  await page.locator('#writeoff-qty').fill('.125');await page.locator('#writeoff-comment').fill('Збережена чернетка');await page.locator('#add-writeoff-line').click();await page.locator('#save-writeoff-draft').click();
+  await page.reload({waitUntil:'load'});await page.locator('[data-view="stockops"]').click();await page.locator('#new-writeoff').click();await expect(page.locator('#writeoff-draft-lines')).toContainText('0,125');await expect(page.locator('#writeoff-comment')).toHaveValue('Збережена чернетка');
+  await page.locator('#save-writeoff').click();const after=await page.evaluate(id=>{const s=window.OUTPOST_DEMO_API.getState();return {stock:s.products.find(p=>p.id===id).stock,count:s.writeoffs.length,draft:s.writeoffDraft};},pid);
+  expect(after.stock).toBeCloseTo(before.stock-.125,3);expect(after.count).toBe(before.count+1);expect(after.draft).toBeNull();
+});
+
+test('partial fractional refunds never exceed the amount originally paid',async({page})=>{
+  await page.goto(origin+'/demo',{waitUntil:'load'});await page.locator('[data-view="products"]').click();await page.locator('#new-product').click();
+  await page.locator('#product-new-name').fill('Демо · перевірка часткових повернень');await page.locator('#product-new-barcode').fill('2999990000011');await page.locator('#product-new-cost').fill('.01');await page.locator('#product-new-price').fill('.03');await page.locator('#save-new-product').click();
+  const pid=await page.evaluate(()=>window.OUTPOST_DEMO_API.getState().products.find(p=>p.barcode==='2999990000011').id);
+  await page.locator('[data-view="purchases"]').click();await page.locator('#open-purchase-item').click();await page.locator('#purchase-item-barcode').fill('2999990000011');await page.locator('#purchase-item-barcode').press('Enter');await page.locator('#add-purchase-draft-line').click();await page.locator('#post-purchase-session').click();await page.locator('#confirm-post-purchase-session').click();
+  await page.locator('[data-view="sale"]').click();await page.locator('#product-search').fill('2999990000011');await page.locator('#product-search').press('Enter');await page.locator('[data-pay="card"]').click();
+  const id=await page.evaluate(()=>window.OUTPOST_DEMO_API.getState().sales[0].id);await page.locator('[data-view-link="history"]').first().click();
+  for(const amount of ['0.02','0.01']){await page.locator('[data-return-sale="'+id+'"]').click();await page.locator('[data-return-qty="'+pid+'"]').fill('.5');await page.locator('#open-return-payment').click();await expect(page.locator('#return-payment-card')).toHaveValue(amount);await page.locator('#confirm-sale-return').click();}
+  const result=await page.evaluate(({id,pid})=>{const s=window.OUTPOST_DEMO_API.getState();return {refunded:s.returns.filter(r=>r.saleId===id).reduce((sum,r)=>sum+r.total,0),stock:s.products.find(p=>p.id===pid).stock};},{id,pid});expect(result.refunded).toBeCloseTo(.03,2);expect(result.stock).toBe(1);await expect(page.locator('[data-return-sale="'+id+'"]')).toBeDisabled();
+});
+
+test('legacy demo upgrade keeps an exact recoverable copy of previous work',async({page})=>{
+  await page.goto(origin+'/demo',{waitUntil:'load'});
+  const original=await page.evaluate(()=>{const s=JSON.parse(JSON.stringify(window.OUTPOST_DEMO_API.getState()));s.datasetMeta={fraction:'5%',label:'Legacy sample'};s.sales=[{id:'KEEP-MY-TEST',at:new Date().toISOString(),payment:'cash',cash:10,card:0,total:10,itemCount:0,lines:[]}];const raw=JSON.stringify(s);localStorage.removeItem('outpost_online_demo_legacy_backup_v2');localStorage.setItem('outpost_online_demo_v2',raw);return raw;});
+  await page.reload({waitUntil:'load'});expect(await page.evaluate(()=>window.OUTPOST_DEMO_API.getState().datasetMeta.seedRevision)).toBe(3);
+  expect(await page.evaluate(()=>localStorage.getItem('outpost_online_demo_legacy_backup_v2'))).toBe(original);
+  await page.locator('[data-view="settings"]').click();page.once('dialog',d=>d.accept());await page.locator('#restore-legacy-data').click();await page.waitForLoadState('load');
+  await expect.poll(()=>page.evaluate(()=>window.OUTPOST_DEMO_API.getState().sales[0]?.id)).toBe('KEEP-MY-TEST');
+});
 
 test("homepage exposes the online demo while demo stays noindex", async ({ browser }) => {
   test.setTimeout(40_000);

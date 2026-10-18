@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 from verify_public_site import validate_demo_dialog_contract
+from pathlib import Path
+import subprocess
 
 
 def require(condition: bool, message: str) -> None:
@@ -59,6 +61,7 @@ def test_no_dialogs_fails() -> None:
 
 
 def main() -> int:
+    subprocess.run(['node',str(Path(__file__).with_name('test_demo_month.mjs'))],check=True)
     tests = (
         test_valid_dialogs_pass,
         test_missing_demo_dialog_class_fails,
