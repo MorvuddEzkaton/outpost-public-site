@@ -876,6 +876,45 @@ test("demo appearance settings persist locally", async ({ browser }) => {
 });
 
 
+test("command center chart and layout preferences persist without changing demo records", async ({page}) => {
+  test.setTimeout(45000);
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(origin+'/demo',{waitUntil:'load'});
+  await page.locator('.demo-nav[data-view="home"]').click();
+  const before=await page.evaluate(()=>localStorage.getItem('outpost_online_demo_v2'));
+  await page.locator('[data-dashboard-period="14"]').click();
+  await page.locator('[data-dashboard-chart="line"]').click();
+  await expect(page.locator('#dashboard-chart svg')).toHaveAccessibleName('Чиста виручка за 14 днів');
+  await expect(page.locator('#dashboard-chart polyline')).toHaveCount(1);
+  await page.locator('#dashboard-configure').click();
+  const dialog=page.locator('#dashboard-layout-dialog');await expect(dialog).toBeVisible();
+  await page.keyboard.press('F7');await expect(dialog).toBeVisible();
+  await expect(page.locator('#product-search-dialog')).toBeHidden();
+  await dialog.locator('[data-layout-id="CashBalance"] input').uncheck();
+  await dialog.locator('[data-layout-id="Revenue"] [data-layout-move="-1"]').click();
+  await dialog.locator('[data-dashboard-settings-tab="sections"]').click();
+  await dialog.locator('[data-layout-id="Chart"] input').uncheck();
+  await dialog.locator('#dashboard-layout-save').click();
+  await expect(page.locator('[data-dashboard-metric="CashBalance"]')).toHaveCount(0);
+  await expect(page.locator('.dashboard-kpi').first()).toHaveAttribute('data-dashboard-metric','Revenue');
+  await expect(page.locator('[data-dashboard-section="Chart"]')).toBeHidden();
+  await page.reload({waitUntil:'load'});await page.locator('.demo-nav[data-view="home"]').click();
+  await expect(page.locator('.dashboard-kpi')).toHaveCount(10);
+  await expect(page.locator('.dashboard-kpi').first()).toHaveAttribute('data-dashboard-metric','Revenue');
+  await expect(page.locator('[data-dashboard-section="Chart"]')).toBeHidden();
+  await page.locator('#dashboard-configure').click();
+  await page.keyboard.press('Escape');await expect(dialog).toBeHidden();
+  await expect(page.locator('#dashboard-configure')).toBeFocused();
+  await page.locator('#dashboard-configure').click();
+  await dialog.locator('#dashboard-layout-defaults').click();
+  await dialog.locator('#dashboard-layout-save').click();
+  await expect(page.locator('.dashboard-kpi')).toHaveCount(11);
+  await expect(page.locator('[data-dashboard-section="Chart"]')).toBeVisible();
+  await expect(page.locator('#dashboard-chart svg')).toHaveAccessibleName('Чиста виручка за 14 днів');
+  expect(await page.evaluate(()=>localStorage.getItem('outpost_online_demo_v2'))).toBe(before);
+  expect(errors).toEqual([]);
+});
+
 test("demo cash payment dialog calculates change and blocks underpayment", async ({ browser }) => {
   test.setTimeout(45_000);
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });

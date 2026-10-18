@@ -183,6 +183,7 @@
         : (last ? "Остання зміна #" + last.id + " · закрито " + dateFmt.format(new Date(last.closedAt)) : "Немає відкритої зміни");
     }
     if ($("#home-shift-action")) $("#home-shift-action").textContent = shift ? "Закрити зміну" : "Відкрити зміну";
+    window.OUTPOST_DEMO_DASHBOARD?.render();
   }
 
   function renderShiftHistory() {
@@ -1019,4 +1020,229 @@
   ensureState();
   initEvents();
   renderAll();
+})();
+
+// Browser-local counterpart of the desktop Modern command center.
+(() => {
+  "use strict";
+  const api = window.OUTPOST_DEMO_API;
+  const root = document.querySelector("#command-center");
+  if (!api || !root) return;
+  const KEY = "outpost_online_demo_dashboard_v1";
+  const $ = selector => document.querySelector(selector);
+  const all = selector => Array.from(document.querySelectorAll(selector));
+  const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+  const money = value => api.money(api.round2(number(value))).replace("₴", "грн");
+  const escape = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+  const date = value => { const d = new Date(value); return Number.isFinite(d.getTime()) ? d : null; };
+  const dayKey = d => d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+  const METRICS = [
+    ["CashBalance","Сума в касі","₴","success","finance"],
+    ["Revenue","Виручка сьогодні","↗","accent","history"],
+    ["Receipts","Чеків","▤","accent","history"],
+    ["Cash","Готівкові продажі","₴","success","finance"],
+    ["Card","Продажі карткою","▣","accent","history"],
+    ["Returns","Повернення сьогодні","↶","danger","history"],
+    ["StockValue","Вартість залишку","▦","accent","products"],
+    ["LowStock","Скоро закінчиться","!","warning","products"],
+    ["NegativeStock","Продажі понад залишок","↘","danger",null],
+    ["SupplierDebt","Борги постачальникам","♙","warning",null],
+    ["FiscalProblems","Фіскальні проблеми","✓","success",null],
+    ["AverageReceipt","Середній чек","≈","accent","history"],
+    ["OtherPayments","Інші оплати","▣","muted","history"],
+    ["PendingDocuments","Фіскальна черга","▤","warning",null]
+  ];
+  const SECTIONS = [["Chart","Графік продажів"],["Attention","Потребує уваги"],["LowStockTable","Список товарів, що закінчуються"],["SupplierDebtTable","Список боргів постачальникам"]];
+  const defaults = () => ({metrics:METRICS.map(x=>x[0]),sections:SECTIONS.map(x=>x[0]),hiddenMetrics:["AverageReceipt","OtherPayments","PendingDocuments"],hiddenSections:[],period:7,chart:"bars"});
+  function normalize(raw) {
+    const value = raw && typeof raw === "object" ? raw : {};
+    const ordered = (items, allowed) => [...new Set([...(Array.isArray(items) ? items : []),...allowed])].filter(x=>allowed.includes(x));
+    const ids = METRICS.map(x=>x[0]), sections = SECTIONS.map(x=>x[0]);
+    return {metrics:ordered(value.metrics,ids),sections:ordered(value.sections,sections),
+      hiddenMetrics:(Array.isArray(value.hiddenMetrics)?value.hiddenMetrics:defaults().hiddenMetrics).filter(x=>ids.includes(x)),
+      hiddenSections:(Array.isArray(value.hiddenSections)?value.hiddenSections:[]).filter(x=>sections.includes(x)),
+      period:[1,7,14,30].includes(value.period)?value.period:7,chart:value.chart==="line"?"line":"bars"};
+  }
+  let prefs;
+  try { prefs = normalize(JSON.parse(localStorage.getItem(KEY) || "null")); } catch { prefs = defaults(); }
+  let draft = null;
+  let settingsTab = "metrics";
+  const copy = value => JSON.parse(JSON.stringify(value));
+  function persist(value) {
+    const next = normalize(value);
+    try { localStorage.setItem(KEY,JSON.stringify(next)); prefs=next;return true; }
+    catch { api.showToast("Не вдалося зберегти вигляд головної у браузері.");return false; }
+  }
+  function snapshot() {
+    const state = api.getState(), now = new Date(), today = dayKey(now);
+    const yesterdayAt = new Date(now); yesterdayAt.setDate(now.getDate()-1);
+    const previousKey = dayKey(yesterdayAt);
+    const daily = new Map(), hours = new Map();
+    const empty = () => ({revenue:0,cash:0,card:0,other:0,receipts:0,returns:0});
+    const bucket = (map,key) => {if(!map.has(key))map.set(key,empty());return map.get(key);};
+    const previous = empty();
+    for (const sale of state.sales || []) {
+      const at = date(sale.at); if(!at)continue;
+      const total = number(sale.total);
+      const cash = sale.payment==="cash"?total:sale.payment==="mixed"?number(sale.cash):0;
+      const card = sale.payment==="card"?total:sale.payment==="mixed"?number(sale.card):0;
+      const parts = {revenue:total,cash,card,other:total-cash-card,receipts:1};
+      const targets = [bucket(daily,dayKey(at))];
+      if(dayKey(at)===today)targets.push(bucket(hours,at.getHours()));
+      if(dayKey(at)===previousKey && at<=yesterdayAt)targets.push(previous);
+      for(const target of targets)for(const key of Object.keys(parts))target[key]+=parts[key];
+    }
+    for (const record of state.returns || []) {
+      const at = date(record.at);if(!at)continue;
+      const targets=[bucket(daily,dayKey(at))];
+      if(dayKey(at)===today)targets.push(bucket(hours,at.getHours()));
+      if(dayKey(at)===previousKey && at<=yesterdayAt)targets.push(previous);
+      for(const target of targets){
+        target.revenue-=number(record.total);target.returns+=number(record.total);
+        for(const payment of record.payments || [])target[payment.type==="cash"?"cash":payment.type==="card"?"card":"other"]-=number(payment.amount);
+      }
+    }
+    const products=Array.isArray(state.products)?state.products:[];
+    const low=products.filter(p=>number(p.stock)<5).sort((a,b)=>number(a.stock)-number(b.stock));
+    const suppliers=(state.suppliers || []).filter(s=>Number.isFinite(Number(s.debt)) && s.debt!=null);
+    const debts=suppliers.filter(s=>number(s.debt)>0);
+    const cash=window.OUTPOST_DEMO_MODULES.getCashSummary();
+    return {state,now,today,previous,daily,hours,current:daily.get(today)||empty(),cash,low,debts,supplierData:suppliers.length>0,
+      stockValue:products.reduce((sum,p)=>sum+number(p.cost)*number(p.stock),0)};
+  }
+  function delta(value, previous) {
+    const diff=api.round2(value-previous),sign=diff>0?"+":"";
+    return {text:sign+diff.toLocaleString("uk-UA",{minimumFractionDigits:2,maximumFractionDigits:2})+(previous===0?" · учора 0":" ("+sign+(diff/Math.abs(previous)*100).toLocaleString("uk-UA",{maximumFractionDigits:1})+"%)"),tone:diff>0?"is-positive":diff<0?"is-negative":"is-muted"};
+  }
+  function values(s) {
+    const c=s.current, debt=s.debts.reduce((sum,row)=>sum+number(row.debt),0);
+    const unavailable=["—","Доступно у Windows-версії","is-muted"];
+    const comparison=key=>{const d=delta(c[key],s.previous[key]);return [key==="receipts"?String(c[key]):money(c[key]),d.text,d.tone];};
+    return {
+      CashBalance:[money(s.cash.expected),"За журналом касових рухів · каса №1","is-positive","home-cash"],
+      Revenue:[...comparison("revenue"),"home-sales"],Receipts:[...comparison("receipts"),"home-checks"],
+      Cash:[...comparison("cash"),"home-cash-sales"],Card:[...comparison("card"),"home-card-sales"],
+      Returns:[money(c.returns),"Проведені повернення товарів","is-negative","home-returns"],
+      StockValue:[money(s.stockValue),"За собівартістю · основний склад","","home-stock-value"],
+      LowStock:[s.low.length+" товарів","Потребують перевірки залишку","is-muted","home-low-stock"],
+      NegativeStock:unavailable,SupplierDebt:s.supplierData?[money(debt),s.debts.length+" постачальників","is-muted"]:["—","Немає даних про оплати","is-muted"],
+      FiscalProblems:["—","Пристрої не підключені · демо","is-muted"],
+      AverageReceipt:[money(c.receipts?(c.revenue+c.returns)/c.receipts:0),"Продажі до повернень / кількість чеків",""],
+      OtherPayments:[money(c.other),"Інші способи оплати сьогодні","is-muted"],PendingDocuments:["—","Фіскалізація не підключена","is-muted"]
+    };
+  }
+  function info(key) {
+    const messages={fiscal:"У веб-демо фіскальні пристрої не підключені. Фіскалізація й перевірка черги доступні у Windows-версії.",cloud:"У веб-демо Cloud не підключено. Показники обчислюються з тестових даних у цьому браузері.",backup:"Демо-дані зберігаються у цьому браузері. Автоматичні резервні копії магазину налаштовуються у Windows-версії.",supplier:"Облік оплат і боргів постачальникам доступний у Windows-версії. У цьому демо даних про такі оплати немає.",negative:"Журнал продажів понад залишок доступний у Windows-версії. У веб-демо цей журнал не ведеться."};
+    api.showToast(messages[key]||messages.fiscal);
+  }
+  function renderMetrics(s) {
+    const data=values(s);
+    $("#dashboard-kpis").innerHTML=prefs.metrics.filter(id=>!prefs.hiddenMetrics.includes(id)).map(id=>{
+      const metric=METRICS.find(m=>m[0]===id),value=data[id],route=metric[4];
+      const target=route?'data-dashboard-view="'+route+'"':'data-dashboard-info="'+(id==="SupplierDebt"?"supplier":id==="NegativeStock"?"negative":"fiscal")+'"';
+      const seriesKey={Revenue:'revenue',Receipts:'receipts',Cash:'cash',Card:'card'}[id];
+      let spark='';
+      if(seriesKey){
+        const series=Array.from({length:7},(_,i)=>{const at=new Date(s.now);at.setDate(at.getDate()+i-6);return number(s.daily.get(dayKey(at))?.[seriesKey]);});
+        const min=Math.min(0,...series),range=Math.max(1,Math.max(...series)-min);
+        spark='<svg class="dashboard-spark" viewBox="0 0 160 19" preserveAspectRatio="none" aria-hidden="true"><polyline points="'+series.map((v,i)=>(i*156/6).toFixed(2)+','+(17-(v-min)/range*15).toFixed(2)).join(' ')+'"/></svg>';
+      }
+      return '<button class="dashboard-kpi" type="button" data-dashboard-metric="'+id+'" data-tone="'+metric[3]+'" '+target+' title="'+escape(metric[1]+": "+value[0]+" · "+value[1])+'"><span class="dashboard-kpi-icon" aria-hidden="true">'+metric[2]+'</span><span class="dashboard-kpi-body"><span class="dashboard-kpi-label">'+metric[1]+'</span><strong'+(value[3]?' id="'+value[3]+'"':'')+'>'+escape(value[0])+'</strong><small class="'+(value[2]||'')+'">'+escape(value[1])+'</small>'+spark+'</span></button>';
+    }).join("");
+  }
+  function renderChart(s) {
+    const points=[];
+    if(prefs.period===1){
+      const hours=Array.from(s.hours.keys()),first=Math.min(8,...hours),last=Math.max(first+1,s.now.getHours(),...hours);
+      for(let h=first;h<=last;h++)points.push({label:String(h).padStart(2,"0")+":00",...(s.hours.get(h)||{cash:0,card:0,other:0,revenue:0})});
+    }else for(let i=1-prefs.period;i<=0;i++){
+      const at=new Date(s.now);at.setDate(at.getDate()+i);
+      points.push({label:at.toLocaleDateString("uk-UA",{day:"2-digit",month:"2-digit"}),...(s.daily.get(dayKey(at))||{cash:0,card:0,other:0,revenue:0})});
+    }
+    const line=prefs.chart==="line",height=111,left=48,width=582;
+    const maximum=Math.max(1,...points.map(p=>line?p.revenue:Math.max(0,p.cash)+Math.max(0,p.card)+Math.max(0,p.other)));
+    const minimum=line?Math.min(0,...points.map(p=>p.revenue)):0,range=maximum-minimum;
+    let svg='';
+    for(let tick=0;tick<=3;tick++){
+      const y=10+tick*height/3;
+      svg+='<line class="dashboard-chart-grid" x1="'+left+'" x2="635" y1="'+y+'" y2="'+y+'"/><text class="dashboard-chart-label" x="0" y="'+(y+4)+'">'+Math.round(maximum-tick*range/3)+'</text>';
+    }
+    const path=[];points.forEach((point,index)=>{
+      const slot=width/points.length,x=left+slot*(index+.5),y=10+height-(point.revenue-minimum)/range*height;
+      if(line){path.push(x.toFixed(2)+','+y.toFixed(2));}
+      else{let bottom=10+height;for(const key of ['cash','card','other']){
+        const h=Math.max(0,number(point[key]))/maximum*height;if(h<=0)continue;bottom-=h;
+        svg+='<rect class="chart-'+key+'" x="'+(x-slot*.29).toFixed(2)+'" y="'+bottom.toFixed(2)+'" width="'+(slot*.58).toFixed(2)+'" height="'+h.toFixed(2)+'"><title>'+escape(point.label+' · '+money(point[key]))+'</title></rect>';
+      }}
+      if(index%Math.max(1,Math.ceil(points.length/10))===0)svg+='<text class="dashboard-chart-label" text-anchor="middle" x="'+x.toFixed(2)+'" y="144">'+point.label+'</text>';
+    });
+    if(line)svg+='<polyline class="dashboard-chart-line" points="'+path.join(' ')+'"/>';
+    $("#dashboard-chart").innerHTML='<svg viewBox="0 0 640 150" role="img" aria-label="'+(line?'Чиста виручка':'Оплати продажів')+' за '+(prefs.period===1?'сьогодні':prefs.period+' днів')+'">'+svg+'</svg>';
+    $("#dashboard-chart-subtitle").textContent=line?"Чиста виручка з урахуванням повернень":"Оплати продажів за способами оплати";
+    const total=points.reduce((sum,p)=>sum+p.revenue,0);
+    $("#dashboard-chart-summary").textContent="Чиста виручка за період: "+money(total)+". Готівка: "+money(points.reduce((a,p)=>a+p.cash,0))+". Картка: "+money(points.reduce((a,p)=>a+p.card,0))+".";
+    all('[data-dashboard-period]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.dashboardPeriod)===prefs.period)));
+    all('[data-dashboard-chart]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.dashboardChart===prefs.chart)));
+  }
+  function renderPanels(s) {
+    const debt=s.debts.reduce((sum,row)=>sum+number(row.debt),0);
+    const rows=[['Товари скоро закінчаться',String(s.low.length),'view','products',s.low.length>0],['Продажі понад залишок','Немає журналу в демо','info','negative',false],['Борги постачальникам',s.supplierData?money(debt):'Немає даних','info','supplier',debt>0],['Фіскальні документи','Не підключено · демо','info','fiscal',false],['Локальна резервна копія','Дані у браузері','info','backup',false]];
+    $('#dashboard-attention').innerHTML=rows.map(row=>'<button class="dashboard-attention-row'+(row[4]?' is-warning':'')+'" type="button" data-dashboard-'+row[2]+'="'+row[3]+'"><span>'+row[0]+'</span><strong>'+escape(row[1])+' ›</strong></button>').join('');
+    $('#dashboard-low-stock').innerHTML=s.low.slice(0,5).map(p=>'<tr><td>'+escape(p.code||p.id)+'</td><td>'+escape(p.name)+'</td><td>'+number(p.stock).toLocaleString('uk-UA',{maximumFractionDigits:3})+'</td><td>'+money(p.price)+'</td></tr>').join('')||'<tr><td colspan="4" class="no-data">Товарів із малим залишком немає.</td></tr>';
+    $('#dashboard-suppliers').innerHTML=s.debts.slice(0,5).map(supplier=>'<tr><td>'+escape(supplier.name)+'</td><td>'+(supplier.paidAmount==null?'—':money(supplier.paidAmount))+'</td><td>'+money(supplier.debt)+'</td></tr>').join('')||'<tr><td colspan="3" class="no-data">'+(s.supplierData?'Боргів постачальникам немає.':'У демо-наборі немає даних про оплати постачальникам.')+'</td></tr>';
+    const parent=$('#dashboard-sections'),visible=[];
+    for(const id of prefs.sections){const panel=$('[data-dashboard-section="'+id+'"]');panel.hidden=prefs.hiddenSections.includes(id);panel.classList.remove('is-full-width');parent.append(panel);if(!panel.hidden)visible.push(panel);}
+    if(visible.length%2)visible[visible.length-1].classList.add('is-full-width');
+  }
+  function render() {
+    const s=snapshot();renderMetrics(s);renderChart(s);renderPanels(s);
+    $('#home-shift-status').textContent=s.cash.isOpen?'Відкрита #'+s.cash.shift.id:'Закрита';
+    $('#dashboard-shift-card').classList.toggle('is-closed',!s.cash.isOpen);
+    $('#dashboard-updated').textContent='Оновлено '+s.now.toLocaleTimeString('uk-UA')+' · Порівняння: з учорашнім днем до цього самого часу';
+  }
+  function renderSettings() {
+    for(const [kind,definitions] of [['metrics',METRICS],['sections',SECTIONS]]){
+      const hidden=kind==='metrics'?'hiddenMetrics':'hiddenSections';
+      $('#dashboard-'+(kind==='metrics'?'metrics':'panels')+'-options').innerHTML=draft[kind].map((id,index)=>{
+        const label=definitions.find(x=>x[0]===id)[1];
+        return '<div class="dashboard-layout-row" data-layout-kind="'+kind+'" data-layout-id="'+id+'"><label><input type="checkbox" '+(!draft[hidden].includes(id)?'checked':'')+'/> '+label+'</label><button class="win-btn" type="button" data-layout-move="-1" aria-label="'+escape(label+': вище')+'" '+(index===0?'disabled':'')+'>↑</button><button class="win-btn" type="button" data-layout-move="1" aria-label="'+escape(label+': нижче')+'" '+(index===draft[kind].length-1?'disabled':'')+'>↓</button></div>';
+      }).join('');
+    }
+    selectSettingsTab(settingsTab,false);
+  }
+  function selectSettingsTab(kind,focus) {
+    settingsTab=kind;
+    all('[data-dashboard-settings-tab]').forEach(tab=>{const active=tab.dataset.dashboardSettingsTab===kind;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;if(active&&focus)tab.focus();});
+    $('#dashboard-metrics-options').hidden=kind!=='metrics';$('#dashboard-panels-options').hidden=kind!=='sections';
+  }
+  function move(row,offset) {
+    const kind=row.dataset.layoutKind,id=row.dataset.layoutId,index=draft[kind].indexOf(id),next=index+offset;
+    if(next<0||next>=draft[kind].length)return;
+    [draft[kind][index],draft[kind][next]]=[draft[kind][next],draft[kind][index]];renderSettings();
+    $('[data-layout-kind="'+kind+'"][data-layout-id="'+id+'"] input').focus();
+  }
+  root.addEventListener('click',event=>{
+    const target=event.target.closest('button');if(!target)return;
+    if(target.dataset.dashboardView){api.navigate(target.dataset.dashboardView);return;}
+    if(target.dataset.dashboardInfo){info(target.dataset.dashboardInfo);return;}
+    if(target.dataset.dashboardPeriod && persist({...prefs,period:Number(target.dataset.dashboardPeriod)}))render();
+    if(target.dataset.dashboardChart && persist({...prefs,chart:target.dataset.dashboardChart}))render();
+  });
+  $('#dashboard-refresh').addEventListener('click',()=>api.renderAll());
+  const dialog=$('#dashboard-layout-dialog');
+  $('#dashboard-configure').addEventListener('click',()=>{draft=copy(prefs);settingsTab='metrics';renderSettings();dialog.showModal();$('#dashboard-metrics-tab').focus();});
+  for(const id of ['dashboard-layout-close','dashboard-layout-cancel'])$('#'+id).addEventListener('click',()=>dialog.close());
+  dialog.addEventListener('close',()=>$('#dashboard-configure').focus());
+  $('#dashboard-layout-defaults').addEventListener('click',()=>{draft={...defaults(),period:prefs.period,chart:prefs.chart};renderSettings();});
+  $('#dashboard-layout-save').addEventListener('click',()=>{if(persist(draft)){dialog.close();render();}});
+  dialog.addEventListener('change',event=>{const row=event.target.closest('.dashboard-layout-row');if(!row)return;const key=row.dataset.layoutKind==='metrics'?'hiddenMetrics':'hiddenSections',id=row.dataset.layoutId;draft[key]=draft[key].filter(x=>x!==id);if(!event.target.checked)draft[key].push(id);});
+  dialog.addEventListener('click',event=>{const button=event.target.closest('[data-layout-move]');if(button)move(button.closest('.dashboard-layout-row'),Number(button.dataset.layoutMove));const tab=event.target.closest('[data-dashboard-settings-tab]');if(tab)selectSettingsTab(tab.dataset.dashboardSettingsTab,true);});
+  dialog.addEventListener('keydown',event=>{
+    const row=event.target.closest('.dashboard-layout-row');
+    if(row&&event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(row,event.key==='ArrowUp'?-1:1);}
+    if(event.target.matches('[role="tab"]')&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();selectSettingsTab(event.key==='Home'?'metrics':event.key==='End'?'sections':settingsTab==='metrics'?'sections':'metrics',true);}
+  });
+  window.OUTPOST_DEMO_DASHBOARD={render,getPreferences:()=>copy(prefs)};
+  render();
+  window.setInterval(()=>{if($('[data-view-panel="home"]').classList.contains('is-active')&&!document.querySelector('dialog[open]')&&document.visibilityState==='visible')render();},30000);
 })();

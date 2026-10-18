@@ -131,6 +131,12 @@ test("modern demo sale, dashboard and settings pass WCAG checks in all themes", 
       await page.locator(`.demo-nav[data-view="${view}"]`).click();
       const results = await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa']).analyze();
       for (const violation of results.violations) failures.push(formatViolation(`/demo ${theme}/${view}`,violation));
+      if(view==='home'){
+        await page.locator('#dashboard-configure').click();
+        const dialogResults=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa']).analyze();
+        for(const violation of dialogResults.violations)failures.push(formatViolation(`/demo ${theme}/dashboard-layout`,violation));
+        await page.keyboard.press('Escape');
+      }
     }
   }
   expect(failures,failures.join('\n')).toEqual([]);
