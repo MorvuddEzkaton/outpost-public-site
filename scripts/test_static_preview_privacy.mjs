@@ -70,9 +70,10 @@ require(
 );
 
 // Advanced-mode Pages does not apply _headers to Worker-generated responses.
-// The five demo assets need a direct narrow response-header override.
+// The six demo assets need a direct narrow response-header override.
 const demoAssetPaths = [
   "/assets/outpost-demo-v1.css",
+  "/assets/outpost-demo-modern.css",
   "/assets/outpost-demo-v1.js",
   "/assets/outpost-demo-modules-v1.js",
   "/assets/outpost-demo-returns-v1.js",
@@ -138,5 +139,5 @@ require(
 console.log("Static preview indexability regression: PASS");
 console.log("  non-production static HTML and sitemap responses are noindex,nofollow");
 console.log("  production outpost.com.ua and www remain indexable");
-console.log("  only five valid demo static asset responses get a direct no-cache header");
+console.log("  only six valid demo static asset responses get a direct no-cache header");
 console.log("  non-demo assets and failed demo asset responses retain original cache headers");
