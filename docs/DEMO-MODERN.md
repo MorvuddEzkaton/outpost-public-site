@@ -12,7 +12,8 @@ the existing, live-verified demo cache revalidation path. Semantic surface, fiel
 selection and action colors cover light, dark and high-contrast modes. Action
 background and accent text colors are separate so all four selectable accents can
 meet text contrast requirements. Existing saved appearance choices and demo data
-remain valid; the storage schema and business logic are unchanged.
+remain valid. The later fictional-month scenario and functional workflow additions
+are documented in [DEMO-MONTH.md](DEMO-MONTH.md).
 
 Below 900px navigation becomes a horizontally scrollable row. Narrow layouts wrap
 forms and action groups; dense tables scroll inside their own panels. Dialogs stay
@@ -41,8 +42,9 @@ panels. Seven-day metric sparklines appear only when the dashboard is at least
 The graph aggregates existing browser-local sales and returns, with Today, 7-,
 14- and 30-day periods and stacked payment bars or a net-revenue line. Cash balance
 uses the existing cash journal. Yesterday comparisons stop at the same local time.
-Unavailable fiscal, Cloud, backup, supplier-payment and negative-stock incident
-data are explicitly identified as demo limitations rather than invented results.
+Unavailable fiscal, Cloud, backup and negative-stock incident data are explicitly
+identified as demo limitations. Supplier balances now use the fictional purchase
+and payment records described in DEMO-MONTH.md.
 
 The layout dialog supports metric/panel visibility and order, keyboard navigation,
 cancel and defaults. Preferences use a separate, validated local storage key;

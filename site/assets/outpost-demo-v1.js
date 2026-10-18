@@ -36,141 +36,9 @@
     cashMovements: []
   };
 
-  function makeDemoPrng(seed = 20260912) {
-    let value = seed >>> 0;
-    return () => {
-      value = (value * 1664525 + 1013904223) >>> 0;
-      return value / 4294967296;
-    };
-  }
-
-  function interpolateQuantile(values, unit) {
-    if (!Array.isArray(values) || !values.length) return 50;
-    if (values.length === 1) return Number(values[0]) || 50;
-    const position = Math.max(0, Math.min(0.999999, unit)) * (values.length - 1);
-    const lo = Math.floor(position);
-    const hi = Math.min(values.length - 1, lo + 1);
-    const mix = position - lo;
-    return Number(values[lo]) + (Number(values[hi]) - Number(values[lo])) * mix;
-  }
-
-  function weightedValue(countMap, rand, fallback = 1) {
-    const entries = Object.entries(countMap || {}).map(([key, count]) => [key, Number(count) || 0]).filter(([, count]) => count > 0);
-    const total = entries.reduce((sum, [, count]) => sum + count, 0);
-    if (!total) return fallback;
-    let target = rand() * total;
-    for (const [key, count] of entries) {
-      target -= count;
-      if (target <= 0) return key;
-    }
-    return entries[entries.length - 1][0];
-  }
-
-  function buildProfileSales(profile, customers) {
-    const cfg = profile?.saleProfile;
-    if (!cfg || !Number(cfg.count)) return [];
-
-    const rand = makeDemoPrng(240912);
-    const paymentCounts = { ...(cfg.paymentCounts || {}) };
-    const paymentPool = [];
-    ["cash", "card", "mixed", "debt"].forEach(type => {
-      const count = Math.max(0, Math.floor(Number(paymentCounts[type]) || 0));
-      for (let i = 0; i < count; i += 1) paymentPool.push(type);
-    });
-    while (paymentPool.length < cfg.count) paymentPool.push("cash");
-    paymentPool.length = cfg.count;
-
-    for (let i = paymentPool.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(rand() * (i + 1));
-      [paymentPool[i], paymentPool[j]] = [paymentPool[j], paymentPool[i]];
-    }
-
-    const debtCustomers = (customers || []).filter(customer => Number(customer.debt) > 0);
-    const now = new Date();
-    now.setMinutes(0, 0, 0);
-    const spanMs = 88 * 24 * 60 * 60 * 1000;
-    const startMs = now.getTime() - spanMs;
-    const sales = [];
-
-    for (let i = 0; i < cfg.count; i += 1) {
-      const payment = paymentPool[i] || "cash";
-      const rawAmount = interpolateQuantile(cfg.amountQuantiles, rand());
-      const transformed = Math.max(0.5, rawAmount * (0.95 + rand() * 0.10));
-      const total = Math.round((transformed + Number.EPSILON) * 100) / 100;
-      const itemCount = Math.max(1, Number(weightedValue(cfg.itemCountCounts, rand, 1)) || 1);
-      const baseTime = startMs + spanMs * (i / Math.max(1, cfg.count - 1));
-      const jitterMs = (rand() - 0.5) * 3 * 60 * 60 * 1000;
-      const sale = {
-        id: `D${String(i + 1).padStart(6, "0")}`,
-        at: new Date(baseTime + jitterMs).toISOString(),
-        payment,
-        total,
-        itemCount,
-        lines: []
-      };
-
-      if (payment === "mixed") {
-        const cash = Math.round(total * (0.25 + rand() * 0.5) * 100) / 100;
-        sale.cash = cash;
-        sale.card = Math.round((total - cash) * 100) / 100;
-      } else if (payment === "cash") {
-        sale.cash = total;
-        sale.card = 0;
-      } else if (payment === "card") {
-        sale.cash = 0;
-        sale.card = total;
-      } else if (payment === "debt" && debtCustomers.length) {
-        sale.customerId = debtCustomers[Math.floor(rand() * debtCustomers.length)].id;
-      }
-      sales.push(sale);
-    }
-
-    sales.sort((a, b) => String(b.at).localeCompare(String(a.at)));
-    return sales;
-  }
-
-  function buildProfileCashMovements(profile) {
-    const counts = profile?.cashMovementSourceCounts || {};
-    const totalSource = Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
-    if (!totalSource) return [];
-    const target = Math.max(1, Math.round(totalSource * 0.05));
-    const rand = makeDemoPrng(119947);
-    const result = [];
-    const movementTypes = Object.keys(counts);
-    const today = new Date();
-    today.setMinutes(0, 0, 0);
-
-    for (let i = 0; i < target; i += 1) {
-      const type = weightedValue(counts, rand, movementTypes[0] || "Sale");
-      result.push({
-        id: `CM${String(i + 1).padStart(4, "0")}`,
-        type,
-        amount: Math.round((10 + rand() * 990) * 100) / 100,
-        at: new Date(today.getTime() - (i % 45) * 24 * 60 * 60 * 1000 - rand() * 8 * 60 * 60 * 1000).toISOString()
-      });
-    }
-    return result;
-  }
-
   function buildDemoSeed() {
-    if (!DEMO_PROFILE || DEMO_PRODUCTS.length < 300) return FALLBACK_SEED;
-    const customers = JSON.parse(JSON.stringify(DEMO_PROFILE.customers || []));
-    const suppliers = JSON.parse(JSON.stringify(DEMO_PROFILE.suppliers || []));
-    return {
-      version: 2,
-      datasetMeta: {
-        label: "Анонімізований зріз реальної бази OutPOSt",
-        ...(DEMO_PROFILE.meta || {})
-      },
-      nextSale: 9001,
-      nextPurchase: 501,
-      products: JSON.parse(JSON.stringify(DEMO_PRODUCTS)),
-      customers,
-      suppliers,
-      sales: buildProfileSales(DEMO_PROFILE, customers),
-      purchases: JSON.parse(JSON.stringify(DEMO_PROFILE.purchases || [])),
-      cashMovements: buildProfileCashMovements(DEMO_PROFILE)
-    };
+    return typeof DEMO_PROFILE?.buildMonth === "function" && DEMO_PRODUCTS.length >= 300
+      ? DEMO_PROFILE.buildMonth(DEMO_PRODUCTS) : JSON.parse(JSON.stringify(FALLBACK_SEED));
   }
 
   const SEED = buildDemoSeed();
@@ -188,10 +56,11 @@
       lines: []
     };
   }
-  let cart = [];
+  ensureCheckouts();
+  let cart = JSON.parse(JSON.stringify(activeCheckout().lines));
   let selectedCartProductId = null;
   let activeView = "sale";
-  let selectedCustomerId = null;
+  let selectedCustomerId = activeCheckout().customerId || null;
   let toastTimer = 0;
   let forceProductList = false;
   let lastAddedProductId = null;
@@ -208,17 +77,58 @@
       if (!raw) return cloneSeed();
       const parsed = JSON.parse(raw);
       if (!parsed || parsed.version !== SEED.version || !Array.isArray(parsed.products)) return cloneSeed();
+      if (parsed.datasetMeta?.keepLegacy) return parsed;
+      if (parsed.datasetMeta?.seedRevision !== 3 && parsed.datasetMeta?.fraction === "5%") {
+        try {
+          if (!localStorage.getItem("outpost_online_demo_legacy_backup_v2")) localStorage.setItem("outpost_online_demo_legacy_backup_v2", raw);
+          return cloneSeed();
+        } catch { return parsed; } // Preserve existing work when backup space is unavailable.
+      }
+      if (parsed.datasetMeta?.seedRevision === 3 && !parsed.userModifiedAt && parsed.datasetMeta.anchorDay !== SEED.datasetMeta?.anchorDay) return cloneSeed();
       return parsed;
-    } catch {
-      return cloneSeed();
-    }
+    } catch { return cloneSeed(); }
   }
 
-  function saveState() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      showToast("Не вдалося зберегти стан демо у браузері.");
+  function saveState(userChange = true) {
+    if (userChange) state.userModifiedAt = new Date().toISOString();
+    const checkout=activeCheckout();checkout.lines=JSON.parse(JSON.stringify(cart));checkout.customerId=selectedCustomerId;
+    syncSupplierBalances();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch { showToast("Не вдалося зберегти стан демо у браузері. Звільніть місце перед закриттям сторінки."); }
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+  }
+  function ensureCheckouts() {
+    if(!Array.isArray(state.checkoutDrafts)||!state.checkoutDrafts.length)state.checkoutDrafts=Array.from({length:4},(_,i)=>({id:String(i+1),lines:[],customerId:null}));
+    if(!state.checkoutDrafts.some(d=>d.id===state.activeCheckoutId))state.activeCheckoutId=state.checkoutDrafts[0].id;
+  }
+  function activeCheckout(){ensureCheckouts();return state.checkoutDrafts.find(d=>d.id===state.activeCheckoutId);}
+  function renderCheckoutTabs(){
+    $('#checkout-tabs').innerHTML=state.checkoutDrafts.map((d,i)=>'<button type="button" class="client-tab'+(d.id===state.activeCheckoutId?' is-active':'')+'" data-checkout-id="'+escapeHtml(d.id)+'" aria-pressed="'+(d.id===state.activeCheckoutId)+'">Клієнт '+(i+1)+(d.lines.length?' · '+d.lines.length:'')+'</button>').join('')+'<button type="button" class="client-tab-add" aria-label="Додати клієнта">+</button>';
+  }
+  function switchCheckout(id){
+    saveState(false);state.activeCheckoutId=id;const draft=activeCheckout();cart=JSON.parse(JSON.stringify(draft.lines));selectedCustomerId=draft.customerId||null;selectedCartProductId=null;saveState(false);renderCart();$('#product-search').focus();
+  }
+  function roundQty(value) { return Math.round((Number(value) + Number.EPSILON) * 1000) / 1000; }
+  function localDay(value) { const d=new Date(value);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-"); }
+  function bounds(prefix) {
+    const from=$("#"+prefix+"-from")?.value || localDay(new Date(Date.now()-29*86400000));
+    const to=$("#"+prefix+"-to")?.value || localDay(new Date());
+    const first=new Date(from+"T00:00:00"),last=new Date(to+"T00:00:00");last.setDate(last.getDate()+1);
+    return {from,to,first:+first,last:+last,valid:Number.isFinite(+first)&&Number.isFinite(+last)&&first<last};
+  }
+  function inPeriod(records,range) { return range.valid ? (records||[]).filter(row=>{const at=+new Date(row.at);return at>=range.first&&at<range.last;}) : []; }
+  function setPeriod(prefix,days) { const to=new Date(),from=new Date(to);from.setDate(from.getDate()-days+1);$("#"+prefix+"-from").value=localDay(from);$("#"+prefix+"-to").value=localDay(to); }
+  let historyPage=0,purchasePage=0;
+
+  function syncSupplierBalances() {
+    if (!Array.isArray(state.supplierPayments)) return;
+    for(const supplier of state.suppliers){
+      const purchases=state.purchases.filter(p=>p.supplierId===supplier.id).reduce((sum,p)=>sum+round2(p.qty*p.cost),0);
+      supplier.paidAmount=round2(state.supplierPayments.filter(p=>p.supplierId===supplier.id).reduce((sum,p)=>sum+Number(p.amount),0));
+      supplier.debt=round2(Number(supplier.openingDebt||0)+purchases-supplier.paidAmount);
     }
   }
 
@@ -340,12 +250,12 @@
   function cartTotal() {
     return round2(cart.reduce((sum, line) => {
       const product = productById(line.productId);
-      return sum + (product ? cartUnitPrice(line, product) * Number(line.qty || 0) : 0);
+      return sum + (product ? round2(cartUnitPrice(line, product) * Number(line.qty || 0)) : 0);
     }, 0));
   }
 
   function cartCount() {
-    return cart.reduce((sum, line) => sum + line.qty, 0);
+    return cart.length;
   }
 
   function stockClass(stock) {
@@ -408,6 +318,8 @@
   }
 
   function renderAll() {
+    syncSupplierBalances();
+    renderDatasetInfo();
     renderHome();
     renderProducts();
     renderCart();
@@ -456,11 +368,11 @@
 
     tbody.innerHTML = products.length ? products.map(product => `
       <tr class="search-result-row ${product.id === f7SelectedProductId ? "is-selected" : ""}" data-f7-product="${product.id}">
-        <td>${productCode(product)}</td>
-        <td>${product.barcode}</td>
-        <td><strong>${product.name}</strong></td>
+        <td>${escapeHtml(productCode(product))}</td>
+        <td>${escapeHtml(product.barcode)}</td>
+        <td><strong>${escapeHtml(product.name)}</strong></td>
         <td>${money(product.price)}</td>
-        <td>${product.stock} ${product.unit}</td>
+        <td>${product.stock} ${escapeHtml(product.unit)}</td>
       </tr>
     `).join("") : '<tr><td colspan="5" class="no-data">Товарів не знайдено.</td></tr>';
 
@@ -579,7 +491,7 @@
 
   function addProduct(productId) {
     const existing = cart.find(line => line.productId === productId);
-    if (existing) existing.qty += 1;
+    if (existing) existing.qty = roundQty(existing.qty + 1);
     else cart.push({ productId, qty: 1, discountPercent: 0 });
 
     selectedCartProductId = productId;
@@ -595,7 +507,7 @@
   function setCartQty(productId, delta) {
     const line = cart.find(item => item.productId === productId);
     if (!line) return;
-    line.qty += delta;
+    line.qty = roundQty(line.qty + delta);
     if (line.qty <= 0) {
       removeCartProduct(productId);
       return;
@@ -670,6 +582,10 @@
   }
 
   function renderCart() {
+    const draft=activeCheckout();
+    if(JSON.stringify(draft.lines)!==JSON.stringify(cart)||draft.customerId!==selectedCustomerId)saveState();
+    renderCheckoutTabs();
+    $('#selected-client-label').textContent=customerById(selectedCustomerId)?.name||'не вибрано';
     const lines = $("#cart-lines");
     const empty = $("#cart-empty");
     const count = cartCount();
@@ -702,15 +618,15 @@
       const lineTotal = round2(discountedPrice * line.qty);
       return `
         <tr class="${line.productId === selectedCartProductId ? "is-selected" : ""}" data-cart-row="${product.id}" tabindex="0">
-          <td>${product.barcode}</td>
-          <td>${productCode(product)}</td>
-          <td>${product.name}</td>
+          <td>${escapeHtml(product.barcode)}</td>
+          <td>${escapeHtml(productCode(product))}</td>
+          <td>${escapeHtml(product.name)}</td>
           <td>
             <button class="cart-line-remove" type="button" data-cart-dec="${product.id}" aria-label="Зменшити кількість">−</button>
-            ${line.qty}
+            <input class="cart-quantity-input" type="number" min="0.001" step="0.001" data-cart-quantity="${product.id}" value="${line.qty}" aria-label="Кількість: ${escapeHtml(product.name)}"/>
             <button class="cart-line-remove" type="button" data-cart-inc="${product.id}" aria-label="Збільшити кількість">+</button>
           </td>
-          <td>${product.unit}</td>
+          <td>${escapeHtml(product.unit)}</td>
           <td>${Number(product.price).toFixed(2)}</td>
           <td>${discount.toLocaleString("uk-UA", { maximumFractionDigits: 2 })}</td>
           <td>${discountedPrice.toFixed(2)}</td>
@@ -721,8 +637,9 @@
     }).join("");
 
     $$("[data-cart-row]", lines).forEach(row => {
-      row.addEventListener("click", () => {
+      row.addEventListener("click", event => {
         selectedCartProductId = row.dataset.cartRow;
+        if(event.target.closest('input')){updateCartToolbar();return;}
         renderCart();
       });
       row.addEventListener("focus", () => {
@@ -744,6 +661,20 @@
       event.stopPropagation();
       removeCartProduct(btn.dataset.cartRemove);
     }));
+    lines.querySelectorAll('[data-cart-quantity]').forEach(input=>{
+      input.addEventListener('input',()=>{
+        const value=Number(input.value),line=cart.find(row=>row.productId===input.dataset.cartQuantity);
+        if(!line||!Number.isFinite(value)||value<.001)return;
+        line.qty=roundQty(value);saveState();$('#cart-total').textContent=money(cartTotal());
+        input.closest('tr').children[8].textContent=round2(line.qty*cartUnitPrice(line)).toFixed(2);
+      });
+      input.addEventListener('change',()=>{
+      const value=Number(input.value),line=cart.find(row=>row.productId===input.dataset.cartQuantity);
+      if(!line)return;
+      if(!Number.isFinite(value)||value<.001){showToast('Вкажіть кількість не менше 0,001.');renderCart();return;}
+      line.qty=roundQty(value);renderCart();
+      });
+    });
     updateCartToolbar();
   }
 
@@ -791,6 +722,8 @@
   }
 
   function openPayment(type) {
+    const invalid=$$('[data-cart-quantity]').find(input=>!Number.isFinite(Number(input.value))||Number(input.value)<.001);
+    if(invalid){showToast('Перевірте кількість товару перед оплатою.');invalid.focus();return;}
     if (!cart.length) {
       showToast("Спочатку додайте товар у чек.");
       return;
@@ -875,13 +808,15 @@
         qty: line.qty,
         price: cartUnitPrice(line, product),
         retailPrice: product?.price || 0,
-        discountPercent: cartDiscountPercent(line)
+        discountPercent: cartDiscountPercent(line),
+        unitCost: product?.cost || 0,
+        amount: round2(line.qty * cartUnitPrice(line, product))
       };
     });
 
     lines.forEach(line => {
       const product = productById(line.productId);
-      if (product) product.stock -= line.qty;
+      if (product) product.stock = roundQty(product.stock - line.qty);
     });
 
     if (payment === "debt" && customerId) {
@@ -894,7 +829,7 @@
       at: new Date().toISOString(),
       payment,
       total,
-      itemCount: cartCount(),
+      itemCount: lines.length,
       lines,
       customerId: customerId || undefined,
       cash: round2(split.cash || 0),
@@ -917,12 +852,12 @@
       const cls = stockClass(product.stock);
       return `
         <tr>
-          <td>${productCode(product)}</td>
-          <td>${product.barcode}</td>
-          <td><strong>${product.name}</strong></td>
+          <td>${escapeHtml(productCode(product))}</td>
+          <td>${escapeHtml(product.barcode)}</td>
+          <td><strong>${escapeHtml(product.name)}</strong></td>
           <td>${money(product.price)}</td>
           <td>${money(product.cost)}</td>
-          <td><span class="stock-value ${cls}">${product.stock} ${product.unit}</span></td>
+          <td><span class="stock-value ${cls}">${product.stock} ${escapeHtml(product.unit)}</span></td>
         </tr>
       `;
     }).join("");
@@ -1103,11 +1038,12 @@
 
   function purchaseDraftTotal() {
     const draft = ensurePurchaseDraft();
-    return round2(draft.lines.reduce((sum, line) => sum + Number(line.qty || 0) * Number(line.cost || 0), 0));
+    return round2(draft.lines.reduce((sum, line) => sum + round2(Number(line.qty || 0) * Number(line.cost || 0)), 0));
   }
 
   function renderPurchaseForm() {
     const draft = ensurePurchaseDraft();
+    renderPurchaseDrafts();
     const supplier = $("#purchase-supplier");
     const tbody = $("#purchase-draft-lines");
     const empty = $("#purchase-draft-empty");
@@ -1131,10 +1067,10 @@
         if (!product) return "";
         return `
           <tr>
-            <td>${productCode(product)}</td>
-            <td><strong>${product.name}</strong></td>
+            <td>${escapeHtml(productCode(product))}</td>
+            <td><strong>${escapeHtml(product.name)}</strong></td>
             <td>${Number(line.qty).toLocaleString("uk-UA")}</td>
-            <td>${product.unit}</td>
+            <td>${escapeHtml(product.unit)}</td>
             <td>${money(line.cost)}</td>
             <td>${money(line.newPrice)}</td>
             <td>${money(round2(line.qty * line.cost))}</td>
@@ -1198,7 +1134,7 @@
     if (!product) return;
     selectPurchaseProduct(product.id, true);
     $("#purchase-item-dialog")?.showModal();
-    window.setTimeout(() => $("#purchase-item-barcode")?.focus(), 20);
+    $("#purchase-item-barcode")?.focus();
   }
 
   function addPurchaseDraftLine() {
@@ -1215,11 +1151,11 @@
 
     const existing = draft.lines.find(line => line.productId === product.id);
     if (existing) {
-      existing.qty = round2(existing.qty + qty);
+      existing.qty = roundQty(existing.qty + qty);
       existing.cost = cost;
       existing.newPrice = newPrice;
     } else {
-      draft.lines.push({ productId: product.id, qty: round2(qty), cost, newPrice });
+      draft.lines.push({ productId: product.id, qty: roundQty(qty), cost, newPrice });
     }
 
     saveState();
@@ -1248,7 +1184,7 @@
     draft.lines.forEach(line => {
       const product = productById(line.productId);
       if (!product) return;
-      product.stock = round2(product.stock + line.qty);
+      product.stock = roundQty(product.stock + line.qty);
       product.cost = line.cost;
       product.price = line.newPrice;
       state.purchases.unshift({
@@ -1264,7 +1200,7 @@
     });
 
     state.purchaseDraft = {
-      id: `SES-${String(state.nextPurchase).padStart(6, "0")}`,
+      id: nextPurchaseSessionId(),
       supplierId,
       lines: []
     };
@@ -1275,43 +1211,43 @@
     showToast(`${sessionId} проведено. Товари зараховано на склад.`);
   }
 
+  function nextPurchaseSessionId() {
+    if (!Number.isFinite(state.nextPurchaseSession)) state.nextPurchaseSession=Math.max(1000,...[...state.purchases,...(state.purchaseDrafts||[]),state.purchaseDraft].filter(Boolean).map(p=>Number(String(p.sessionId||p.id).replace(/\D/g,""))||0))+1;
+    return "SES-"+String(state.nextPurchaseSession++).padStart(6,"0");
+  }
+  function shelvePurchaseDraft() {
+    if (!Array.isArray(state.purchaseDrafts)) state.purchaseDrafts=[];
+    const draft=ensurePurchaseDraft();
+    state.purchaseDrafts=state.purchaseDrafts.filter(row=>row.id!==draft.id);
+    if(draft.lines.length)state.purchaseDrafts.unshift(JSON.parse(JSON.stringify(draft)));
+  }
+  function renderPurchaseDrafts() {
+    const root=$("#purchase-saved-drafts");if(!root)return;
+    root.innerHTML=(state.purchaseDrafts||[]).map(d=>'<button type="button" class="win-btn" data-open-purchase-draft="'+escapeHtml(d.id)+'">'+escapeHtml(d.id)+' · '+d.lines.length+' поз.</button>').join("")||'<span class="muted">Інших чернеток немає.</span>';
+    root.querySelectorAll('[data-open-purchase-draft]').forEach(button=>button.addEventListener('click',()=>{
+      const saved=(state.purchaseDrafts||[]).find(d=>d.id===button.dataset.openPurchaseDraft);if(!saved)return;
+      shelvePurchaseDraft();state.purchaseDraft=JSON.parse(JSON.stringify(saved));state.purchaseDrafts=state.purchaseDrafts.filter(d=>d.id!==saved.id);saveState();renderPurchaseForm();
+    }));
+  }
   function renderPurchaseHistory() {
-    const root = $("#purchase-history");
-    if (!root) return;
-    if (!state.purchases.length) {
-      root.innerHTML = '<div class="no-data">Проведених сесій ще немає.</div>';
-      return;
+    const root=$("#purchase-history");if(!root)return;
+    const range=bounds("purchases"),groups=new Map();
+    for(const p of inPeriod(state.purchases,range)){
+      const key=p.sessionId||p.id;
+      if(!groups.has(key))groups.set(key,{id:key,at:p.at,supplierId:p.supplierId,lines:[],total:0});
+      const group=groups.get(key);group.lines.push(p);group.total=round2(group.total+round2(p.qty*p.cost));
     }
-
-    const groups = new Map();
-    state.purchases.forEach(purchase => {
-      const numeric = String(purchase.id || "").replace(/\D/g, "");
-      const key = purchase.sessionId || `SES-${numeric.padStart(6, "0")}`;
-      if (!groups.has(key)) {
-        groups.set(key, {
-          id: key,
-          at: purchase.at,
-          supplierId: purchase.supplierId,
-          positions: 0,
-          qty: 0,
-          total: 0
-        });
-      }
-      const group = groups.get(key);
-      group.positions += 1;
-      group.qty += Number(purchase.qty || 0);
-      group.total += Number(purchase.qty || 0) * Number(purchase.cost || 0);
-    });
-
-    root.innerHTML = Array.from(groups.values()).slice(0, 8).map(session => {
-      const supplier = supplierById(session.supplierId);
-      return `
-        <div class="history-card">
-          <span><strong>${session.id}</strong> · проведено<br><small>${supplier?.name || "Постачальник"} · ${formatDate(session.at)}</small></span>
-          <strong>${session.positions} поз. · ${money(round2(session.total))}</strong>
-        </div>
-      `;
-    }).join("");
+    const sessions=[...groups.values()].sort((a,b)=>b.at.localeCompare(a.at));
+    purchasePage=Math.max(0,Math.min(purchasePage,Math.ceil(sessions.length/8)-1));
+    root.innerHTML=sessions.slice(purchasePage*8,purchasePage*8+8).map(doc=>'<button type="button" class="history-card document-card" data-purchase-document="'+escapeHtml(doc.id)+'"><span><strong>'+escapeHtml(doc.id)+'</strong> · проведено<br><small>'+escapeHtml(supplierById(doc.supplierId)?.name||"Постачальник")+' · '+formatDate(doc.at)+'</small></span><strong>'+doc.lines.length+' поз. · '+money(doc.total)+'</strong></button>').join("")||'<div class="no-data">'+(range.valid?'За цей період сесій немає.':'Перевірте початок і кінець періоду.')+'</div>';
+    $("#purchase-history-count").textContent=sessions.length+" сесій · сторінка "+(purchasePage+1)+" з "+Math.max(1,Math.ceil(sessions.length/8));
+    $("#purchase-history-prev").disabled=purchasePage===0;$("#purchase-history-next").disabled=(purchasePage+1)*8>=sessions.length;
+    root.querySelectorAll('[data-purchase-document]').forEach(b=>b.addEventListener('click',()=>{const doc=groups.get(b.dataset.purchaseDocument);openDocument(doc.id,formatDate(doc.at)+' · '+(supplierById(doc.supplierId)?.name||''),doc.lines.map(l=>({name:productById(l.productId)?.name,qty:l.qty,price:l.cost,amount:round2(l.qty*l.cost)})),doc.total);}));
+  }
+  function openDocument(title,subtitle,lines,total) {
+    $("#demo-document-title").textContent=title;$("#demo-document-subtitle").textContent=subtitle;
+    $("#demo-document-lines").innerHTML=lines.map(l=>'<tr><td>'+escapeHtml(l.name||productById(l.productId)?.name||"Товар")+'</td><td>'+Number(l.qty).toLocaleString("uk-UA",{maximumFractionDigits:3})+'</td><td>'+money(l.price)+'</td><td>'+money(l.amount??round2(l.qty*l.price))+'</td></tr>').join("");
+    $("#demo-document-total").textContent=money(total);$("#demo-document-dialog").showModal();
   }
 
   function paymentLabel(payment) {
@@ -1319,31 +1255,17 @@
   }
 
   function renderSalesHistory() {
-    const tbody = $("#sales-history");
-    if (!state.sales.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="no-data">Продажів ще немає.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = state.sales.slice(0, 30).map(sale => {
-      const returned = window.OUTPOST_DEMO_RETURNS?.returnedAmountForSale?.(sale.id) || 0;
-      const hasLineDetails = Array.isArray(sale.lines) && sale.lines.length > 0;
-      const canReturn = hasLineDetails && returned < Number(sale.total || 0) - 0.004;
-      return `
-        <tr>
-          <td><strong>${sale.id}</strong></td>
-          <td>${formatDate(sale.at)}</td>
-          <td>${paymentLabel(sale.payment)}</td>
-          <td>${sale.itemCount}</td>
-          <td><strong>${money(sale.total)}</strong></td>
-          <td>${returned > 0 ? money(returned) : "—"}</td>
-          <td><button class="win-btn return-action-btn" type="button" data-return-sale="${sale.id}" ${canReturn ? "" : "disabled"} title="${hasLineDetails ? (canReturn ? "Оформити повернення" : "Усе доступне вже повернено") : "Для анонімізованої історії рядки чека не публікуються"}">Повернення</button></td>
-        </tr>
-      `;
-    }).join("");
-
-    tbody.querySelectorAll("[data-return-sale]").forEach(button => {
-      button.addEventListener("click", () => window.OUTPOST_DEMO_RETURNS?.openReturn?.(button.dataset.returnSale));
-    });
+    const tbody=$("#sales-history"),range=bounds("history"),method=$("#history-payment")?.value||"",query=($("#history-search")?.value||"").trim().toLowerCase();
+    const rows=inPeriod(state.sales,range).filter(sale=>(!method||sale.payment===method)&&(!query||[sale.id,...(sale.lines||[]).map(l=>l.name)].join(" ").toLowerCase().includes(query))).sort((a,b)=>b.at.localeCompare(a.at));
+    historyPage=Math.max(0,Math.min(historyPage,Math.ceil(rows.length/30)-1));
+    tbody.innerHTML=rows.slice(historyPage*30,historyPage*30+30).map(sale=>{
+      const returned=window.OUTPOST_DEMO_RETURNS?.returnedAmountForSale?.(sale.id)||0,hasLines=sale.lines?.length,canReturn=hasLines&&(window.OUTPOST_DEMO_RETURNS?.canReturnSale?.(sale.id)??returned<sale.total-.004);
+      return '<tr><td><strong>'+escapeHtml(sale.id)+'</strong></td><td>'+formatDate(sale.at)+'</td><td>'+paymentLabel(sale.payment)+'</td><td>'+sale.itemCount+'</td><td><strong>'+money(sale.total)+'</strong></td><td>'+(returned?money(returned):'—')+'</td><td class="history-actions"><button class="win-btn" type="button" data-open-sale="'+escapeHtml(sale.id)+'" '+(!hasLines?'disabled':'')+'>Відкрити</button><button class="win-btn return-action-btn" type="button" data-return-sale="'+escapeHtml(sale.id)+'" '+(!canReturn?'disabled':'')+' title="'+(hasLines?'Оформити повернення':'Попередній набір без рядків чека')+'">Повернення</button></td></tr>';
+    }).join("")||'<tr><td colspan="7" class="no-data">'+(range.valid?'За цим фільтром продажів немає.':'Перевірте початок і кінець періоду.')+'</td></tr>';
+    $("#history-count").textContent=rows.length+' чеків · '+money(round2(rows.reduce((sum,r)=>sum+r.total,0)))+' · сторінка '+(historyPage+1)+' з '+Math.max(1,Math.ceil(rows.length/30));
+    $("#history-prev").disabled=historyPage===0;$("#history-next").disabled=(historyPage+1)*30>=rows.length;
+    tbody.querySelectorAll('[data-return-sale]').forEach(b=>b.addEventListener('click',()=>window.OUTPOST_DEMO_RETURNS?.openReturn?.(b.dataset.returnSale)));
+    tbody.querySelectorAll('[data-open-sale]').forEach(b=>b.addEventListener('click',()=>{const sale=state.sales.find(s=>s.id===b.dataset.openSale);openDocument(sale.id,formatDate(sale.at)+' · '+paymentLabel(sale.payment)+(sale.payment==='mixed'?' · готівка '+money(sale.cash)+' · картка '+money(sale.card):''),sale.lines,sale.total);}));
   }
 
   function reportData() {
@@ -1383,34 +1305,36 @@
   }
 
   function renderReports() {
-    const { todaySales, total, debtTotal, lowStock } = reportData();
-
-    const stats = [
-      ["Продажі сьогодні", money(total)],
-      ["Кількість чеків", String(todaySales.length)],
-      ["Борг клієнтів", money(debtTotal)],
-      ["Мало товару", String(lowStock)]
-    ];
-
-    $("#stats-grid").innerHTML = stats.map(([label, value]) => `
-      <div class="desktop-card"><span>${label}</span><strong>${value}</strong></div>
-    `).join("");
-
-    const paymentTotals = { cash: 0, card: 0, mixed: 0, debt: 0 };
-    todaySales.forEach(sale => {
-      paymentTotals[sale.payment] = round2((paymentTotals[sale.payment] || 0) + sale.total);
-    });
-
-    $("#payment-breakdown").innerHTML = Object.entries(paymentTotals).map(([key, value]) => `
-      <div class="break-row"><span>${paymentLabel(key)}</span><strong>${money(value)}</strong></div>
-    `).join("");
-
-    const alerts = state.products.filter(p => p.stock < 5).sort((a, b) => a.stock - b.stock);
-    $("#stock-alerts").innerHTML = alerts.length ? alerts.map(p => `
-      <div class="alert-row"><span>${p.name}</span><strong class="stock-value ${stockClass(p.stock)}">${p.stock} ${p.unit}</strong></div>
-    `).join("") : '<div class="no-data">Критичних залишків немає.</div>';
-
+    const range=bounds("reports"),sales=inPeriod(state.sales,range),returns=inPeriod(state.returns,range),purchases=inPeriod(state.purchases,range),writeoffs=inPeriod(state.writeoffs,range);
+    const gross=round2(sales.reduce((sum,s)=>sum+s.total,0)),refund=round2(returns.reduce((sum,r)=>sum+r.total,0));
+    const items=new Map(),daily=new Map(),payments={cash:0,card:0,debt:0};
+    const bucket=key=>{if(!daily.has(key))daily.set(key,{receipts:0,gross:0,refund:0,cost:0});return daily.get(key);};
+    for(let d=new Date(range.first),i=0;range.valid&&+d<range.last&&i<366;i++,d.setDate(d.getDate()+1))bucket(localDay(d));
+    let totalCost=0;
+    const addLine=(line,sign)=>{const p=productById(line.productId),amount=round2(line.amount??line.qty*line.price),cost=round2(line.qty*(line.unitCost??p?.cost??0));if(!items.has(line.productId))items.set(line.productId,{product:p,name:line.name||p?.name,qty:0,revenue:0,cost:0});const row=items.get(line.productId);row.qty=roundQty(row.qty+sign*line.qty);row.revenue=round2(row.revenue+sign*amount);row.cost=round2(row.cost+sign*cost);return cost;};
+    for(const sale of sales){const day=bucket(localDay(sale.at));day.receipts++;day.gross+=sale.total;let cost=0;for(const line of sale.lines||[])cost+=addLine(line,1);day.cost+=cost;totalCost+=cost;payments.cash+=sale.payment==='cash'?sale.total:sale.payment==='mixed'?sale.cash:0;payments.card+=sale.payment==='card'?sale.total:sale.payment==='mixed'?sale.card:0;payments.debt+=sale.payment==='debt'?sale.total:0;}
+    for(const record of returns){const day=bucket(localDay(record.at));day.refund+=record.total;let cost=0;for(const line of record.lines||[])cost+=addLine(line,-1);day.cost-=cost;totalCost-=cost;for(const payment of record.payments||[])if(payment.type in payments)payments[payment.type]-=payment.amount;}
+    const purchaseCost=round2(purchases.reduce((sum,p)=>sum+round2(p.qty*p.cost),0)),loss=round2(writeoffs.reduce((sum,w)=>sum+w.totalCost,0)),net=round2(gross-refund),margin=round2(net-totalCost);
+    $("#reports-error").textContent=range.valid?"":"Дата початку має передувати даті завершення.";
+    const stats=[["Чиста виручка",money(net)],["Продажі до повернень",money(gross)],["Чеків за період",String(sales.length)],["Середній чек",money(sales.length?gross/sales.length:0)],["Повернення",money(refund)],["Собівартість продажів",money(totalCost)],["Валовий прибуток",money(margin)],["Маржа",(net?margin/net*100:0).toLocaleString('uk-UA',{maximumFractionDigits:1})+'%'],["Закупівлі",money(purchaseCost)],["Втрати від списань",money(loss)]];
+    $("#stats-grid").innerHTML=stats.map(([label,value])=>'<div class="desktop-card"><span>'+label+'</span><strong>'+value+'</strong></div>').join("");
+    $("#payment-breakdown").innerHTML=Object.entries(payments).map(([key,value])=>'<div class="break-row"><span>'+paymentLabel(key)+'</span><strong>'+money(value)+'</strong></div>').join("");
+    $("#reports-note").textContent='Вигадані демонстраційні дані. Період: '+range.from+' — '+range.to+'. Валовий прибуток = чиста виручка мінус собівартість проданих товарів. Витрати магазину та податки у демо не враховуються. Комбіновані оплати розподілено між готівкою та карткою.';
+    $("#report-daily").innerHTML=[...daily].sort((a,b)=>b[0].localeCompare(a[0])).map(([day,v])=>'<tr><td><button class="report-day-link" type="button" data-report-day="'+day+'">'+new Date(day+'T12:00:00').toLocaleDateString('uk-UA')+'</button></td><td>'+v.receipts+'</td><td>'+money(v.gross-v.refund)+'</td><td>'+money(v.refund)+'</td><td>'+money(v.gross-v.refund-v.cost)+'</td></tr>').join("")||'<tr><td colspan="5">Немає даних за період.</td></tr>';
+    const ranked=[...items.values()].sort((a,b)=>b.revenue-a.revenue);
+    $("#report-products").innerHTML=ranked.slice(0,12).map(row=>'<tr><td>'+escapeHtml(row.product?.code||'—')+'</td><td>'+escapeHtml(row.name)+'</td><td>'+row.qty.toLocaleString('uk-UA',{maximumFractionDigits:3})+'</td><td>'+money(row.revenue)+'</td><td>'+money(row.revenue-row.cost)+'</td></tr>').join("")||'<tr><td colspan="5">Немає товарних рядків за період.</td></tr>';
+    const categories=new Map();for(const row of ranked){const name=row.product?.category||'Інше';if(!categories.has(name))categories.set(name,{revenue:0,cost:0});const group=categories.get(name);group.revenue+=row.revenue;group.cost+=row.cost;}
+    $("#report-categories").innerHTML=[...categories].sort((a,b)=>b[1].revenue-a[1].revenue).map(([name,v])=>'<tr><td>'+escapeHtml(name)+'</td><td>'+money(v.revenue)+'</td><td>'+money(v.revenue-v.cost)+'</td></tr>').join("")||'<tr><td colspan="3">Немає даних.</td></tr>';
+    const alerts=state.products.filter(p=>p.stock<5).sort((a,b)=>a.stock-b.stock);
+    $("#stock-alerts").innerHTML=alerts.slice(0,20).map(p=>'<div class="alert-row"><span>'+escapeHtml(p.name)+'</span><strong class="stock-value '+stockClass(p.stock)+'">'+p.stock+' '+escapeHtml(p.unit)+'</strong></div>').join("")||'<div class="no-data">Критичних залишків немає.</div>';
+    $("#report-balances").innerHTML='<div class="break-row"><span>Поточний борг клієнтів</span><strong>'+money(state.customers.reduce((sum,c)=>sum+c.debt,0))+'</strong></div><div class="break-row"><span>Поточний борг постачальникам</span><strong>'+money(state.suppliers.reduce((sum,p)=>sum+Number(p.debt||0),0))+'</strong></div>';
+    $("#report-daily").querySelectorAll('[data-report-day]').forEach(b=>b.addEventListener('click',()=>{$('#history-from').value=b.dataset.reportDay;$('#history-to').value=b.dataset.reportDay;$('#history-payment').value='';$('#history-search').value='';historyPage=0;switchView('history');}));
     renderHome();
+  }
+  function renderDatasetInfo() {
+    const meta=state.datasetMeta||{};
+    if($("#demo-dataset-summary"))$("#demo-dataset-summary").textContent=meta.seedRevision===3?'Вигаданий демо-місяць · '+meta.from+' — '+meta.to+' · '+state.sales.length+' чеків':'Попередній демо-набір · можна завантажити новий демонстраційний місяць';
+    $("#restore-legacy-data").hidden=!localStorage.getItem('outpost_online_demo_legacy_backup_v2');
   }
 
   window.OUTPOST_DEMO_API = {
@@ -1424,6 +1348,8 @@
     renderAll,
     money,
     round2,
+    roundQty,
+    syncSupplierBalances,
     productById,
     productCode,
     supplierById,
@@ -1433,9 +1359,9 @@
 
   function resetDemo() {
     if (!window.confirm("Скинути всі зміни та повернути початкові тестові дані?")) return;
-    state = cloneSeed();
+    state = buildDemoSeed();
     state.purchaseDraft = {
-      id: `SES-${String(state.nextPurchase || 204).padStart(6, "0")}`,
+      id: nextPurchaseSessionId(),
       supplierId: state.suppliers?.[0]?.id || "",
       lines: []
     };
@@ -1446,8 +1372,20 @@
     saveState();
     renderAll();
     switchView("sale");
-    showToast("Демо повернуто до початкового стану.");
+    showToast("Завантажено новий вигаданий демонстраційний місяць.");
   }
+
+  for(const prefix of ['reports','history','purchases'])setPeriod(prefix,30);
+  $('#checkout-tabs').addEventListener('click',event=>{const tab=event.target.closest('[data-checkout-id]');if(tab){switchCheckout(tab.dataset.checkoutId);return;}if(event.target.closest('.client-tab-add')){if(state.checkoutDrafts.length>=8){showToast('У демо доступні 8 паралельних чеків.');return;}const id=String(Math.max(...state.checkoutDrafts.map(d=>Number(d.id)))+1);state.checkoutDrafts.push({id,lines:[],customerId:null});switchCheckout(id);}});
+  for(const prefix of ['reports','history','purchases'])for(const suffix of ['from','to'])$('#'+prefix+'-'+suffix).addEventListener('change',()=>{historyPage=0;purchasePage=0;if(prefix==='reports')$('#reports-period').value='custom';renderAll();});
+  $('#reports-period').addEventListener('change',()=>{const days=Number($('#reports-period').value);if(days)setPeriod('reports',days);renderReports();});
+  for(const id of ['history-payment','history-search'])$('#'+id).addEventListener(id==='history-search'?'input':'change',()=>{historyPage=0;renderSalesHistory();});
+  $('#history-prev').addEventListener('click',()=>{historyPage--;renderSalesHistory();});$('#history-next').addEventListener('click',()=>{historyPage++;renderSalesHistory();});
+  $('#purchase-history-prev').addEventListener('click',()=>{purchasePage--;renderPurchaseHistory();});$('#purchase-history-next').addEventListener('click',()=>{purchasePage++;renderPurchaseHistory();});
+  $('#new-purchase-session').addEventListener('click',()=>{shelvePurchaseDraft();state.purchaseDraft={id:nextPurchaseSessionId(),supplierId:state.suppliers[0]?.id||'',lines:[]};saveState();renderPurchaseForm();showToast('Попередню непорожню сесію збережено у чернетках.');});
+  $('#demo-refresh-data').addEventListener('click',resetDemo);
+  $('#restore-legacy-data').addEventListener('click',()=>{const raw=localStorage.getItem('outpost_online_demo_legacy_backup_v2');if(!raw||!confirm('Відновити попередній демо-набір? Поточний набір буде замінено.'))return;try{const previous=JSON.parse(raw);previous.datasetMeta={...previous.datasetMeta,keepLegacy:true};localStorage.setItem(STORAGE_KEY,JSON.stringify(previous));location.reload();}catch{showToast('Не вдалося відновити попередній демо-набір.');}});
+  saveState(false);
 
   Array.from(document.querySelectorAll(".demo-nav")).forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
   Array.from(document.querySelectorAll("[data-view-link]")).forEach(button => button.addEventListener("click", () => switchView(button.dataset.viewLink)));

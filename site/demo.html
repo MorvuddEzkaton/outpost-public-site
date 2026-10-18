@@ -9,7 +9,7 @@
 <link rel="canonical" href="https://outpost.com.ua/demo"/>
 <title>OutPOSt — онлайн-демо</title>
 <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png"/>
-<link rel="stylesheet" href="/assets/outpost-demo-v1.css?v=command-center-20261018"/>
+<link rel="stylesheet" href="/assets/outpost-demo-v1.css?v=month-20261018"/>
 </head>
 <body class="modern-demo">
 <a class="skip-link" href="#demo-main">До демо</a>
@@ -100,7 +100,7 @@
           </section>
           <section class="dashboard-panel" data-dashboard-section="Attention" aria-labelledby="dashboard-attention-title"><h3 id="dashboard-attention-title">Потребує уваги</h3><div id="dashboard-attention"></div></section>
           <section class="dashboard-panel" data-dashboard-section="LowStockTable" aria-labelledby="dashboard-low-title"><div class="dashboard-panel-heading"><h3 id="dashboard-low-title">Скоро закінчиться</h3><button class="win-btn" type="button" data-dashboard-view="products">Переглянути всі ›</button></div><div class="dashboard-table-wrap" tabindex="0" role="region" aria-label="Залишки товарів"><table class="desktop-table"><thead><tr><th>Код</th><th>Товар</th><th>Залишок</th><th>Ціна</th></tr></thead><tbody id="dashboard-low-stock"></tbody></table></div></section>
-          <section class="dashboard-panel" data-dashboard-section="SupplierDebtTable" aria-labelledby="dashboard-supplier-title"><div class="dashboard-panel-heading"><h3 id="dashboard-supplier-title">Борги постачальникам</h3><button class="win-btn" type="button" data-dashboard-info="supplier">Переглянути всі ›</button></div><div class="dashboard-table-wrap" tabindex="0" role="region" aria-label="Борги постачальникам"><table class="desktop-table"><thead><tr><th>Постачальник</th><th>Сплачено</th><th>Борг</th></tr></thead><tbody id="dashboard-suppliers"></tbody></table></div></section>
+          <section class="dashboard-panel" data-dashboard-section="SupplierDebtTable" aria-labelledby="dashboard-supplier-title"><div class="dashboard-panel-heading"><h3 id="dashboard-supplier-title">Борги постачальникам</h3><button class="win-btn" type="button" data-dashboard-view="finance">Переглянути всі ›</button></div><div class="dashboard-table-wrap" tabindex="0" role="region" aria-label="Борги постачальникам"><table class="desktop-table"><thead><tr><th>Постачальник</th><th>Сплачено</th><th>Борг</th></tr></thead><tbody id="dashboard-suppliers"></tbody></table></div></section>
         </div>
         <div class="dashboard-footer"><p id="dashboard-updated"></p><div><button class="win-btn" type="button" id="home-show-withdrawals">Вилучені кошти сьогодні</button><button class="win-btn" type="button" id="open-extra-info">Додаткова інформація</button></div></div>
       </div>
@@ -112,13 +112,7 @@
         <span class="app-version">web demo · preview</span>
       </div>
 
-      <div class="client-tabs" aria-label="Вкладки клієнтів">
-        <button type="button" class="client-tab is-active">Клієнт 1</button>
-        <button type="button" class="client-tab" data-demo-info="Кілька паралельних чеків у веб-демо поки не реалізовані. Поточний чек працює у вкладці «Клієнт 1».">Клієнт 2</button>
-        <button type="button" class="client-tab" data-demo-info="Кілька паралельних чеків у веб-демо поки не реалізовані. Поточний чек працює у вкладці «Клієнт 1».">Клієнт 3</button>
-        <button type="button" class="client-tab" data-demo-info="Кілька паралельних чеків у веб-демо поки не реалізовані. Поточний чек працює у вкладці «Клієнт 1».">Клієнт 4</button>
-        <button type="button" class="client-tab-add" aria-label="Додати клієнта" data-demo-info="Кілька паралельних чеків у веб-демо поки не реалізовані. Поточний чек працює у вкладці «Клієнт 1».">+</button>
-      </div>
+      <div class="client-tabs" id="checkout-tabs" aria-label="Вкладки клієнтів"></div>
 
       <div class="barcode-panel">
         <div class="barcode-main">
@@ -225,6 +219,7 @@
         <span class="app-version">сесії приходу</span>
       </div>
 
+      <div class="demo-filter-bar"><strong>Чернетки сесій</strong><button class="win-btn" type="button" id="new-purchase-session">Нова сесія</button><div class="demo-draft-list" id="purchase-saved-drafts"></div></div>
       <div class="purchase-session-head">
         <div>
           <span class="session-caption">ПОТОЧНА СЕСІЯ</span>
@@ -258,7 +253,9 @@
 
       <div class="desktop-pane purchase-history-pane">
         <div class="pane-head"><h2>Історія проведених сесій</h2></div>
+        <div class="demo-filter-bar"><label>Від<input class="win-input" id="purchases-from" type="date"/></label><label>До<input class="win-input" id="purchases-to" type="date"/></label></div>
         <div id="purchase-history"></div>
+        <div class="demo-pager"><span id="purchase-history-count" role="status"></span><button class="win-btn" type="button" id="purchase-history-prev">Попередні сесії</button><button class="win-btn" type="button" id="purchase-history-next">Наступні сесії</button></div>
       </div>
     </section>
 
@@ -266,12 +263,14 @@
       <div class="app-page-head">
         <h1 id="history-title">Історія продажів</h1>
       </div>
+      <div class="demo-filter-bar"><label>Від<input class="win-input" id="history-from" type="date"/></label><label>До<input class="win-input" id="history-to" type="date"/></label><label>Оплата<select class="win-input" id="history-payment"><option value="">Усі оплати</option><option value="cash">Готівка</option><option value="card">Картка</option><option value="mixed">Комбінована</option><option value="debt">У борг</option></select></label><label class="demo-filter-search">Пошук<input class="win-input" type="search" id="history-search" placeholder="Номер чека або назва товару"/></label></div>
       <div class="desktop-table-wrap">
         <table class="desktop-table">
           <thead><tr><th>№</th><th>Дата</th><th>Оплата</th><th>Позицій</th><th>Сума</th><th>Повернено</th><th></th></tr></thead>
           <tbody id="sales-history"></tbody>
         </table>
       </div>
+      <div class="demo-pager"><span id="history-count" role="status"></span><button class="win-btn" type="button" id="history-prev">Попередні чеки</button><button class="win-btn" type="button" id="history-next">Наступні чеки</button></div>
 
       <div class="desktop-pane returns-history-pane">
         <div class="pane-head">
@@ -289,15 +288,24 @@
 
     <section class="demo-view" data-view-panel="reports" aria-labelledby="reports-title">
       <div class="app-page-head"><h1 id="reports-title">Звіти</h1></div>
+      <div class="demo-filter-bar"><label>Період<select class="win-input" id="reports-period"><option value="1">Сьогодні</option><option value="7">7 днів</option><option value="30" selected>30 днів</option><option value="custom">Власний період</option></select></label><label>Від<input class="win-input" id="reports-from" type="date"/></label><label>До<input class="win-input" id="reports-to" type="date"/></label></div>
+      <p class="demo-field-error" id="reports-error" role="alert"></p>
       <div class="dashboard-grid" id="stats-grid"></div>
+      <p class="demo-report-note" id="reports-note"></p>
+      <div class="demo-report-grid">
+        <section class="desktop-pane"><div class="pane-head"><h2>Продажі за днями</h2><small>Натисніть дату, щоб відкрити чеки дня.</small></div><div class="demo-analytics-table" tabindex="0" role="region" aria-label="Щоденна статистика"><table class="desktop-table"><thead><tr><th>Дата</th><th>Чеків</th><th>Чиста виручка</th><th>Повернення</th><th>Валовий прибуток</th></tr></thead><tbody id="report-daily"></tbody></table></div></section>
+        <section class="desktop-pane"><div class="pane-head"><h2>Продажі за категоріями</h2></div><div class="demo-analytics-table" tabindex="0" role="region" aria-label="Категорії товарів"><table class="desktop-table"><thead><tr><th>Категорія</th><th>Чиста виручка</th><th>Валовий прибуток</th></tr></thead><tbody id="report-categories"></tbody></table></div></section>
+        <section class="desktop-pane demo-report-wide"><div class="pane-head"><h2>Товари за виручкою</h2><small>Кількість та виручка з урахуванням повернень.</small></div><div class="demo-analytics-table" tabindex="0" role="region" aria-label="Продажі товарів"><table class="desktop-table"><thead><tr><th>Код</th><th>Товар</th><th>Кількість</th><th>Чиста виручка</th><th>Валовий прибуток</th></tr></thead><tbody id="report-products"></tbody></table></div></section>
+      </div>
       <div class="desktop-split reports-bottom">
         <div class="desktop-pane">
-          <div class="pane-head"><h2>Оплати</h2></div>
+          <div class="pane-head"><h2>Оплати за період</h2><small>З урахуванням повернень.</small></div>
           <div id="payment-breakdown" class="breakdown"></div>
+          <div class="pane-head"><h2>Борги зараз</h2></div><div class="breakdown" id="report-balances"></div>
         </div>
         <div class="desktop-pane">
-          <div class="pane-head"><h2>Контроль залишків</h2></div>
-          <div id="stock-alerts" class="stock-alerts"></div>
+          <div class="pane-head"><h2>Контроль залишків зараз</h2></div>
+          <div id="stock-alerts" class="stock-alerts" tabindex="0" role="region" aria-label="Товари з малим залишком"></div>
         </div>
       </div>
     </section>
@@ -392,6 +400,7 @@
         <button class="win-btn" type="button" id="show-withdrawals">Вилучені кошти сьогодні</button>
         <button class="win-btn" type="button" id="finance-shift-action">Закрити зміну</button>
       </div>
+      <section class="desktop-pane"><div class="pane-head"><h2>Розрахунки з постачальниками</h2><small>Оплату готівкою можна провести через «Вилучити кошти», обравши постачальника.</small></div><div class="desktop-table-wrap" tabindex="0" role="region" aria-label="Поточні борги постачальникам"><table class="desktop-table"><thead><tr><th>Постачальник</th><th>Закуплено</th><th>Сплачено</th><th>Борг</th></tr></thead><tbody id="finance-suppliers"></tbody></table></div></section>
 
       <div class="desktop-pane finance-journal">
         <div class="pane-head"><h2>Журнал рухів каси</h2><span id="finance-movement-count"></span></div>
@@ -421,6 +430,7 @@
       </div>
 
       <div class="settings-scroll">
+        <section class="settings-panel"><div><h2>Демонстраційний місяць</h2><p id="demo-dataset-summary"></p><p>Спробуйте всі способи оплати, повернення, кілька чернеток закупівель, проведення сесій, списання й інвентаризацію. У «Звітах» оберіть період, а в історії відкрийте будь-який демонстраційний чек.</p><small>Суми, документи й контрагенти вигадані. Реальне фіскальне обладнання, імпорт бази та керування доступами показані як можливості Windows-версії.</small></div><div class="demo-data-actions"><button class="win-btn win-btn-primary" type="button" id="demo-refresh-data">Оновити демо-місяць</button><button class="win-btn" type="button" id="restore-legacy-data" hidden>Відновити попередній набір</button></div></section>
         <section class="settings-panel">
           <div>
             <h2>Інтерфейс і тема</h2>
@@ -530,6 +540,7 @@
     </div>
     <div class="dialog-actions">
       <button class="win-btn" type="submit" value="cancel">Скасувати</button>
+      <button class="win-btn" type="button" id="save-writeoff-draft">Зберегти чернетку й закрити</button>
       <button class="win-btn win-btn-primary" type="button" id="save-writeoff">Зберегти списання</button>
     </div>
   </form>
@@ -917,14 +928,16 @@
   </form>
 </dialog>
 
+<dialog class="demo-dialog demo-document-dialog" id="demo-document-dialog" aria-labelledby="demo-document-title"><form method="dialog"><button class="dialog-close" type="submit" value="cancel" aria-label="Закрити документ">×</button><h2 id="demo-document-title"></h2><p id="demo-document-subtitle"></p><div class="desktop-table-wrap" tabindex="0" role="region" aria-label="Рядки документа"><table class="desktop-table"><thead><tr><th>Товар</th><th>Кількість</th><th>Ціна</th><th>Сума</th></tr></thead><tbody id="demo-document-lines"></tbody></table></div><div class="demo-document-total">Разом <strong id="demo-document-total"></strong></div><p class="demo-report-note">Демонстраційний документ · без фіскалізації.</p><div class="dialog-actions"><button class="win-btn" type="submit" value="cancel">Закрити</button></div></form></dialog>
+
 <script src="/assets/demo-products-v2-1.js?v=20260912-a" defer></script>
 <script src="/assets/demo-products-v2-2.js?v=20260912-a" defer></script>
 <script src="/assets/demo-products-v2-3.js?v=20260912-a" defer></script>
 <script src="/assets/demo-products-v2-4.js?v=20260912-a" defer></script>
-<script src="/assets/demo-profile-v2.js?v=20260912-a" defer></script>
-<script src="/assets/outpost-demo-v1.js?v=command-center-20261018" defer></script>
-<script src="/assets/outpost-demo-modules-v1.js?v=command-center-20261018" defer></script>
-<script src="/assets/outpost-demo-returns-v1.js?v=sale-returns-1" defer></script>
-<script src="/assets/outpost-demo-products-v1.js?v=products-stock-2" defer></script>
+<script src="/assets/demo-profile-v2.js?v=month-20261018" defer></script>
+<script src="/assets/outpost-demo-v1.js?v=month-20261018" defer></script>
+<script src="/assets/outpost-demo-modules-v1.js?v=month-20261018" defer></script>
+<script src="/assets/outpost-demo-returns-v1.js?v=month-20261018" defer></script>
+<script src="/assets/outpost-demo-products-v1.js?v=month-20261018" defer></script>
 </body>
 </html>

@@ -28,7 +28,7 @@
     let changed = false;
     if (!Array.isArray(s.returns)) { s.returns = []; changed = true; }
     if (!Number.isFinite(Number(s.nextReturn)) || Number(s.nextReturn) < 1) { s.nextReturn = 1; changed = true; }
-    if (changed) api.saveState();
+    if (changed) api.saveState(false);
     return s;
   }
 
@@ -84,7 +84,9 @@
         sold: sold,
         returned: returned,
         available: roundQty(Math.max(0, sold - returned)),
-        price: api.round2(Number(line.price || 0))
+        price: api.round2(Number(line.price || 0)),
+        paidAmount: api.round2(line.amount ?? sold * Number(line.price || 0)),
+        refundedAmount: api.round2(returnedLinesForSale(sale.id).filter(row=>row.productId===line.productId).reduce((sum,row)=>sum+Number(row.amount ?? row.qty*row.price),0))
       };
     }).filter(function (item) { return item.sold > 0; });
   }
@@ -95,8 +97,14 @@
     const items = returnableItems(sale);
     return api.round2(items.reduce(function (sum, item) {
       const qty = roundQty(Number(returnDraft.get(item.productId) || 0));
-      return sum + qty * item.price;
+      return sum + allocatedRefund(item,qty);
     }, 0));
+  }
+
+  function allocatedRefund(item,quantity) {
+    const cumulative=Math.min(item.sold,roundQty(item.returned+quantity));
+    const target=api.round2(item.paidAmount*cumulative/item.sold);
+    return api.round2(Math.max(0,Math.min(item.paidAmount-item.refundedAmount,target-item.refundedAmount)));
   }
 
   function renderReturnDialog() {
@@ -185,7 +193,8 @@
         productId: item.productId,
         name: item.name,
         qty: Math.min(qty, item.available),
-        price: item.price
+        price: item.price,
+        amount: allocatedRefund(item,Math.min(qty,item.available))
       };
     }).filter(function (line) { return line.qty > 0; });
   }
@@ -209,17 +218,20 @@
     }
 
     paymentTotal = api.round2(lines.reduce(function (sum, line) {
-      return sum + Number(line.qty) * Number(line.price);
+      return sum + Number(line.amount);
     }, 0));
     const sale = saleById(activeSaleId);
     const customer = sale?.customerId ? api.customerById(sale.customerId) : null;
     debtLimit = customer ? api.round2(Math.min(Number(customer.debt || 0), paymentTotal)) : 0;
 
     if ($("#return-payment-total")) $("#return-payment-total").textContent = "До повернення: " + api.money(paymentTotal);
-    if ($("#return-payment-cash")) $("#return-payment-cash").value = paymentTotal.toFixed(2);
-    if ($("#return-payment-card")) $("#return-payment-card").value = "0";
+    const debtDefault=sale?.payment==='debt'?debtLimit:0;
+    const cardDefault=sale?.payment==='card'?paymentTotal:sale?.payment==='mixed'?api.round2(paymentTotal*Number(sale.card||0)/Math.max(.01,Number(sale.total))):0;
+    const cashDefault=api.round2(paymentTotal-cardDefault-debtDefault);
+    if ($("#return-payment-cash")) $("#return-payment-cash").value = cashDefault.toFixed(2);
+    if ($("#return-payment-card")) $("#return-payment-card").value = cardDefault.toFixed(2);
     if ($("#return-payment-debt")) {
-      $("#return-payment-debt").value = "0";
+      $("#return-payment-debt").value = debtDefault.toFixed(2);
       $("#return-payment-debt").disabled = !customer;
     }
     if ($("#return-debt-hint")) {
@@ -232,8 +244,8 @@
     const dialog = $("#return-payment-dialog");
     if (dialog && !dialog.open) dialog.showModal();
     window.setTimeout(function () {
-      $("#return-payment-cash")?.focus();
-      $("#return-payment-cash")?.select();
+      const field=$(cashDefault>0?'#return-payment-cash':cardDefault>0?'#return-payment-card':'#return-payment-debt');
+      field?.focus();field?.select();
     }, 20);
   }
 
@@ -296,7 +308,7 @@
 
     lines.forEach(function (line) {
       const product = api.productById(line.productId);
-      if (product) product.stock = api.round2(Number(product.stock || 0) + Number(line.qty || 0));
+      if (product) product.stock = roundQty(Number(product.stock || 0) + Number(line.qty || 0));
     });
 
     if (debt > 0 && customer) {
@@ -325,7 +337,8 @@
           name: line.name,
           qty: roundQty(line.qty),
           price: api.round2(line.price),
-          amount: api.round2(line.qty * line.price)
+          unitCost: (sale.lines || []).find(item => item.productId === line.productId)?.unitCost ?? api.productById(line.productId)?.cost ?? 0,
+          amount: line.amount
         };
       }),
       status: "local"
@@ -406,6 +419,7 @@
   window.OUTPOST_DEMO_RETURNS = {
     openReturn: openReturn,
     returnedAmountForSale: returnedAmountForSale,
+    canReturnSale: id => returnableItems(saleById(id)).some(item=>item.available>0),
     renderAll: renderAll,
     renderView: renderView
   };

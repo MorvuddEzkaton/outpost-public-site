@@ -14,7 +14,7 @@
     minute: "2-digit"
   });
 
-  let writeoffDraft = [];
+  let writeoffDraft = JSON.parse(JSON.stringify(api.getState().writeoffDraft?.lines || []));
   let selectedInventoryId = null;
   let activeInventoryId = null;
   let cashActionMode = "in";
@@ -55,7 +55,7 @@
       changed = true;
     }
 
-    if (changed) api.saveState();
+    if (changed) api.saveState(false);
     return s;
   }
 
@@ -223,6 +223,8 @@
   }
 
   function renderFinance() {
+    api.syncSupplierBalances();
+    if ($("#finance-suppliers")) $("#finance-suppliers").innerHTML=state().suppliers.map(supplier=>'<tr><td>'+esc(supplier.name)+'</td><td>'+api.money(Number(supplier.debt||0)+Number(supplier.paidAmount||0))+'</td><td>'+api.money(supplier.paidAmount||0)+'</td><td><strong>'+api.money(supplier.debt||0)+'</strong></td></tr>').join('');
     const s = ensureState();
     const summary = cashSummary();
     const shift = summary.shift;
@@ -460,19 +462,26 @@
     }
 
     const summary = cashSummary();
+    if (!summary.isOpen) { api.showToast("Спочатку відкрийте касову зміну."); return; }
     if (cashActionMode === "out" && amount > summary.expected) {
       api.showToast("У касі недостатньо коштів для такого вилучення.");
       return;
     }
 
+    const supplierId=cashActionMode === "out" ? ($("#cash-action-supplier")?.value || "") : "";
+    const supplier=s.suppliers.find(row=>row.id===supplierId);
+    api.syncSupplierBalances();
+    if (supplier && Number.isFinite(supplier.debt) && amount>supplier.debt+.004) { api.showToast("Оплата перевищує поточний борг постачальнику."); return; }
+    const id="CM-D-"+Date.now(), at=new Date().toISOString();
+    if(supplier){if(!Array.isArray(s.supplierPayments))s.supplierPayments=[];s.supplierPayments.unshift({id:"SP-"+id,supplierId,amount,method:"cash",at});}
     s.cashMovements.unshift({
-      id: "CM-D-" + Date.now(),
-      type: cashActionMode === "in" ? "CashIn" : "CashOut",
+      id,
+      type: supplier ? "SupplierPayment" : cashActionMode === "in" ? "CashIn" : "CashOut",
       direction: cashActionMode,
       affectsCash: true,
       amount: amount,
-      at: new Date().toISOString(),
-      supplierId: cashActionMode === "out" ? ($("#cash-action-supplier") ? $("#cash-action-supplier").value : "") : "",
+      at,
+      supplierId,
       comment: ($("#cash-action-comment") ? $("#cash-action-comment").value.trim() : ""),
       user: "Адмін"
     });
@@ -552,6 +561,7 @@
       button.addEventListener("click", function () {
         writeoffDraft.splice(Number(button.dataset.removeWriteoff), 1);
         renderWriteoffDraft();
+        persistWriteoffDraft();
       });
     });
   }
@@ -578,8 +588,9 @@
 
   function openWriteoffDialog() {
     const s = ensureState();
-    writeoffDraft = [];
-    if ($("#writeoff-comment")) $("#writeoff-comment").value = "";
+    writeoffDraft = JSON.parse(JSON.stringify(s.writeoffDraft?.lines || []));
+    if ($("#writeoff-comment")) $("#writeoff-comment").value = s.writeoffDraft?.comment || "";
+    if ($("#writeoff-reason") && s.writeoffDraft?.reason) $("#writeoff-reason").value = s.writeoffDraft.reason;
     if ($("#writeoff-qty")) $("#writeoff-qty").value = "1";
     if ($("#writeoff-product")) {
       $("#writeoff-product").innerHTML = s.products
@@ -593,9 +604,14 @@
     if (dialog && !dialog.open) dialog.showModal();
   }
 
+  function persistWriteoffDraft() {
+    state().writeoffDraft=writeoffDraft.length?{lines:JSON.parse(JSON.stringify(writeoffDraft)),reason:$("#writeoff-reason")?.value||"Інше",comment:$("#writeoff-comment")?.value.trim()||""}:null;
+    api.saveState();
+  }
+
   function addWriteoffLine() {
     const productId = $("#writeoff-product") ? $("#writeoff-product").value : "";
-    const qty = api.round2(Number($("#writeoff-qty") && $("#writeoff-qty").value) || 0);
+    const qty = api.roundQty(Number($("#writeoff-qty") && $("#writeoff-qty").value) || 0);
     const product = api.productById(productId);
     if (!product || qty <= 0) {
       api.showToast("Оберіть товар і вкажіть коректну кількість.");
@@ -603,11 +619,12 @@
     }
 
     const existing = writeoffDraft.find(function (line) { return line.productId === productId; });
-    if (existing) existing.qty = api.round2(Number(existing.qty) + qty);
+    if (existing) existing.qty = api.roundQty(Number(existing.qty) + qty);
     else writeoffDraft.push({ productId: productId, qty: qty });
 
     if ($("#writeoff-qty")) $("#writeoff-qty").value = "1";
     renderWriteoffDraft();
+    persistWriteoffDraft();
   }
 
   function saveWriteoff() {
@@ -621,14 +638,14 @@
       const product = api.productById(line.productId);
       return {
         productId: line.productId,
-        qty: api.round2(line.qty),
+        qty: api.roundQty(line.qty),
         cost: Number(product && product.cost || 0)
       };
     });
 
     lines.forEach(function (line) {
       const product = api.productById(line.productId);
-      if (product) product.stock = api.round2(Number(product.stock || 0) - Number(line.qty || 0));
+      if (product) product.stock = api.roundQty(Number(product.stock || 0) - Number(line.qty || 0));
     });
 
     const doc = {
@@ -638,11 +655,12 @@
       comment: $("#writeoff-comment") ? $("#writeoff-comment").value.trim() : "",
       user: "Адмін",
       lines: lines,
-      totalCost: api.round2(lines.reduce(function (sum, line) { return sum + Number(line.qty) * Number(line.cost); }, 0))
+      totalCost: api.round2(lines.reduce(function (sum, line) { return sum + api.round2(Number(line.qty) * Number(line.cost)); }, 0))
     };
 
     s.writeoffs.unshift(doc);
     writeoffDraft = [];
+    s.writeoffDraft = null;
     api.saveState();
     $("#writeoff-dialog") && $("#writeoff-dialog").close();
     api.renderAll();
@@ -720,7 +738,7 @@
       items: activeProducts.map(function (product) {
         return {
           productId: product.id,
-          expected: api.round2(Number(product.stock || 0)),
+          expected: api.roundQty(Number(product.stock || 0)),
           actual: null
         };
       })
@@ -780,7 +798,7 @@
         const product = api.productById(item.productId);
         if (!product) return "";
         const counted = item.actual !== null && item.actual !== undefined;
-        const difference = counted ? api.round2(Number(item.actual) - Number(item.expected)) : null;
+        const difference = counted ? api.roundQty(Number(item.actual) - Number(item.expected)) : null;
         const diffText = difference === null ? "—" : (difference > 0 ? "+" : "") + Number(difference).toLocaleString("uk-UA");
         return "<tr>" +
           "<td>" + esc(api.productCode(product)) + "</td>" +
@@ -808,7 +826,7 @@
               renderInventoryDialog();
               return;
             }
-            item.actual = api.round2(value);
+            item.actual = api.roundQty(value);
           }
           saveInventoryComment(inventory);
           api.saveState();
@@ -861,7 +879,7 @@
       return;
     }
 
-    item.actual = api.round2(Number(item.actual == null ? 0 : item.actual) + 1);
+    item.actual = api.roundQty(Number(item.actual == null ? 0 : item.actual) + 1);
     saveInventoryComment(inventory);
     api.saveState();
     if ($("#inventory-scan")) $("#inventory-scan").value = "";
@@ -913,7 +931,7 @@
     inventory.items.forEach(function (item) {
       if (item.actual === null || item.actual === undefined) return;
       const product = api.productById(item.productId);
-      if (product) product.stock = api.round2(Number(item.actual));
+      if (product) product.stock = api.roundQty(Number(product.stock || 0) + Number(item.actual) - Number(item.expected));
     });
 
     inventory.status = "posted";
@@ -965,6 +983,9 @@
     $("#new-writeoff") && $("#new-writeoff").addEventListener("click", openWriteoffDialog);
     $("#add-writeoff-line") && $("#add-writeoff-line").addEventListener("click", addWriteoffLine);
     $("#save-writeoff") && $("#save-writeoff").addEventListener("click", saveWriteoff);
+    $("#save-writeoff-draft").addEventListener("click",()=>{persistWriteoffDraft();$("#writeoff-dialog").close();});
+    for(const id of ['writeoff-comment','writeoff-reason'])$('#'+id).addEventListener('input',()=>{if(writeoffDraft.length)persistWriteoffDraft();});
+    $("#writeoff-dialog").addEventListener("close",persistWriteoffDraft);
     $("#refresh-writeoffs") && $("#refresh-writeoffs").addEventListener("click", function () {
       renderWriteoffs();
       api.showToast("Список списань оновлено.");
@@ -1046,7 +1067,7 @@
     ["StockValue","Вартість залишку","▦","accent","products"],
     ["LowStock","Скоро закінчиться","!","warning","products"],
     ["NegativeStock","Продажі понад залишок","↘","danger",null],
-    ["SupplierDebt","Борги постачальникам","♙","warning",null],
+    ["SupplierDebt","Борги постачальникам","♙","warning","finance"],
     ["FiscalProblems","Фіскальні проблеми","✓","success",null],
     ["AverageReceipt","Середній чек","≈","accent","history"],
     ["OtherPayments","Інші оплати","▣","muted","history"],
@@ -1186,7 +1207,7 @@
   }
   function renderPanels(s) {
     const debt=s.debts.reduce((sum,row)=>sum+number(row.debt),0);
-    const rows=[['Товари скоро закінчаться',String(s.low.length),'view','products',s.low.length>0],['Продажі понад залишок','Немає журналу в демо','info','negative',false],['Борги постачальникам',s.supplierData?money(debt):'Немає даних','info','supplier',debt>0],['Фіскальні документи','Не підключено · демо','info','fiscal',false],['Локальна резервна копія','Дані у браузері','info','backup',false]];
+    const rows=[['Товари скоро закінчаться',String(s.low.length),'view','products',s.low.length>0],['Продажі понад залишок','Немає журналу в демо','info','negative',false],['Борги постачальникам',s.supplierData?money(debt):'Немає даних','view','finance',debt>0],['Фіскальні документи','Не підключено · демо','info','fiscal',false],['Локальна резервна копія','Дані у браузері','info','backup',false]];
     $('#dashboard-attention').innerHTML=rows.map(row=>'<button class="dashboard-attention-row'+(row[4]?' is-warning':'')+'" type="button" data-dashboard-'+row[2]+'="'+row[3]+'"><span>'+row[0]+'</span><strong>'+escape(row[1])+' ›</strong></button>').join('');
     $('#dashboard-low-stock').innerHTML=s.low.slice(0,5).map(p=>'<tr><td>'+escape(p.code||p.id)+'</td><td>'+escape(p.name)+'</td><td>'+number(p.stock).toLocaleString('uk-UA',{maximumFractionDigits:3})+'</td><td>'+money(p.price)+'</td></tr>').join('')||'<tr><td colspan="4" class="no-data">Товарів із малим залишком немає.</td></tr>';
     $('#dashboard-suppliers').innerHTML=s.debts.slice(0,5).map(supplier=>'<tr><td>'+escape(supplier.name)+'</td><td>'+(supplier.paidAmount==null?'—':money(supplier.paidAmount))+'</td><td>'+money(supplier.debt)+'</td></tr>').join('')||'<tr><td colspan="3" class="no-data">'+(s.supplierData?'Боргів постачальникам немає.':'У демо-наборі немає даних про оплати постачальникам.')+'</td></tr>';

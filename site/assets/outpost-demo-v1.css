@@ -1008,3 +1008,40 @@ html[data-demo-theme="contrast"] .modern-demo :is(.dashboard-kpi .is-positive,.d
 @container(min-width:1000px){.modern-demo .dashboard-spark{display:block}}
 @media(max-width:900px){.modern-demo .sidebar-section{display:none}html:root .modern-demo [data-view-panel="home"] .app-page-head{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.modern-demo .command-center{margin:0 -8px}}
 @media(max-width:560px){html:root .modern-demo [data-view-panel="home"] .app-page-head{margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px}.modern-demo .command-center{margin:0 -4px}.modern-demo .dashboard-statuses{grid-template-columns:repeat(2,minmax(0,1fr))}.modern-demo .dashboard-shift{grid-column:1/-1}.modern-demo .dashboard-heading h2{font-size:18px}.modern-demo .dashboard-heading>div{margin-left:auto}html:root .modern-demo .dashboard-chart-controls .win-btn{min-height:36px}.modern-demo .dashboard-chart-label{font-size:12px}.modern-demo .dashboard-kpi{min-height:72px}.modern-demo .dashboard-layout-footer>div{width:100%;justify-content:flex-end}.modern-demo .home-header-meta{gap:4px}.modern-demo .home-mode-badge{display:none}}
+/* Historical demo documents and analysis use the existing Modern surfaces. */
+.modern-demo .demo-filter-bar{display:flex;align-items:end;flex-wrap:wrap;gap:10px;padding:10px 0;min-width:0}
+.modern-demo #stats-grid .desktop-card{min-width:0;padding:12px}
+.modern-demo #stats-grid .desktop-card strong{display:block;font-size:clamp(16px,1.6vw,24px);overflow-wrap:anywhere}
+.modern-demo .break-row{min-width:0;flex-wrap:wrap}
+.modern-demo .break-row strong{overflow-wrap:anywhere}
+.modern-demo .cart-quantity-input{width:78px;min-height:36px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:4px}
+.modern-demo .demo-filter-bar label{display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0}
+.modern-demo .demo-filter-bar .win-input{width:100%;min-width:0;max-width:100%}
+.modern-demo .demo-filter-search{flex:1;min-width:170px!important}
+.modern-demo .demo-draft-list{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-width:0}
+.modern-demo .demo-pager{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0;font-size:12px}
+.modern-demo .demo-pager>span{flex:1;min-width:150px;color:var(--muted)}
+.modern-demo .history-actions{display:flex;gap:4px;min-width:210px}
+.modern-demo .document-card{width:100%;text-align:left;color:var(--text);font:inherit;border:1px solid var(--line);background:var(--surface);border-radius:7px;gap:8px}
+.modern-demo .document-card:hover{background:var(--selected)}
+html:root .modern-demo :is(.desktop-card span,.purchase-session-head .session-caption,.purchase-session-head small,.purchase-draft-total>span,.history-card small){color:var(--muted)}
+html:root .modern-demo #stock-alerts .stock-value{color:var(--text)}
+.modern-demo .demo-report-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:12px 0}
+.modern-demo .demo-report-grid .desktop-pane{min-width:0}
+.modern-demo .demo-report-wide{grid-column:1/-1}
+.modern-demo .demo-analytics-table{overflow:auto;max-height:360px;border:1px solid var(--line);border-radius:7px}
+.modern-demo .demo-analytics-table .desktop-table{min-width:520px}
+.modern-demo .report-day-link{background:transparent;border:0;color:var(--accent-ink);text-decoration:underline;padding:4px 0;white-space:nowrap}
+.modern-demo .demo-report-note{font-size:12px;color:var(--muted);line-height:1.5;margin:10px 0}
+.modern-demo #stock-alerts{max-height:360px;overflow:auto}
+.modern-demo .client-tabs{overflow:auto;max-width:100%}
+.modern-demo .demo-field-error{color:var(--danger);font-size:13px;margin:4px 0}
+.modern-demo .demo-field-error:empty{display:none}
+.modern-demo .demo-data-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.modern-demo .demo-data-actions [hidden]{display:none}
+.modern-demo .demo-document-dialog{width:min(880px,calc(100vw - 24px))}
+.modern-demo .demo-document-dialog .desktop-table-wrap{max-height:55dvh;overflow:auto;min-width:0}
+.modern-demo .demo-document-dialog .desktop-table{min-width:550px}
+.modern-demo .demo-document-total{display:flex;justify-content:flex-end;gap:18px;align-items:center;font-size:18px}
+@media(max-width:1000px){.modern-demo .demo-report-grid{grid-template-columns:minmax(0,1fr)}.modern-demo .demo-data-actions{flex-direction:row;flex-wrap:wrap}}
+@media(max-width:500px){.modern-demo .demo-filter-bar>label{flex:1;min-width:120px}.modern-demo .demo-pager{gap:5px}.modern-demo .demo-pager>span{flex-basis:100%}.modern-demo .document-card{align-items:flex-start;flex-direction:column}}
