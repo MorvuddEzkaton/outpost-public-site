@@ -92,6 +92,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.OUTPOST_PAGES_DEPLOY_TOKEN }}
           OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED: ${{ vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/production_deployment_gate.py --check --wait-seconds 900
 
       - name: Wait for Cloudflare and verify live production
