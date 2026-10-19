@@ -416,6 +416,43 @@ class TransportTests(unittest.TestCase):
         self.assertEqual(first.get_header('Authorization'), 'Bearer synthetic-readonly')
         self.assertIsNone(second.get_header('Authorization'))
 
+    def test_transient_history_archive_download_recovers_only_with_fresh_signed_url(self):
+        payload = zipped({'sample': 'non-secret'})
+        artifact = {'id': 123, 'digest': 'sha256:' + hashlib.sha256(payload).hexdigest()}
+        first_redirect = HTTPError('https://api.github.com', 302, '', {'Location': 'https://example.blob.core.windows.net/expired?sig=old'}, None)
+        second_redirect = HTTPError('https://api.github.com', 302, '', {'Location': 'https://example.blob.core.windows.net/renewed?sig=new'}, None)
+        temp_error = HTTPError('https://example.blob.core.windows.net', 503, '', {}, None)
+        response = Mock(status=200)
+        response.read.return_value = payload
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        opener = Mock()
+        opener.open.side_effect = [first_redirect, temp_error, second_redirect, response]
+        with patch.object(history, 'build_opener', return_value=opener), patch.object(history.time, 'sleep') as sleep:
+            self.assertEqual(self.client.publication_journal(artifact), {'sample': 'non-secret'})
+        self.assertEqual(sleep.call_count, 1)
+        calls = [call.args[0] for call in opener.open.call_args_list]
+        self.assertEqual(calls[0].get_header('Authorization'), 'Bearer synthetic-readonly')
+        self.assertEqual(calls[2].get_header('Authorization'), 'Bearer synthetic-readonly')
+        self.assertIsNone(calls[1].get_header('Authorization'))
+        self.assertIsNone(calls[3].get_header('Authorization'))
+
+    def test_permanent_or_repeated_history_failures_still_block_publication(self):
+        artifact = {'id': 123, 'digest': 'sha256:' + '0' * 64}
+        redirect = lambda: HTTPError('https://api.github.com', 302, '', {'Location': 'https://example.blob.core.windows.net/a?sig=fresh'}, None)
+        bad = lambda: HTTPError('https://example.blob.core.windows.net', 503, '', {}, None)
+        opener = Mock()
+        opener.open.side_effect = [redirect(), bad(), redirect(), bad(), redirect(), bad()]
+        with patch.object(history, 'build_opener', return_value=opener), patch.object(history.time, 'sleep') as sleep:
+            with self.assertRaisesRegex(gate.GateError, 'history_download_unavailable'):
+                self.client.publication_journal(artifact)
+        self.assertEqual(sleep.call_count, 2)
+        opener.open.side_effect = [HTTPError('https://api.github.com', 403, '', {}, None)]
+        with patch.object(history, 'build_opener', return_value=opener), patch.object(history.time, 'sleep') as sleep:
+            with self.assertRaisesRegex(gate.GateError, 'history_download_unavailable'):
+                self.client.publication_journal(artifact)
+        sleep.assert_not_called()
+
     def test_redirect_to_insecure_local_or_unrelated_host_is_rejected(self):
         for url in ('http://example.blob.core.windows.net/a', 'https://127.0.0.1/a', 'https://attacker.example/a',
                     'https://' + 'user:pass@example.blob.core.windows.net/a', 'https://example.blob.core.windows.net:444/a',

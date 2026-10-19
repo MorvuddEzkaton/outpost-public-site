@@ -10,7 +10,8 @@ from io import BytesIO
 import hashlib
 import json
 import re
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
+import time
 from urllib.parse import urlsplit
 from urllib.request import Request, build_opener
 from zipfile import ZipFile, ZIP_STORED, ZIP_DEFLATED
@@ -139,27 +140,39 @@ class HistoryReads:
         endpoint = 'https://api.github.com/repos/' + gate.REPOSITORY + '/actions/artifacts/' + str(identity) + '/zip'
         request = Request(endpoint, headers={'Authorization': 'Bearer ' + self.github_token,
                           'Accept': 'application/vnd.github+json', 'User-Agent': 'OutPOSt-Publisher-History-Guard'}, method='GET')
-        location = None
-        try:
-            with build_opener(gate.NoRedirect).open(request, timeout=20):
-                raise gate.GateError('history_download_redirect_required')
-        except HTTPError as error:
-            gate.require(error.code == 302, 'history_download_unavailable')
-            location = download_location(error.headers.get('Location'))
-        except gate.GateError:
-            raise
-        except Exception:
-            raise gate.GateError('history_download_unavailable') from None
-        try:
-            # The signed storage URL is never printed/persisted and receives NO
-            # GitHub Authorization header. Do not follow a second redirect.
-            with build_opener(gate.NoRedirect).open(Request(location, method='GET'), timeout=20) as response:
-                gate.require(response.status == 200, 'history_download_unavailable')
-                payload = response.read(MAX_ARCHIVE + 1)
-        except gate.GateError:
-            raise
-        except Exception:
-            raise gate.GateError('history_download_unavailable') from None
+        # Retry only transient read failures. Every attempt re-requests a fresh
+        # short-lived signed URL; no credentials go to storage, and an ambiguous
+        # response never authorizes any deployment.
+        payload = None
+        for attempt in range(3):
+            try:
+                try:
+                    with build_opener(gate.NoRedirect).open(request, timeout=20):
+                        raise gate.GateError('history_download_redirect_required')
+                except HTTPError as error:
+                    if error.code != 302:
+                        if error.code in (429, 500, 502, 503, 504):
+                            raise URLError('transient_git_archive_redirect')
+                        raise gate.GateError('history_download_unavailable') from None
+                    location = download_location(error.headers.get('Location'))
+                # Never forward GitHub Authorization to signed storage; no
+                # implicit second redirect or unbounded extraction.
+                with build_opener(gate.NoRedirect).open(Request(location, method='GET'), timeout=20) as response:
+                    gate.require(response.status == 200, 'history_download_unavailable')
+                    payload = response.read(MAX_ARCHIVE + 1)
+                break
+            except HTTPError as error:
+                if error.code not in (429, 500, 502, 503, 504):
+                    raise gate.GateError('history_download_unavailable') from None
+            except (URLError, TimeoutError, OSError):
+                pass
+            except gate.GateError:
+                raise
+            except Exception:
+                raise gate.GateError('history_download_unavailable') from None
+            if attempt < 2:
+                time.sleep(attempt + 1)
+        gate.require(payload is not None, 'history_download_unavailable')
         return archive_journal(payload, artifact)
 
 
