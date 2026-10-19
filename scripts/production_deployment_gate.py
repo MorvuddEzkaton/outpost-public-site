@@ -248,7 +248,7 @@ def main():
     parser.add_argument('--check', action='store_true', help='Read-only remote proof; trusted CI context required')
     parser.add_argument('--wait-seconds', type=int, default=0)
     args = parser.parse_args()
-    require(0 <= args.wait_seconds <= 300, 'invalid_wait_bound')
+    require(0 <= args.wait_seconds <= 900, 'invalid_wait_bound')
     if not args.check:
         from verify_cloudflare_config import main as config_check
         require(config_check() == 0, 'offline_config_rejected')

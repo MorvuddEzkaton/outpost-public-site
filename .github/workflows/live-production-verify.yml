@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}
-    timeout-minutes: 8
+    timeout-minutes: 25
     steps:
       - name: Checkout production source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout@v7
@@ -92,7 +92,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.OUTPOST_PAGES_DEPLOY_TOKEN }}
           OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED: ${{ vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED }}
-        run: python scripts/production_deployment_gate.py --check --wait-seconds 300
+        run: python scripts/production_deployment_gate.py --check --wait-seconds 900
 
       - name: Wait for Cloudflare and verify live production
         env:

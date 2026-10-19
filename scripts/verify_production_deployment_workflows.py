@@ -6,9 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def verify_live(text):
     markers = ["github.repository == 'MorvuddEzkaton/outpost-public-site'", "github.ref == 'refs/heads/main'",
-               "github.actor == github.repository_owner", "environment: production", "permissions:\n  contents: read",
+               "github.actor == github.repository_owner", "environment: production", "timeout-minutes: 25", "permissions:\n  contents: read",
                "vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED == '1'", "ref: ${{ github.sha }}", "persist-credentials: false",
-               "python scripts/production_deployment_gate.py --check --wait-seconds 300",
+               "python scripts/production_deployment_gate.py --check --wait-seconds 900",
                "secrets.OUTPOST_PAGES_DEPLOY_TOKEN", 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}', '"scripts/production_deployment_gate.py"', '"scripts/verify_cloudflare_config.py"']
     errors = [f'missing live provenance marker: {marker}' for marker in markers if marker not in text]
     guard = text.find('run: python scripts/production_deployment_gate.py --check')
