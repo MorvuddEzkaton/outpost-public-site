@@ -427,6 +427,28 @@ def check_html_pages(errors: list[str]) -> int:
     return len(html_pages)
 
 
+def check_homepage_semantics(errors: list[str]) -> None:
+    """Keep the full homepage content in the primary landmark, before the global footer."""
+    text = read_text(SITE / "index.html")
+    positions = {
+        "main_open": text.find("<main"),
+        "main_close": text.find("</main>"),
+        "extra_questions": text.find('<section class="faq-section-new seo-depth-section">'),
+        "footer_open": text.find('<footer class="footer">'),
+        "footer_close": text.find("</footer>"),
+    }
+    if any(value < 0 for value in positions.values()) or not (
+        positions["main_open"] < positions["extra_questions"]
+        < positions["main_close"] < positions["footer_open"] < positions["footer_close"]
+    ) or text.count("</main>") != 1 or text.count('<footer class="footer">') != 1:
+        errors.append("site/index.html: homepage main must enclose the extra FAQ and close before the global footer")
+
+    for page in ("index.html", "oblik-tovariv-u-magazyni.html",
+                 "avtomatyzatsiya-zakupivel-i-skladu.html"):
+        if '<a href="/tsinnyky-ta-etyketky">Цінники та етикетки</a>' not in read_text(SITE / page):
+            errors.append(f"site/{page}: missing contextual link to the labels module")
+
+
 def check_cabinet_boundary(errors: list[str]) -> None:
     for name in ("index.html", "features.html", "buhgalteriya.html"):
         path = SITE / name
@@ -771,6 +793,7 @@ def main() -> int:
 
     check_required_files(errors)
     html_count = check_html_pages(errors)
+    check_homepage_semantics(errors)
     check_cabinet_boundary(errors)
     check_script_contract(errors)
     check_seo_intent_separation(errors)

@@ -1328,3 +1328,22 @@ test("MINI-T400 first-screen device image is not lazy loaded", async ({page}) =>
   await expect(device).toHaveAttribute("fetchpriority", "high");
   await expect(device).toBeVisible();
 });
+
+test("homepage landmark order and label-workflow links stay accessible", async ({page}) => {
+  await page.goto(origin + "/", {waitUntil:"load"});
+  await expect(page.locator("main")).toHaveCount(1);
+  await expect(page.locator("main .seo-depth-section")).toHaveCount(1);
+  await expect(page.locator("main footer")).toHaveCount(0);
+  await expect(page.locator("body > footer.footer")).toHaveCount(1);
+  await expect(page.locator('.scenario-more a[href="/tsinnyky-ta-etyketky"]')).toHaveCount(1);
+  await page.goto(origin + "/oblik-tovariv-u-magazyni", {waitUntil:"load"});
+  await expect(page.locator('main a[href="/tsinnyky-ta-etyketky"]')).toHaveCount(1);
+  await page.goto(origin + "/avtomatyzatsiya-zakupivel-i-skladu", {waitUntil:"load"});
+  await expect(page.locator('main a[href="/tsinnyky-ta-etyketky"]')).toHaveCount(1);
+  await page.goto(origin + "/programa-dlya-fop", {waitUntil:"load"});
+  await expect(page.locator('main a[href="/buhgalterska-programa-dlya-fop"]')).toHaveCount(1);
+  await page.goto(origin + "/oblik-tovariv-u-magazyni", {waitUntil:"load"});
+  await expect(page.locator('main a[href="/buhgalterskyi-oblik-dlya-magazynu"]')).toHaveCount(1);
+  await page.goto(origin + "/prro", {waitUntil:"load"});
+  await expect(page.locator('main a[href="/prro-checkbox"]')).toHaveCount(1);
+});
