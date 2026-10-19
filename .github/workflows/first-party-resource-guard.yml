@@ -31,5 +31,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Test first-party resource guard against missing assets
+        run: python scripts/test_first_party_resources.py
+
       - name: Reject third-party browser subresources in public source
         run: python scripts/verify_first_party_resources.py
