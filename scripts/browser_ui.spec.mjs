@@ -680,7 +680,8 @@ test("store automation page reflects current director and batch capabilities", a
     const directorTour = page.locator("#director-payroll-tour");
     await expect(directorTour.getByRole("heading",{name:"Від огляду магазину до контрольованої виплати зарплатні"})).toBeVisible();
     await expect(directorTour.locator("figure.tour-shot")).toHaveCount(8);
-    await expect(directorTour).toContainText("v0.24.22");
+    await expect(directorTour).toContainText("Вісім реальних екранів OutPOSt показують локальний Кабінет директора");
+    await expect(directorTour).not.toContainText("v0.24.22");
     await expect(directorTour).toContainText("Це управлінський розрахунок винагороди, а не податкова або кадрова звітність");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
@@ -880,7 +881,8 @@ test("modules page presents current module capabilities without milestone histor
     await expect(page.locator("#promotions-loyalty a[href='/avtomatyzatsiya-rozdribnoi-torgivli']")).toHaveCount(1);
     await expect(page.locator("#batch-expiry a[href='#batch-registry-tour']")).toHaveCount(1);
     await expect(page.locator("#batch-registry-tour figure.tour-shot")).toHaveCount(7);
-    await expect(page.locator("#batch-registry-tour")).toContainText("v0.24.19");
+    await expect(page.locator("#batch-registry-tour")).toContainText("Сім реальних екранів OutPOSt");
+    await expect(page.locator("#batch-registry-tour")).not.toContainText("v0.24.19");
     await expect(page.locator("#batch-registry-tour .tour-note a[href='/oblik-tovariv-u-magazyni']")).toHaveCount(1);
     await expect(page.locator("#labels-printing a[href='/tsinnyky-ta-etyketky']")).toHaveCount(1);
     await expect(page.locator(".feature-tour img[src='/assets/screenshots/02414/labels/01-editor.webp']")).toHaveCount(1);
@@ -1236,7 +1238,8 @@ test("remaining migrated galleries load every image and keep separate debt flows
         await expect(tour).toContainText("25,40 грн");
       }
       if(item.path==="/support") {
-        await expect(tour).toContainText("0.24.10");
+        await expect(tour).toContainText("реальний екран довідки OutPOSt з демонстраційної бази");
+        await expect(tour).not.toContainText("0.24.10");
         await expect(page.locator('link[rel="stylesheet"][href="/assets/feature-tour-v1.css"]')).toHaveCount(1);
       }
       for(let i=0;i<item.count;i++) {
