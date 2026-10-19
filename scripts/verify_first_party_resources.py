@@ -14,7 +14,7 @@ import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
@@ -25,6 +25,51 @@ CSS_IMPORT_RE = re.compile(
     r"@import\s+(?:url\(\s*)?(['\"]?)([^'\"\)\s;]+)\1\s*\)?",
     re.IGNORECASE,
 )
+
+
+# The legacy smoke check already validates normal a/img/script/link paths.
+# This closes its remaining static-asset blind spots: srcset, video posters,
+# media/source tags, font files, and CSS url()/@import resources.
+STATIC_ASSET_SUFFIXES = {
+    ".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico",
+    ".avif", ".gif", ".woff", ".woff2", ".ttf", ".otf", ".mp4",
+    ".webm", ".ogg", ".mp3", ".wav", ".pdf",
+}
+
+
+def local_static_target(source: Path, raw: str, site_root: Path = SITE) -> Path | None:
+    """Resolve an expected *static* first-party resource, without fetching it."""
+    value = raw.strip()
+    if not value or value.startswith(("#", "data:", "blob:")):
+        return None
+
+    parsed = urlsplit("https:" + value if value.startswith("//") else value)
+    if parsed.scheme and parsed.scheme != "https":
+        return None
+    if parsed.netloc and parsed.netloc.lower() != PUBLIC_HOST:
+        return None
+
+    url_path = unquote(parsed.path)
+    if not url_path or Path(url_path).suffix.lower() not in STATIC_ASSET_SUFFIXES:
+        return None
+
+    root = site_root.resolve()
+    target = (root / url_path.lstrip("/")) if url_path.startswith("/") else (source.parent / url_path)
+    return target.resolve()
+
+
+def check_local_static_resource(
+    source: Path, context: str, raw: str, errors: list[str], site_root: Path = SITE
+) -> None:
+    """Fail closed on broken or escaping same-origin static asset references."""
+    target = local_static_target(source, raw, site_root)
+    if target is None:
+        return
+    root = site_root.resolve()
+    if not target.is_relative_to(root):
+        errors.append(f"{source}: {context} escapes public site root: {raw}")
+    elif not target.is_file():
+        errors.append(f"{source}: missing local asset in {context}: {raw}")
 
 
 def split_srcset(value: str) -> list[str]:
@@ -129,6 +174,8 @@ def check_html(errors: list[str]) -> int:
                 errors.append(
                     f"site/{path.name}: third-party browser resource in {context}: {value}"
                 )
+            else:
+                check_local_static_resource(path, context, value, errors)
     return count
 
 
@@ -147,6 +194,8 @@ def check_css(errors: list[str]) -> int:
                 errors.append(
                     f"{path.relative_to(ROOT).as_posix()}: third-party browser resource in {context}: {value}"
                 )
+            else:
+                check_local_static_resource(path, context, value, errors)
     return count
 
 
@@ -164,10 +213,11 @@ def main() -> int:
 
     print(
         "FIRST-PARTY RESOURCE GUARD: PASS — "
-        f"{html_count} HTML files and {css_count} CSS files contain no third-party browser subresources"
+        f"{html_count} HTML files and {css_count} CSS files contain no third-party browser subresources or missing local static assets"
     )
     print("  external navigation links are outside this guard")
     print("  source does not depend on CSP to block third-party scripts/styles/images/media/frames")
+    print("  srcset, poster, CSS url()/@import and other first-party static assets resolve inside site/")
     return 0
 
 
