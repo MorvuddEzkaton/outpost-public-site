@@ -236,7 +236,9 @@ def verify_current(env, root=ROOT, client=None, wait_seconds=0):
         except GateError:
             require(time.monotonic() < deadline, 'matching_successful_deployment_not_available')
             require(client.github('/git/ref/heads/main')['object']['sha'] == sha, 'main_advanced_during_wait')
-            time.sleep(5)
+            # Reduce repeated authenticated GitHub and Cloudflare polling while the
+            # separate browser/production pipeline safely advances to this exact SHA.
+            time.sleep(15)
     require(client.github('/git/ref/heads/main')['object']['sha'] == sha, 'main_advanced_after_deployment')
     validate_notification_mode(client.health())
     return {'schema_version': 1, 'kind': 'production-provenance-not-release-announcement', 'source_sha': sha,
