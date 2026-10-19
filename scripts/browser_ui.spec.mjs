@@ -1340,4 +1340,10 @@ test("homepage landmark order and label-workflow links stay accessible", async (
   await expect(page.locator('main a[href="/tsinnyky-ta-etyketky"]')).toHaveCount(1);
   await page.goto(origin + "/avtomatyzatsiya-zakupivel-i-skladu", {waitUntil:"load"});
   await expect(page.locator('main a[href="/tsinnyky-ta-etyketky"]')).toHaveCount(1);
+  await page.goto(origin + "/programa-dlya-fop", {waitUntil:"load"});
+  await expect(page.locator('main a[href="/buhgalterska-programa-dlya-fop"]')).toHaveCount(1);
+  await page.goto(origin + "/oblik-tovariv-u-magazyni", {waitUntil:"load"});
+  await expect(page.locator('main a[href="/buhgalterskyi-oblik-dlya-magazynu"]')).toHaveCount(1);
+  await page.goto(origin + "/prro", {waitUntil:"load"});
+  await expect(page.locator('main a[href="/prro-checkbox"]')).toHaveCount(1);
 });
