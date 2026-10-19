@@ -78,7 +78,8 @@ def validate_review(main, prs, reviews, sha, detail=None):
 def automatic_approval_enabled(env):
     # Unset means legacy/manual mode. A malformed setting can never enable deploys.
     value = env.get('OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED', '0')
-    require(value in ('0', '1'), 'invalid_automatic_approval_setting')
+    # GitHub Actions expands an unset vars.NAME to an empty string.
+    require(value in ('', '0', '1'), 'invalid_automatic_approval_setting')
     return value == '1'
 
 def validate_environment(environment, policies, automatic=False):

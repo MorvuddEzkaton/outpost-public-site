@@ -133,7 +133,8 @@ class GateTests(unittest.TestCase):
     def test_auto_mode_needs_explicit_variable_and_no_human_reviewers(self):
         self.assertFalse(gate.automatic_approval_enabled(environment()))
         self.assertTrue(gate.automatic_approval_enabled({**environment(), 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED': '1'}))
-        for value in ['', 'true', 'yes', '2', None]:
+        self.assertFalse(gate.automatic_approval_enabled({**environment(), 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED': ''}))
+        for value in ['true', 'yes', '2', None]:
             with self.subTest(value=value), self.assertRaisesRegex(gate.GateError, 'invalid_automatic_approval_setting'):
                 gate.automatic_approval_enabled({**environment(), 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED': value})
         gate.validate_environment(automatic_env(), policies(), automatic=True)
