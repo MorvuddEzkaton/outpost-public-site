@@ -189,7 +189,7 @@ a{color:inherit}
 .stock-value.critical{color:var(--danger);font-weight:600}
 .toast{
   position:fixed;right:16px;bottom:16px;z-index:100;max-width:430px;padding:10px 13px;background:#263845;color:#fff;border:1px solid #4b6577;
-  box-shadow:0 5px 18px rgba(0,0,0,.22);font-size:12px;opacity:0;transform:translateY(8px);pointer-events:none;transition:.18s
+  box-shadow:0 5px 18px rgba(0,0,0,.22);font-size:12px;opacity:0;transform:translateY(8px);pointer-events:none;transition:transform .18s
 }
 .toast.is-visible{opacity:1;transform:none}
 .demo-dialog{width:min(440px,calc(100vw - 28px));padding:0;border:1px solid #8b9ba7;background:#fff;color:#111;box-shadow:0 18px 45px rgba(0,0,0,.35)}
