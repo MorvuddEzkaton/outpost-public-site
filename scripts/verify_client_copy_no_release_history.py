@@ -39,6 +39,9 @@ HISTORY_PATTERNS = (
     re.compile(r"\bцей\s+етап\b", re.IGNORECASE),
     re.compile(r"окрем\w+\s+етап", re.IGNORECASE),
     re.compile(r"\bетап\s+\d+\b", re.IGNORECASE),
+    re.compile(r"демонстраційн\w*[^.!?\n]{0,140}\bv?0\.\d+\.\d+\b", re.IGNORECASE),
+    re.compile(r"\bпопередн\w*\s+версі\w*\s+сайту\b", re.IGNORECASE),
+    re.compile(r"\bу цій версії\s+спосіб оплати\b", re.IGNORECASE),
 )
 
 MARKETING_META = {
