@@ -49,6 +49,11 @@ def protected_env():
     return {'name': 'production', 'protection_rules': [{'type': 'required_reviewers', 'reviewers': [{'type': 'User', 'reviewer': {'login': gate.OWNER}}]}],
             'deployment_branch_policy': {'protected_branches': False, 'custom_branch_policies': True}}
 
+def automatic_env():
+    value = protected_env()
+    value['protection_rules'] = []
+    return value
+
 def policies():
     return {'total_count': 1, 'branch_policies': [{'name': 'main', 'type': 'branch'}]}
 
@@ -124,6 +129,31 @@ class GateTests(unittest.TestCase):
                       {'total_count': 1, 'branch_policies': [{'name': 'main', 'type': 'tag'}]},
                       {'total_count': 2, 'branch_policies': policies()['branch_policies']*2}]:
             with self.subTest(value=value), self.assertRaises(gate.GateError): gate.validate_environment(protected_env(), value)
+
+    def test_auto_mode_needs_explicit_variable_and_no_human_reviewers(self):
+        self.assertFalse(gate.automatic_approval_enabled(environment()))
+        self.assertTrue(gate.automatic_approval_enabled({**environment(), 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED': '1'}))
+        self.assertFalse(gate.automatic_approval_enabled({**environment(), 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED': ''}))
+        for value in ['true', 'yes', '2', None]:
+            with self.subTest(value=value), self.assertRaisesRegex(gate.GateError, 'invalid_automatic_approval_setting'):
+                gate.automatic_approval_enabled({**environment(), 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED': value})
+        gate.validate_environment(automatic_env(), policies(), automatic=True)
+        for automatic, cfg in [(True, protected_env()), (False, automatic_env())]:
+            with self.subTest(automatic=automatic), self.assertRaises(gate.GateError):
+                gate.validate_environment(cfg, policies(), automatic=automatic)
+        for bad in [
+            {'name': 'preview'},
+            {'deployment_branch_policy': {'protected_branches': False, 'custom_branch_policies': False}},
+            {'deployment_branch_policy': None},
+            {'protection_rules': [{'type': 'required_reviewers', 'reviewers': []}]},
+        ]:
+            with self.subTest(change=bad), self.assertRaises(gate.GateError):
+                gate.validate_environment({**automatic_env(), **bad}, policies(), automatic=True)
+        for changed in [{'total_count': 0, 'branch_policies': []},
+                        {'total_count': 1, 'branch_policies': [{'name': '*', 'type': 'branch'}]},
+                        {'total_count': 1, 'branch_policies': [{'name': 'main', 'type': 'tag'}]}]:
+            with self.subTest(policies=changed), self.assertRaises(gate.GateError):
+                gate.validate_environment(automatic_env(), changed, automatic=True)
 
     def test_old_missing_legacy_or_disabled_health_blocks(self):
         gate.validate_notification_mode(health())
@@ -219,7 +249,7 @@ class GateTests(unittest.TestCase):
 
                 with self.subTest(path=path), self.assertRaises(gate.GateError): client.github(path)
 
-    def fake_client(self, sequence=None, change_main=False, unsafe_after=False):
+    def fake_client(self, sequence=None, change_main=False, unsafe_after=False, automatic=False):
         class Client:
             pages_calls=0
             main_calls=0
@@ -231,7 +261,7 @@ class GateTests(unittest.TestCase):
                 if suffix.startswith('/commits/'):return prs()
                 if suffix.startswith('/pulls/'):return reviews()
                 if suffix.endswith('/deployment-branch-policies'):return policies()
-                if suffix.endswith('/production'):return protected_env()
+                if suffix.endswith('/production'):return automatic_env() if automatic else protected_env()
                 raise AssertionError('Unexpected route')
             def pages(self):
                 self.pages_calls+=1
@@ -241,10 +271,10 @@ class GateTests(unittest.TestCase):
                 return {**health(), **({'legacy_release_notifications_enabled': True} if unsafe_after and self.health_calls>1 else {})}
         return Client()
 
-    def verify_with(self, client, wait_seconds=0):
+    def verify_with(self, client, wait_seconds=0, automatic=False):
         config=json.loads((gate.ROOT/'wrangler.jsonc').read_text(encoding='utf-8'))
         with patch.object(gate,'local_source',return_value=(config,HASH)),patch.object(gate.time,'sleep'):
-            return gate.verify_current(environment(),client=client,wait_seconds=wait_seconds)
+            return gate.verify_current({**environment(), 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED': '1' if automatic else '0'},client=client,wait_seconds=wait_seconds)
 
     def test_remote_orchestration_is_readonly_exact_and_rechecks_health(self):
         client=self.fake_client()
@@ -253,6 +283,14 @@ class GateTests(unittest.TestCase):
         self.assertEqual(proof['database_writes'],0)
         self.assertEqual(client.health_calls,2)
         self.assertEqual(client.pages_calls,1)
+
+    def test_auto_mode_requires_matching_remote_environment_during_full_proof(self):
+        client=self.fake_client(automatic=True)
+        self.assertEqual(self.verify_with(client, automatic=True)['deployment_id'], DEPLOYMENT)
+        with self.assertRaisesRegex(gate.GateError, 'human_deployment_approval_missing'):
+            self.verify_with(self.fake_client(automatic=True))
+        with self.assertRaisesRegex(gate.GateError, 'automatic_mode_requires_no_required_reviewers'):
+            self.verify_with(self.fake_client(), automatic=True)
 
     def test_wait_old_version_until_matching_actual_success(self):
         old=project();old['canonical_deployment']['deployment_trigger']['metadata']['commit_hash']=HEAD

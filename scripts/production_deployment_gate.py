@@ -3,7 +3,8 @@
 Local default is offline validation. Network modes require trusted protected-main
 GitHub context. A commit-subject PR marker is NOT accepted as review evidence.
 Authorization is either a CODEOWNER approval on the exact PR head, or a verified
-owner-authored AND owner-merged PR. Production environment approval stays separate.
+owner-authored AND owner-merged PR. The production environment remains main-only;
+manual review is default, with an explicit repository-variable-controlled auto mode.
 """
 from __future__ import annotations
 import argparse
@@ -74,11 +75,23 @@ def validate_review(main, prs, reviews, sha, detail=None):
             'review_not_approved_for_exact_head')
     return {'pr': pr['number'], 'head_sha': head_sha, 'owner_review_id': latest['id']}
 
-def validate_environment(environment, policies):
+def automatic_approval_enabled(env):
+    # Unset means legacy/manual mode. A malformed setting can never enable deploys.
+    value = env.get('OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED', '0')
+    # GitHub Actions expands an unset vars.NAME to an empty string.
+    require(value in ('', '0', '1'), 'invalid_automatic_approval_setting')
+    return value == '1'
+
+def validate_environment(environment, policies, automatic=False):
     require(environment.get('name') == 'production', 'production_environment_missing')
     rules = [r for r in environment.get('protection_rules', []) if r.get('type') == 'required_reviewers']
-    require(len(rules) == 1 and any(r.get('type') == 'User' and r.get('reviewer', {}).get('login') == OWNER
-                                  for r in rules[0].get('reviewers', [])), 'human_deployment_approval_missing')
+    if automatic:
+        # In automatic mode require the explicit absence of required reviewers.
+        # A forgotten human approval or an inconsistent setting is never silently bypassed.
+        require(not rules, 'automatic_mode_requires_no_required_reviewers')
+    else:
+        require(len(rules) == 1 and any(r.get('type') == 'User' and r.get('reviewer', {}).get('login') == OWNER
+                                      for r in rules[0].get('reviewers', [])), 'human_deployment_approval_missing')
     require(environment.get('deployment_branch_policy') == {'protected_branches': False, 'custom_branch_policies': True},
             'main_only_environment_policy_required')
     entries = policies.get('branch_policies', [])
@@ -182,7 +195,7 @@ class ReadOnlyClients:
     def health(self):
         return self._json('https://outpost.com.ua/api/telegram/health', {'User-Agent': 'OutPOSt-Notification-Mode-Guard'})
 
-def review_proof(client, sha):
+def review_proof(client, sha, automatic=False):
     main = client.github('/git/ref/heads/main')
     prs = client.github('/commits/' + sha + '/pulls?per_page=100')
     matches = [p for p in prs if p.get('merged_at') and p.get('merge_commit_sha') == sha]
@@ -192,7 +205,7 @@ def review_proof(client, sha):
     # Associated-PR responses omit merged_by; the exact PR endpoint supplies it.
     detail = client.github('/pulls/' + str(matches[0]['number'])) if matches[0].get('user', {}).get('login') == OWNER else None
     proof = validate_review(main, prs, reviews, sha, detail)
-    validate_environment(client.github('/environments/production'), client.github('/environments/production/deployment-branch-policies'))
+    validate_environment(client.github('/environments/production'), client.github('/environments/production/deployment-branch-policies'), automatic=automatic)
     return proof
 
 def local_source(root, sha):
@@ -210,7 +223,7 @@ def verify_current(env, root=ROOT, client=None, wait_seconds=0):
     sha = trusted_context(env)
     config, config_hash = local_source(root, sha)
     client = client or ReadOnlyClients(env)
-    review = review_proof(client, sha)
+    review = review_proof(client, sha, automatic=automatic_approval_enabled(env))
     # Safe read-only health, not /download or /; no legacy notifier side effects.
     validate_notification_mode(client.health())
     deadline = time.monotonic() + wait_seconds

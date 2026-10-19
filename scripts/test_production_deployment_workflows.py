@@ -14,7 +14,7 @@ class WorkflowTests(unittest.TestCase):
     def test_all_privilege_and_provenance_guards_required(self):
         for marker in ["environment: production", "github.ref == 'refs/heads/main'", "ref: ${{ github.sha }}", "persist-credentials: false",
                        "python scripts/production_deployment_gate.py --check --wait-seconds 300", "secrets.OUTPOST_PAGES_DEPLOY_TOKEN",
-                       "github.repository == 'MorvuddEzkaton/outpost-public-site'", "github.actor == github.repository_owner"]:
+                       "github.repository == 'MorvuddEzkaton/outpost-public-site'", "github.actor == github.repository_owner", "OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}"]:
             with self.subTest(marker=marker): self.assertTrue(verify_live(self.live.replace(marker,'REMOVED',1)))
 
     def test_source_only_check_cannot_substitute_for_deployment_proof(self):
@@ -28,6 +28,10 @@ class WorkflowTests(unittest.TestCase):
     def test_bypass_triggers_privileges_or_logging_fail(self):
         for extra in ['continue-on-error: true','contents: write','pull-requests: write','pull_request_target:','workflow_run:','printenv','set -x']:
             with self.subTest(extra=extra): self.assertTrue(verify_live(self.live+'\n'+extra))
+
+    def test_confirmation_auto_mode_must_match_writer(self):
+        self.assertTrue(verify_confirmation(self.confirm.replace(
+            'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}', 'REMOVED')))
 
     def test_confirmation_missing_proof_cannot_use_key(self):
         self.assertTrue(verify_confirmation(self.confirm.replace('python scripts/production_deployment_gate.py --check','echo skipped',1)))

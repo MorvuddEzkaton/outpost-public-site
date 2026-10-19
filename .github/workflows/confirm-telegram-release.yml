@@ -38,6 +38,8 @@ jobs:
       vars.OUTPOST_CONFIRMED_RELEASE_PUBLICATION_ENABLED == '1'
     environment: production
     runs-on: ubuntu-24.04
+    env:
+      OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}
     timeout-minutes: 8
     steps:
       - name: Checkout exact trusted main event

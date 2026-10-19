@@ -293,7 +293,7 @@ def preflight(env, root, client, notification_mode=True):
     history_clear(client, env, root)
     config, config_hash = gate.local_source(root, sha)
     gate.require(config_hash == APPROVED_CONFIG_HASH and not (root / '.release-hold').exists(), 'approved_configuration_or_release_hold_rejected')
-    review = gate.review_proof(client, sha)
+    review = gate.review_proof(client, sha, automatic=gate.automatic_approval_enabled(env))
     if notification_mode:
         gate.validate_notification_mode(client.health())
     project = client.pages()

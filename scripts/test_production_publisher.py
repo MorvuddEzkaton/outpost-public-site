@@ -39,6 +39,7 @@ class FakeClient:
                       'path': history.WORKFLOW_PATH, 'repository': {'id': history.REPOSITORY_ID, 'full_name': gate.REPOSITORY},
                       'head_repository': {'id': history.REPOSITORY_ID}}]
         self.rollback_calls = []
+        self.automatic_approval = False
 
     def publication_runs(self):
         first = {**self.runs[0], 'id': history.FIRST_RUN_ID, 'run_number': 1, 'head_sha': history.FIRST_SOURCE,
@@ -62,7 +63,10 @@ class FakeClient:
         if suffix == '/git/ref/heads/main':
             return {'object': {'sha': self.main}}
         if suffix == '/environments/production':
-            return protected_env()
+            value = protected_env()
+            if self.automatic_approval:
+                value['protection_rules'] = []
+            return value
         if suffix == '/environments/production/deployment-branch-policies':
             return policies()
         if '/reviews' in suffix:
@@ -163,6 +167,19 @@ class PublisherTests(unittest.TestCase):
             with self.subTest(runs=runs), self.assertRaises(gate.GateError):
                 self.client.runs = runs
                 publisher.preflight(self.env, self.root, self.client)
+
+    def test_auto_approval_keeps_entire_preflight_proof(self):
+        auto_env = {**self.env, 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED': '1'}
+        self.client.automatic_approval = True
+        value = publisher.preflight(auto_env, self.root, self.client)
+        self.assertEqual(value[0], SHA)
+        self.assertEqual(value[3]['owner_review_id'], 10)
+        self.client.automatic_approval = False
+        with self.assertRaisesRegex(gate.GateError, 'automatic_mode_requires_no_required_reviewers'):
+            publisher.preflight(auto_env, self.root, self.client)
+        self.client.automatic_approval = True
+        with self.assertRaisesRegex(gate.GateError, 'human_deployment_approval_missing'):
+            publisher.preflight(self.env, self.root, self.client)
 
     def test_original_config_hash_required(self):
         with patch.object(gate, 'local_source', return_value=({}, '0' * 64)), self.assertRaises(gate.GateError):
