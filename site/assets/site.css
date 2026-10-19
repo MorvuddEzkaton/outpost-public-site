@@ -1021,7 +1021,7 @@ body.design-v20 .scenario-flow article:not(.veteran-steps *) p{color:#45566a!imp
 .hero-approved-bg,.hero-approved-shade{display:none}
 @media(min-width:701px){
 body.design-v20 .hero{background:#07111b!important}
-body.design-v20 .hero-approved-bg{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;object-position:center center!important;opacity:1!important;visibility:visible!important;z-index:0!important}
+body.design-v20 .hero-approved-bg{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;object-position:center center!important;background-image:url('/assets/hero-approved-panorama-v1.webp')!important;background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important;opacity:1!important;visibility:visible!important;z-index:0!important}
 body.design-v20 .hero-approved-shade{position:absolute!important;inset:0!important;display:block!important;z-index:1!important;pointer-events:none!important;background:linear-gradient(90deg,rgba(2,10,18,.30) 0%,rgba(2,10,18,.16) 28%,rgba(2,10,18,.06) 46%,rgba(2,10,18,0) 62%)!important}
 body.design-v20 .hero-inner{height:100%!important;display:flex!important;align-items:center!important;position:relative!important;z-index:2!important;padding-top:48px!important}
 body.design-v20 .hero-copy{width:55%!important;max-width:690px!important;position:relative!important;z-index:2!important}
