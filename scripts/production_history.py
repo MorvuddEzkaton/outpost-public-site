@@ -239,8 +239,9 @@ def validate_artifact(artifact, run, kind):
                  identity.get('head_repository_id') == REPOSITORY_ID, 'publication_artifact_from_wrong_run')
 
 
-def skipped_without_intent(client, run):
-    jobs = client.skipped_publication_jobs(run)
+def skipped_without_intent(client, run, jobs=None):
+    if jobs is None:
+        jobs = client.skipped_publication_jobs(run)
     gate.require(isinstance(jobs, list) and len(jobs) == 3 and all(isinstance(job, dict) for job in jobs) and
                  len({positive(job.get('id')) for job in jobs}) == 3 and sorted(job.get('name', '') for job in jobs) ==
                  ['browser-quality', 'publish', 'static-quality'], 'skipped_publication_proof_incomplete')
@@ -299,8 +300,9 @@ def validate_preflight_proof(run, proof):
     return proof
 
 
-def preflight_failed_without_intent(client, run):
-    jobs = client.skipped_publication_jobs(run)
+def preflight_failed_without_intent(client, run, jobs=None):
+    if jobs is None:
+        jobs = client.skipped_publication_jobs(run)
     gate.require(isinstance(jobs, list) and len(jobs) == 3 and
                  sorted(job.get('name') for job in jobs if isinstance(job, dict)) ==
                  ['browser-quality', 'publish', 'static-quality'], 'unproven_preflight_failure')
@@ -345,10 +347,14 @@ def read_resolved_record(client, run, env, validator):
                      'unfinished_prior_publication_inspect_only')
     artifacts = client.publication_artifacts(run)
     if not artifacts:
-        if run.get('conclusion') == 'failure':
+        jobs = client.skipped_publication_jobs(run)
+        publishers = [job for job in jobs if isinstance(job, dict) and job.get('name') == 'publish']
+        gate.require(len(publishers) == 1, 'missing_publication_journal_inspect_only')
+        if publishers[0].get('conclusion') == 'failure':
             return {'run': run_projection(run), 'kind': 'preflight_failed',
-                    'proof': preflight_failed_without_intent(client, run)}
-        return {'run': run_projection(run), 'kind': 'skipped', 'proof': skipped_without_intent(client, run)}
+                    'proof': preflight_failed_without_intent(client, run, jobs)}
+        return {'run': run_projection(run), 'kind': 'skipped',
+                'proof': skipped_without_intent(client, run, jobs)}
     gate.require(len(artifacts) == 2 and len({item.get('id') for item in artifacts}) == 2,
                      'missing_or_duplicate_publication_journal')
     proof = []
