@@ -1,9 +1,10 @@
 """Read-only cross-source publication interlock; no repair, replay, or writes.
 
-Only the existing writer's run metadata, skipped-job proof and two immutable
-journal artifacts are read. CI conclusions are not substitutes for live proof.
-Missing evidence blocks mutation unless it was already checked and preserved in
-the reviewed append-only source checkpoint. Unknown attempts remain blocked.
+Only the existing writer's run metadata, skipped-job proof, exact failed-before-
+intent step proof and two immutable journal artifacts are read. CI conclusions
+are not substitutes for live proof. Missing evidence blocks mutation unless a
+complete provider proof establishes that upload never started. Unknown attempts
+remain blocked.
 """
 from io import BytesIO
 import hashlib
@@ -258,6 +259,67 @@ def skipped_without_intent(client, run):
     return {**{key: job.get(key) for key in JOB_FIELDS}, 'runner_name': None}
 
 
+# A historical writer may fail at the READ-ONLY plan step before it can save
+# either artifact. Exact provider step evidence, not the run conclusion alone,
+# proves no upload or rollback action started. Every other failed run blocks.
+PREFLIGHT_STEPS = {
+    6: ('Verify Telegram transport in the actual offline edge runtime', 'success'),
+    7: ('Prepare read-only deployment plan', 'failure'),
+    8: ('Persist intent before any upload', 'skipped'),
+    9: ('Upload once and require actual matching canonical deployment', 'skipped'),
+    10: ('Verify all live contracts only after exact deployment proof', 'skipped'),
+    11: ('Restore only our saved code after a critical live failure', 'skipped'),
+    12: ('Save final journal even on failure; never upload credentials or raw logs', 'skipped'),
+    13: ('Confirm future releases only after accepted live publication', 'skipped'),
+}
+PREFLIGHT_PROOF_FIELDS = ('id', 'name', 'run_id', 'run_attempt', 'head_sha', 'status', 'conclusion', 'steps')
+PREFLIGHT_STEP_FIELDS = ('number', 'name', 'status', 'conclusion')
+
+
+def validate_preflight_proof(run, proof):
+    gate.require(isinstance(proof, dict) and set(proof) == set(PREFLIGHT_PROOF_FIELDS) and
+                 type(proof['id']) is int and proof['id'] > 0 and
+                 proof['name'] == 'publish' and proof['run_id'] == run['id'] and
+                 type(proof['run_attempt']) is int and proof['run_attempt'] == 1 and
+                 proof['head_sha'] == run['head_sha'] and
+                 proof['status'] == 'completed' and proof['conclusion'] == 'failure' and
+                 run['status'] == 'completed' and run['conclusion'] == 'failure' and
+                 isinstance(proof['steps'], list) and len(proof['steps']) == 13,
+                 'unproven_preflight_failure')
+    for number, step in enumerate(proof['steps'], 1):
+        gate.require(isinstance(step, dict) and set(step) == set(PREFLIGHT_STEP_FIELDS) and
+                     type(step['number']) is int and step['number'] == number and
+                     step['status'] == 'completed', 'unproven_preflight_failure')
+        if number < 6:
+            gate.require(step['conclusion'] == 'success', 'unproven_preflight_failure')
+        else:
+            required_name, required_conclusion = PREFLIGHT_STEPS[number]
+            gate.require(step['name'] == required_name and step['conclusion'] == required_conclusion,
+                         'unproven_preflight_failure')
+    return proof
+
+
+def preflight_failed_without_intent(client, run):
+    jobs = client.skipped_publication_jobs(run)
+    gate.require(isinstance(jobs, list) and len(jobs) == 3 and
+                 sorted(job.get('name') for job in jobs if isinstance(job, dict)) ==
+                 ['browser-quality', 'publish', 'static-quality'], 'unproven_preflight_failure')
+    for job in jobs:
+        gate.require(job.get('run_id') == run['id'] and job.get('run_attempt') == 1 and
+                     job.get('head_sha') == run['head_sha'] and job.get('status') == 'completed' and
+                     (job.get('conclusion') == 'failure' if job['name'] == 'publish'
+                      else job.get('conclusion') == 'success'), 'unproven_preflight_failure')
+    publisher = next(job for job in jobs if job['name'] == 'publish')
+    steps = publisher.get('steps')
+    gate.require(isinstance(steps, list) and len(steps) >= 13, 'unproven_preflight_failure')
+    # Steps 1..13 are the guarded publishing sequence. The provider may include
+    # later post-job cleanup, which does not change an unexecuted upload.
+    first = steps[:13]
+    proof = {key: publisher.get(key) for key in PREFLIGHT_PROOF_FIELDS if key != 'steps'}
+    proof['steps'] = [{field: step.get(field) for field in PREFLIGHT_STEP_FIELDS} for step in first]
+    return validate_preflight_proof(run, proof)
+
+
 def resolved_journals(intent, result, run, env, validator):
     previous_env = {**env, 'GITHUB_SHA': run['head_sha'], 'GITHUB_RUN_ID': str(run['id']),
                     'GITHUB_RUN_NUMBER': str(run['run_number'])}
@@ -283,6 +345,9 @@ def read_resolved_record(client, run, env, validator):
                      'unfinished_prior_publication_inspect_only')
     artifacts = client.publication_artifacts(run)
     if not artifacts:
+        if run.get('conclusion') == 'failure':
+            return {'run': run_projection(run), 'kind': 'preflight_failed',
+                    'proof': preflight_failed_without_intent(client, run)}
         return {'run': run_projection(run), 'kind': 'skipped', 'proof': skipped_without_intent(client, run)}
     gate.require(len(artifacts) == 2 and len({item.get('id') for item in artifacts}) == 2,
                      'missing_or_duplicate_publication_journal')

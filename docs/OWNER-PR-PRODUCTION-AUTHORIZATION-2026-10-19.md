@@ -24,3 +24,6 @@ GitHub забороняє схвалювати власний PR; поперед
 - Після публікації перевірити точну SHA-версію в Cloudflare і всі live contracts, зокрема Кабінет.
 - Не змінювалися Worker, D1, ліцензії, фіскальні модулі, Telegram, секрети, права доступу або інсталятори.
 - Відкатна контрольна гілка `backup/accepted-production-before-seo-20261019` = `ae9d9a60a184e7620a78d26c7db90541a51cd623`.
+
+## Відновлення після failed-before-plan-intent PR #31
+Publisher run 39217275288 провалився на кроці 7 (read-only plan), а кроки 8–13 були `skipped`: жодного upload не було. Історичний interlock без journal artifacts правильно блокував нове джерело, але не мав окремого способу довести збій до intent. Тепер provider Actions job steps 1–13 перевіряються за точним набором наслідків: PASS static/browser, FAIL лише на плані й SKIPPED для всіх потенційно небезпечних кроків. Лише такий випадок приймається як `preflight_failed`; усі невідомі, скасовані й after-upload стани залишаються заблокованими. Дозволено append-only checkpoint для доведеного випадку.

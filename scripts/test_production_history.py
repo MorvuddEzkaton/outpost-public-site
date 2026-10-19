@@ -240,6 +240,40 @@ class HistoryTests(unittest.TestCase):
             with self.subTest(key=key), patch.object(self.client, 'skipped_publication_jobs', return_value=jobs), self.assertRaises(gate.GateError):
                 self.clear()
 
+    def test_exact_readonly_plan_failure_can_be_proven_without_artifact(self):
+        self.prior['conclusion'] = 'failure'
+        self.client.records[self.prior['id']] = []
+        jobs = self.client.skipped_publication_jobs(self.prior)
+        for job in jobs:
+            job['conclusion'] = 'failure' if job['name'] == 'publish' else 'success'
+        publish = next(job for job in jobs if job['name'] == 'publish')
+        names = ['Set up job', 'Checkout', 'Set up Python', 'Set up Node',
+                 'Install tool', 'Verify Telegram transport in the actual offline edge runtime']
+        names += [history.PREFLIGHT_STEPS[i][0] for i in range(7, 14)]
+        publish['steps'] = [{'number': i, 'name': name, 'status': 'completed',
+                             'conclusion': 'success' if i <= 6 else history.PREFLIGHT_STEPS[i][1]}
+                            for i, name in enumerate(names, 1)]
+        with self.prior_jobs(jobs):
+            self.clear()
+            record = history.read_resolved_record(self.client, self.prior, self.env, publisher.validate_journal)
+            self.assertEqual(record['kind'], 'preflight_failed')
+            self.assertEqual(record['proof']['steps'][8]['conclusion'], 'skipped')
+            for number, status in ((7, 'success'), (8, 'success'), (9, 'failure'),
+                                   (10, 'success'), (12, 'success')):
+                mutated = deepcopy(jobs)
+                target = next(job for job in mutated if job['name'] == 'publish')
+                target['steps'][number - 1]['conclusion'] = status
+                with self.subTest(number=number), self.prior_jobs(mutated), self.assertRaises(gate.GateError):
+                    self.clear()
+            wrong = deepcopy(jobs)
+            next(job for job in wrong if job['name'] == 'publish')['steps'] = publish['steps'][:9]
+            with self.prior_jobs(wrong), self.assertRaises(gate.GateError):
+                self.clear()
+            wrong = deepcopy(jobs)
+            next(job for job in wrong if job['name'] == 'browser-quality')['conclusion'] = 'failure'
+            with self.prior_jobs(wrong), self.assertRaises(gate.GateError):
+                self.clear()
+
     def test_result_must_link_exactly_to_original_intent(self):
         self.result['package_sha256'] = '1' * 64
         self.write_records()

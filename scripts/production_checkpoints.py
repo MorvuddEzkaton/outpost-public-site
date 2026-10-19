@@ -83,6 +83,8 @@ def validate(value, journal_validator):
                              (proof['runner_id'] is None or type(proof['runner_id']) is int) and
                              proof['runner_name'] is None, 'invalid_checkpoint_skipped_proof')
                 history.positive(proof['id'])
+            elif record['kind'] == 'preflight_failed':
+                history.validate_preflight_proof(run, proof)
             else:
                 gate.require(record['kind'] == 'journal' and isinstance(proof, list) and len(proof) == 2,
                              'invalid_checkpoint_journal_pair')
