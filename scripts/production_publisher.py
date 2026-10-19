@@ -176,10 +176,20 @@ def validate_journal_evidence(data, sha, run_id):
                  len(set(data['initial_ids'])) == len(data['initial_ids']) and data['baseline_id'] in data['initial_ids'], 'invalid_journal_baseline')
     for identity in data['initial_ids']:
         uuid(identity)
-    gate.require(set(data['review']) == {'pr', 'head_sha', 'owner_review_id'} and
-                 type(data['review']['pr']) is int and data['review']['pr'] > 0 and
-                 type(data['review']['owner_review_id']) is int and data['review']['owner_review_id'] > 0 and
-                 re.fullmatch(r'[a-f0-9]{40}', data['review']['head_sha']) is not None, 'invalid_journal_review')
+    review = data['review']
+    gate.require(isinstance(review, dict) and type(review.get('pr')) is int and review['pr'] > 0 and
+                 isinstance(review.get('head_sha'), str) and
+                 re.fullmatch(r'[a-f0-9]{40}', review['head_sha']) is not None,
+                 'invalid_journal_review')
+    if set(review) == {'pr', 'head_sha', 'owner_review_id'}:
+        # Historical CODEOWNER-reviewed evidence keeps its exact immutable shape.
+        gate.require(type(review['owner_review_id']) is int and review['owner_review_id'] > 0,
+                     'invalid_journal_review')
+    else:
+        # Self-merged owner PR: explicit authorization, with no invented review ID.
+        gate.require(set(review) == {'pr', 'head_sha', 'owner_review_id', 'authorization'} and
+                     review['authorization'] == 'owner_self_merge' and review['owner_review_id'] is None,
+                     'invalid_journal_review')
     allowed = {'prepared', 'upload_intent', 'upload_returned', 'upload_unknown', 'deployment_success',
                'live_intent', 'live_failed', 'live_pass', 'rollback_intent', 'rollback_unknown', 'rolled_back'}
     states = [item.get('state') for item in data['events']]

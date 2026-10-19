@@ -128,7 +128,8 @@ DEMO_REVALIDATE_HEADER = "Cache-Control: no-cache, max-age=0, must-revalidate"
 SEO_INTENT_CONTRACTS = {
     "avtomatyzatsiya-magazynu.html": {
         "required": (
-            "Автоматизація магазину на Windows — каса, облік і звіти | OutPOSt",
+            "Автоматизація магазину: каса, склад і облік | OutPOSt",
+            'id="store-automation-scenarios"',
             "<h1>Автоматизація магазину на Windows з OutPOSt</h1>",
             'href="/avtomatyzatsiya-zakupivel-i-skladu"',
             'href="/avtomatyzatsiya-rozdribnoi-torgivli"',
@@ -140,14 +141,16 @@ SEO_INTENT_CONTRACTS = {
     },
     "avtomatyzatsiya-zakupivel-i-skladu.html": {
         "required": (
-            "Автоматизація закупівель і складу для магазину | OutPOSt",
+            "Автоматизація закупівель і складу магазину | OutPOSt",
+            'id="procurement-workflow"',
             "<h1>Автоматизація закупівель і складу для магазину</h1>",
         ),
         "forbidden_head": (),
     },
     "avtomatyzatsiya-rozdribnoi-torgivli.html": {
         "required": (
-            "Автоматизація роздрібної торгівлі для магазину | OutPOSt",
+            "Автоматизація роздрібної торгівлі: каса й продажі | OutPOSt",
+            'id="retail-sales-workflow"',
             "<h1>Автоматизація роздрібної торгівлі для магазину</h1>",
         ),
         "forbidden_head": (),

@@ -56,6 +56,28 @@ class CheckpointTests(unittest.TestCase):
             self.add_record(self.fixture.prior)
             checkpoints.validate(self.value, VALIDATOR)
 
+    def test_exact_preflight_failure_checkpoint_cannot_fake_an_upload_skip(self):
+        run = deepcopy(self.fixture.prior)
+        run['conclusion'] = 'failure'
+        steps = [{'number': i, 'name': (history.PREFLIGHT_STEPS[i][0] if i >= 6 else 'setup'),
+                  'status': 'completed',
+                  'conclusion': (history.PREFLIGHT_STEPS[i][1] if i >= 6 else 'success')}
+                 for i in range(1, 14)]
+        proof = {'id': 121, 'name': 'publish', 'run_id': run['id'], 'run_attempt': 1,
+                 'head_sha': run['head_sha'], 'status': 'completed', 'conclusion': 'failure',
+                 'steps': steps}
+        record = {'run': history.run_projection(run), 'kind': 'preflight_failed', 'proof': proof}
+        history.validate_preflight_proof(run, proof)
+        value = deepcopy(self.value)
+        value['records'] = value['records'][:1]
+        value['records'].append(checkpoints.seal(record, value['records'][0]['record_sha256']))
+        checkpoints.validate(value, VALIDATOR)
+        for field, new in (('number', 10), ('conclusion', 'success')):
+            bad = deepcopy(value)
+            bad['records'][1]['proof']['steps'][8][field] = new
+            with self.subTest(field=field), self.assertRaises(gate.GateError):
+                checkpoints.validate(self.reseal(bad), VALIDATOR)
+
     def test_all_unknown_or_intermediate_states_cannot_be_preserved(self):
         for state in ('upload_intent', 'upload_returned', 'upload_unknown', 'deployment_success',
                       'live_intent', 'live_failed', 'rollback_intent', 'rollback_unknown'):

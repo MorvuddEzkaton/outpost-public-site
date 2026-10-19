@@ -32,6 +32,18 @@ def test_two_parent_merge_pull_request_subject_passes() -> None:
     require(not errors, f"GitHub merge-commit subject must pass: {errors}")
 
 
+def test_owner_style_merge_pr_subject_passes() -> None:
+    errors = validate_provenance(
+        "push", ["a" * 40, "b" * 40],
+        "Merge PR #31: SEO reserve cash and sitemap",
+    )
+    require(not errors, f"verified owner merge marker must pass shape check: {errors}")
+    for subject in ("Merge PR #0: unsafe", "Merge PR #31", "Merge PR #31 unsafe",
+                    "Merge PR #31:  ", "Merge PR #31:"):
+        require(validate_provenance("push", ["a" * 40, "b" * 40], subject),
+                f"malformed owner merge subject must be rejected: {subject}")
+
+
 def test_single_parent_squash_pr_merge_passes() -> None:
     errors = validate_provenance(
         "push",
@@ -104,6 +116,7 @@ def main() -> int:
     tests = (
         test_two_parent_suffix_pr_merge_passes,
         test_two_parent_merge_pull_request_subject_passes,
+        test_owner_style_merge_pr_subject_passes,
         test_single_parent_squash_pr_merge_passes,
         test_direct_single_parent_push_fails,
         test_three_parent_merge_fails_even_with_pr_marker,

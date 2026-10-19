@@ -1287,3 +1287,41 @@ test("screenshot viewer keeps its headline centered at mobile width", async ({pa
   await viewer.locator(".live-shot-dialog-close").click();
   await expect(viewer).toBeHidden();
 });
+
+
+test("desktop-only home panorama is not transferred on mobile", async ({browser}) => {
+  for (const {width,shouldFetch} of [{width:390,shouldFetch:false},{width:1440,shouldFetch:true}]) {
+    const page = await browser.newPage({viewport:{width,height:900}});
+    const panoramaRequests = [];
+    page.on("request", request => {
+      if (new URL(request.url()).pathname === "/assets/hero-approved-panorama-v1.webp") {
+        panoramaRequests.push(request.url());
+      }
+    });
+    try {
+      await page.goto(origin + "/", {waitUntil:"networkidle"});
+      const panorama = page.locator(".hero-approved-bg");
+      if (shouldFetch) {
+        await expect(panorama).toBeVisible();
+        await expect(panorama).toHaveCSS("background-image", /hero-approved-panorama-v1\.webp/);
+        expect(panoramaRequests.length).toBeGreaterThan(0);
+      } else {
+        await expect(panorama).toBeHidden();
+        expect(panoramaRequests).toEqual([]);
+      }
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+      expect(overflow).toBeLessThanOrEqual(1);
+    } finally {
+      await page.close();
+    }
+  }
+});
+
+test("MINI-T400 first-screen device image is not lazy loaded", async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(origin + "/mini-t400", {waitUntil:"load"});
+  const device = page.locator("img.hardware-device");
+  await expect(device).toHaveAttribute("loading", "eager");
+  await expect(device).toHaveAttribute("fetchpriority", "high");
+  await expect(device).toBeVisible();
+});

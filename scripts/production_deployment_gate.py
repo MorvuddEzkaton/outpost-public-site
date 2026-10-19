@@ -2,6 +2,8 @@
 
 Local default is offline validation. Network modes require trusted protected-main
 GitHub context. A commit-subject PR marker is NOT accepted as review evidence.
+Authorization is either a CODEOWNER approval on the exact PR head, or a verified
+owner-authored AND owner-merged PR. Production environment approval stays separate.
 """
 from __future__ import annotations
 import argparse
@@ -42,18 +44,35 @@ def trusted_context(env):
     require(env.get('GITHUB_WORKFLOW_REF') in allowed, 'untrusted_workflow_source')
     return sha
 
-def validate_review(main, prs, reviews, sha):
+def validate_review(main, prs, reviews, sha, detail=None):
     require(main.get('object', {}).get('sha') == sha, 'main_advanced_or_mismatched')
     matching = [p for p in prs if p.get('merged_at') and p.get('merge_commit_sha') == sha and
                 p.get('base', {}).get('ref') == 'main' and p.get('base', {}).get('repo', {}).get('full_name') == REPOSITORY]
     require(len(matching) == 1, 'no_unique_actual_merged_pr')
     pr = matching[0]
+    head_sha = pr.get('head', {}).get('sha')
+    require(isinstance(head_sha, str) and re.fullmatch(r'[a-f0-9]{40}', head_sha) is not None,
+            'invalid_merged_pr_head')
+    # GitHub prohibits approving one's own PR. Only the owner-authored AND owner-
+    # merged route may omit an independent review. Verify server-owned fields from
+    # a second exact-PR GET; a title, commit message, or CI actor cannot authorize.
+    if pr.get('user', {}).get('login') == OWNER:
+        require(isinstance(detail, dict) and detail.get('number') == pr.get('number') and
+                detail.get('merged') is True and detail.get('merged_at') == pr.get('merged_at') and
+                detail.get('merge_commit_sha') == sha and detail.get('head', {}).get('sha') == head_sha and
+                detail.get('base', {}).get('ref') == 'main' and
+                detail.get('base', {}).get('repo', {}).get('full_name') == REPOSITORY and
+                detail.get('user', {}).get('login') == OWNER and
+                detail.get('merged_by', {}).get('login') == OWNER,
+                'owner_self_merge_not_verified')
+        return {'pr': pr['number'], 'head_sha': head_sha,
+                'owner_review_id': None, 'authorization': 'owner_self_merge'}
     owner_reviews = [r for r in reviews if r.get('user', {}).get('login') == OWNER and r.get('state') != 'COMMENTED']
     require(owner_reviews, 'human_codeowner_review_missing')
     latest = max(owner_reviews, key=lambda r: (r.get('submitted_at') or '', r.get('id', 0)))
-    require(latest.get('state') == 'APPROVED' and latest.get('commit_id') == pr.get('head', {}).get('sha'),
+    require(latest.get('state') == 'APPROVED' and latest.get('commit_id') == head_sha,
             'review_not_approved_for_exact_head')
-    return {'pr': pr['number'], 'head_sha': pr['head']['sha'], 'owner_review_id': latest['id']}
+    return {'pr': pr['number'], 'head_sha': head_sha, 'owner_review_id': latest['id']}
 
 def validate_environment(environment, policies):
     require(environment.get('name') == 'production', 'production_environment_missing')
@@ -144,7 +163,8 @@ class ReadOnlyClients:
     def github(self, suffix):
         require(suffix in ('/git/ref/heads/main', '/environments/production', '/environments/production/deployment-branch-policies') or
                 re.fullmatch(r'/commits/[a-f0-9]{40}/pulls\?per_page=100', suffix) or
-                re.fullmatch(r'/pulls/\d+/reviews\?per_page=100', suffix), 'unapproved_github_read')
+                re.fullmatch(r'/pulls/\d+/reviews\?per_page=100', suffix) or
+                re.fullmatch(r'/pulls/[1-9][0-9]*', suffix), 'unapproved_github_read')
         # Public metadata works without a token. A publisher may pass the existing
         # read-only CI token to avoid the low anonymous limit during repeated gates;
         # never mint a token, widen permissions or permit additional endpoints here.
@@ -169,7 +189,9 @@ def review_proof(client, sha):
     require(len(matches) == 1, 'no_unique_actual_merged_pr')
     reviews = client.github('/pulls/' + str(matches[0]['number']) + '/reviews?per_page=100')
     require(len(prs) < 100 and len(reviews) < 100, 'provenance_pagination_requires_review')
-    proof = validate_review(main, prs, reviews, sha)
+    # Associated-PR responses omit merged_by; the exact PR endpoint supplies it.
+    detail = client.github('/pulls/' + str(matches[0]['number'])) if matches[0].get('user', {}).get('login') == OWNER else None
+    proof = validate_review(main, prs, reviews, sha, detail)
     validate_environment(client.github('/environments/production'), client.github('/environments/production/deployment-branch-policies'))
     return proof
 

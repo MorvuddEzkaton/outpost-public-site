@@ -1,0 +1,9 @@
+/* Desktop-only panorama. Keep mobile pages free of this decorative image request. */
+@media (min-width: 701px) {
+  body.design-v20 .hero-approved-bg {
+    background-image: url("/assets/hero-approved-panorama-v1.webp") !important;
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+  }
+}

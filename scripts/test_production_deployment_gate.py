@@ -36,6 +36,15 @@ def prs():
 def reviews():
     return [{'id': 10, 'user': {'login': gate.OWNER}, 'state': 'APPROVED', 'commit_id': HEAD, 'submitted_at': '2026-01-01T00:00:01Z'}]
 
+def owner_pr():
+    value = deepcopy(prs()[0])
+    value['user'] = {'login': gate.OWNER}
+    return value
+
+def owner_pr_detail():
+    value = owner_pr()
+    return {**value, 'merged': True, 'merged_by': {'login': gate.OWNER}}
+
 def protected_env():
     return {'name': 'production', 'protection_rules': [{'type': 'required_reviewers', 'reviewers': [{'type': 'User', 'reviewer': {'login': gate.OWNER}}]}],
             'deployment_branch_policy': {'protected_branches': False, 'custom_branch_policies': True}}
@@ -65,6 +74,30 @@ class GateTests(unittest.TestCase):
 
     def test_real_review_proof(self):
         self.assertEqual(gate.validate_review({'object': {'sha': SHA}}, prs(), reviews(), SHA)['pr'], 10)
+
+    def test_owner_self_merge_requires_real_exact_pr_metadata(self):
+        proof = gate.validate_review({'object': {'sha': SHA}}, [owner_pr()], [], SHA, owner_pr_detail())
+        self.assertEqual(proof, {'pr': 10, 'head_sha': HEAD, 'owner_review_id': None,
+                                 'authorization': 'owner_self_merge'})
+        # Read-only GitHub PR details, not the PR title or commit subject, prove authorization.
+        for wrong in (None, {}, {'number': 10}, {**owner_pr_detail(), 'merged': False},
+                      {**owner_pr_detail(), 'merged_by': {'login': 'bot[bot]'}},
+                      {**owner_pr_detail(), 'user': {'login': 'other'}},
+                      {**owner_pr_detail(), 'head': {'sha': SHA}},
+                      {**owner_pr_detail(), 'merge_commit_sha': HEAD},
+                      {**owner_pr_detail(), 'base': {'ref': 'staging', 'repo': {'full_name': gate.REPOSITORY}}},
+                      {**owner_pr_detail(), 'merged_at': None}):
+            with self.subTest(wrong=wrong), self.assertRaises(gate.GateError):
+                gate.validate_review({'object': {'sha': SHA}}, [owner_pr()], [], SHA, wrong)
+
+    def test_bot_or_other_author_still_requires_exact_codeowner_approval(self):
+        unreviewed = prs()
+        unreviewed[0]['user'] = {'login': 'outpost-public-pr-helper[bot]'}
+        with self.assertRaisesRegex(gate.GateError, 'human_codeowner_review_missing'):
+            gate.validate_review({'object': {'sha': SHA}}, unreviewed, [], SHA)
+        approved = gate.validate_review({'object': {'sha': SHA}}, unreviewed, reviews(), SHA)
+        self.assertEqual(approved['owner_review_id'], 10)
+        self.assertNotIn('authorization', approved)
 
     def test_fake_commit_subject_or_no_associated_merged_pr(self):
         for candidates in [[], [{**prs()[0], 'merged_at': None}], [{**prs()[0], 'merge_commit_sha': HEAD}], prs()+prs()]:
@@ -183,6 +216,7 @@ class GateTests(unittest.TestCase):
             for path in ['/domains', '/settings', '/query', '/../another', '/deployments/bad']:
                 with self.subTest(path=path), self.assertRaises(gate.GateError): client.pages(path)
             for path in ['/actions/secrets', '/git/ref/heads/topic', '/pulls/1/merge', '/issues', '/contents/.env']:
+
                 with self.subTest(path=path), self.assertRaises(gate.GateError): client.github(path)
 
     def fake_client(self, sequence=None, change_main=False, unsafe_after=False):

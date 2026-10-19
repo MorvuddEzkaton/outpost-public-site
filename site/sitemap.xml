@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://outpost.com.ua/</loc><lastmod>2026-10-19</lastmod><changefreq>monthly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://outpost.com.ua/features</loc><lastmod>2026-10-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://outpost.com.ua/features</loc><lastmod>2026-10-19</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://outpost.com.ua/modules</loc><lastmod>2026-10-19</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
   <url><loc>https://outpost.com.ua/tsinnyky-ta-etyketky</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
   <url><loc>https://outpost.com.ua/interfeis</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://outpost.com.ua/mini-t400</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://outpost.com.ua/mini-t400</loc><lastmod>2026-10-19</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://outpost.com.ua/prro-checkbox</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.85</priority></url>
   <url><loc>https://outpost.com.ua/buhgalteriya</loc><lastmod>2026-10-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://outpost.com.ua/license</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
@@ -38,7 +38,7 @@
   </url>
   <url>
     <loc>https://outpost.com.ua/avtomatyzatsiya-magazynu</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -50,7 +50,7 @@
   </url>
   <url>
     <loc>https://outpost.com.ua/programa-dlya-kasy-windows</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -58,7 +58,7 @@
   <url><loc>https://outpost.com.ua/eakcyz</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.90</priority></url>
   <url><loc>https://outpost.com.ua/buhgalterska-programa-dlya-fop</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
   <url><loc>https://outpost.com.ua/buhgalterskyi-oblik-dlya-magazynu</loc><lastmod>2026-10-12</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
-  <url><loc>https://outpost.com.ua/avtomatyzatsiya-zakupivel-i-skladu</loc><lastmod>2026-10-16</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
-  <url><loc>https://outpost.com.ua/avtomatyzatsiya-rozdribnoi-torgivli</loc><lastmod>2026-10-16</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
+  <url><loc>https://outpost.com.ua/avtomatyzatsiya-zakupivel-i-skladu</loc><lastmod>2026-10-19</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
+  <url><loc>https://outpost.com.ua/avtomatyzatsiya-rozdribnoi-torgivli</loc><lastmod>2026-10-19</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
   <url><loc>https://outpost.com.ua/support</loc><lastmod>2026-10-18</lastmod><changefreq>monthly</changefreq><priority>0.78</priority></url>
 </urlset>
