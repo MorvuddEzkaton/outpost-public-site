@@ -17,12 +17,13 @@ import subprocess
 import sys
 
 PR_SUFFIX_RE = re.compile(r"\(#\d+\)\s*$")
-MERGE_PR_SUBJECT_RE = re.compile(r"^Merge pull request #\d+\b", re.IGNORECASE)
+MERGE_PR_SUBJECT_RE = re.compile(r"^Merge pull request #[1-9]\d+\b", re.IGNORECASE)
+OWNER_MERGE_SUBJECT_RE = re.compile(r"^Merge PR #[1-9]\d+:\s+\S", re.IGNORECASE)
 
 
 def has_pr_subject_marker(subject: str) -> bool:
     value = subject.strip()
-    return bool(PR_SUFFIX_RE.search(value) or MERGE_PR_SUBJECT_RE.search(value))
+    return bool(PR_SUFFIX_RE.search(value) or MERGE_PR_SUBJECT_RE.search(value) or OWNER_MERGE_SUBJECT_RE.search(value))
 
 
 def validate_provenance(event_name: str, parent_hashes: list[str], subject: str) -> list[str]:
@@ -40,7 +41,7 @@ def validate_provenance(event_name: str, parent_hashes: list[str], subject: str)
     if not has_pr_subject_marker(subject):
         errors.append(
             "automatic main update subject must carry a GitHub PR marker, "
-            "either a suffix like '(#209)' or 'Merge pull request #209 ...'"
+            "a suffix '(#209)', 'Merge pull request #209 ...' or 'Merge PR #209: ...'"
         )
 
     return errors

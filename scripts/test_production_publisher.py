@@ -413,6 +413,24 @@ class PublisherTests(unittest.TestCase):
             with self.subTest(changed=changed), self.assertRaises(gate.GateError):
                 publisher.validate_journal(changed, self.env)
 
+    def test_owner_self_merge_journal_and_legacy_review_evidence(self):
+        legacy = deepcopy(self.journal.data)
+        self.assertEqual(publisher.validate_journal(legacy, self.env), legacy)
+        owner = deepcopy(legacy)
+        owner['review'] = {'pr': 10, 'head_sha': HEAD, 'owner_review_id': None,
+                           'authorization': 'owner_self_merge'}
+        self.assertEqual(publisher.validate_journal(owner, self.env), owner)
+        for wrong in ({**owner['review'], 'owner_review_id': 0},
+                      {**owner['review'], 'owner_review_id': 10},
+                      {**owner['review'], 'authorization': 'bypass'},
+                      {**owner['review'], 'actor': gate.OWNER},
+                      {'pr': 10, 'head_sha': HEAD, 'owner_review_id': None},
+                      {'pr': 10, 'head_sha': HEAD, 'owner_review_id': False}):
+            altered = deepcopy(owner)
+            altered['review'] = wrong
+            with self.subTest(wrong=wrong), self.assertRaises(gate.GateError):
+                publisher.validate_journal(altered, self.env)
+
     def test_nested_private_or_replayed_journal_rejected(self):
         for mutate in [lambda data: data['review'].update(token='not-secret'),
                        lambda data: data['events'][0].update(token='not-secret'),
