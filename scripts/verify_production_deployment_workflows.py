@@ -9,7 +9,7 @@ def verify_live(text):
                "github.actor == github.repository_owner", "environment: production", "permissions:\n  contents: read",
                "vars.OUTPOST_PRODUCTION_DEPLOYMENT_ENABLED == '1'", "ref: ${{ github.sha }}", "persist-credentials: false",
                "python scripts/production_deployment_gate.py --check --wait-seconds 300",
-               "secrets.OUTPOST_PAGES_DEPLOY_TOKEN", '"scripts/production_deployment_gate.py"', '"scripts/verify_cloudflare_config.py"']
+               "secrets.OUTPOST_PAGES_DEPLOY_TOKEN", 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}', '"scripts/production_deployment_gate.py"', '"scripts/verify_cloudflare_config.py"']
     errors = [f'missing live provenance marker: {marker}' for marker in markers if marker not in text]
     guard = text.find('run: python scripts/production_deployment_gate.py --check')
     for command in re.findall(r'run: python (scripts/verify_live_[^\s]+\.py)', text):
@@ -28,6 +28,8 @@ def verify_confirmation(text):
             errors.append('release canonical GET/confirmation precedes production proof')
     if guard < 0 or 'secrets.OUTPOST_PAGES_DEPLOY_TOKEN' not in text:
         errors.append('confirmation deployment credential/provenance missing')
+    if 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}' not in text:
+        errors.append('confirmation automatic-mode setting missing')
     return errors
 
 def main():

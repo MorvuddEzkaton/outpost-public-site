@@ -12,7 +12,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(verify(self.text), [])
 
     def test_missing_guard_fails(self):
-        for marker in ["vars.OUTPOST_PRODUCTION_WRITER_ENABLED == '1'", "environment: production", 'cancel-in-progress: false',
+        for marker in ["vars.OUTPOST_PRODUCTION_WRITER_ENABLED == '1'", "environment: production", 'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}', 'cancel-in-progress: false',
                        'needs: [static-quality, browser-quality]', 'steps.intent.outputs.artifact-url', 'if-no-files-found: error',
                        'python scripts/run_production_quality.py', 'persist-credentials: false', 'ref: ${{ github.sha }}',
                        'secrets.OUTPOST_PAGES_DEPLOY_TOKEN', 'sha256sum --check --strict', 'npm ci --ignore-scripts',

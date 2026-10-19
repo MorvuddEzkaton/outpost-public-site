@@ -31,6 +31,7 @@ def verify(text):
         "github.repository == 'MorvuddEzkaton/outpost-public-site'", "github.ref == 'refs/heads/main'",
         'github.actor == github.repository_owner', 'cancel-in-progress: false', 'group: outpost-production-writer',
         'permissions:\n  contents: read', 'needs: [static-quality, browser-quality]', 'environment: production',
+        'OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}',
         'python scripts/run_production_quality.py', 'Pillow==12.3.0', 'sha256sum --check --strict',
         'gitleaks" dir .', 'gitleaks" git .', '--redact=100', 'actions: read',
         'GITHUB_TOKEN: ${{ github.token }}', 'secrets.OUTPOST_PAGES_DEPLOY_TOKEN',
