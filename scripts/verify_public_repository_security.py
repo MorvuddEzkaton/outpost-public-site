@@ -50,7 +50,13 @@ def installer_errors(relative: str, payload: bytes, root: Path) -> list[str]:
     # Preserve the existing historical two-component artifact; new release tools
     # still require X.Y.Z. This exception never skips PE/size/checksum checks.
     legacy = relative == 'site/downloads/OutPOSt-Setup-v0.24.exe'
-    if not legacy and not re.fullmatch(r'site/downloads/OutPOSt-(?:Accounting-)?Setup-v\d+\.\d+\.\d+\.exe', relative):
+    # Narrow exception for one owner-authorized, explicitly UNVERIFIED preview.
+    # It must never be accepted as a reviewed official release or imply Windows PASS.
+    preview = relative == 'site/previews/OutPOSt-Preview-v0.24.43.exe'
+    if preview:
+        if len(payload) != 15438330 or hashlib.sha256(payload).hexdigest().upper() != '33951C63C14D194FB7E938CE9593EDC9529394CF339F291DBE98C6F60B42A82F':
+            errors.append('reviewed unverified preview bytes/size changed')
+    elif not legacy and not re.fullmatch(r'site/downloads/OutPOSt-(?:Accounting-)?Setup-v\d+\.\d+\.\d+\.exe', relative):
         errors.append('unexpected executable')
     if len(payload) > 25 * 1024 * 1024:
         errors.append('installer exceeds Pages 25 MiB asset limit')
