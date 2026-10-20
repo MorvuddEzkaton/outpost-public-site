@@ -38,6 +38,19 @@ jobs:
           echo '33951C63C14D194FB7E938CE9593EDC9529394CF339F291DBE98C6F60B42A82F *site/downloads/OutPOSt-Setup-v0.24.43.exe' | sha256sum --check - --status
           git diff --check origin/main HEAD
           echo 'Scope PASS; owner-used Windows acceptance is documented, not an invented automated acceptance suite.'
+      - name: Remove stale version-specific Accounting compatibility sentence
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('site/buhgalteriya.html')
+          before = p.read_text(encoding='utf-8')
+          old = 'Бухгалтерія 1.0.2 приймає управлінські розрахунки винагороди з OutPOSt 0.24.42.'
+          new = 'Бухгалтерія 1.0.2 приймає управлінські розрахунки винагороди з OutPOSt.'
+          if before.count(old) != 1:
+              raise SystemExit('Expected exactly one outdated payroll compatibility version')
+          p.write_text(before.replace(old, new), encoding='utf-8', newline='\n')
+          PY
       - name: Dry-run standard release preparer
         run: python scripts/prepare_public_release.py 0.24.43
       - name: Apply standard release preparer and check artifact inventory
