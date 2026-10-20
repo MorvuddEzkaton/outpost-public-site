@@ -30,10 +30,10 @@ jobs:
           test "$(git rev-parse HEAD)" = '4a9b9412ce9335679e1a64d0c6f17586c6e6f8c8'
           git diff --name-status origin/main HEAD > /tmp/outpost-inputs.txt
           test "$(wc -l </tmp/outpost-inputs.txt | tr -d ' ')" = '4'
-          grep -q $'^A\\tsite/downloads/OutPOSt-Setup-v0.24.43.exe$' /tmp/outpost-inputs.txt
-          grep -q $'^A\\tsite/downloads/OutPOSt-Setup-v0.24.43.sha256.txt$' /tmp/outpost-inputs.txt
-          grep -q $'^A\\trelease/evidence/outpost-v0.24.43.json$' /tmp/outpost-inputs.txt
-          grep -q $'^M\\tsite/changelog.html$' /tmp/outpost-inputs.txt
+          grep -Fqx "$(printf 'A\tsite/downloads/OutPOSt-Setup-v0.24.43.exe')" /tmp/outpost-inputs.txt
+          grep -Fqx "$(printf 'A\tsite/downloads/OutPOSt-Setup-v0.24.43.sha256.txt')" /tmp/outpost-inputs.txt
+          grep -Fqx "$(printf 'A\trelease/evidence/outpost-v0.24.43.json')" /tmp/outpost-inputs.txt
+          grep -Fqx "$(printf 'M\tsite/changelog.html')" /tmp/outpost-inputs.txt
           test "$(wc -c <site/downloads/OutPOSt-Setup-v0.24.43.exe | tr -d ' ')" = '15438330'
           echo '33951C63C14D194FB7E938CE9593EDC9529394CF339F291DBE98C6F60B42A82F *site/downloads/OutPOSt-Setup-v0.24.43.exe' | sha256sum --check - --status
           git diff --check origin/main HEAD
