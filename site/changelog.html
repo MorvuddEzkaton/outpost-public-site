@@ -15,20 +15,7 @@
 <div class="hero-buttons changelog-actions"><a class="btn btn-primary changelog-primary" href="/download">Завантажити v0.24.43</a><a class="btn btn-outline changelog-secondary" href="/features">Усі можливості</a><a class="changelog-gallery-link" href="/interfeis">Скріншоти програми <span aria-hidden="true">→</span></a></div>
 </div></section>
 <div class="container changelog-content">
-<section aria-labelledby="current-release-02443-title" class="changelog-current" id="release-02443">
-<div class="changelog-version"><span>Поточний реліз</span><strong>0.24.43</strong></div>
-<div><h2 id="current-release-02443-title">v0.24.43 — Чернетки списання та точність залишків</h2>
-<p>Оновлення списань, партійного обліку й точності складських розрахунків. Перед встановленням збережіть резервну копію бази магазину.</p>
-<div class="changelog-facts"><span>2026-10-17</span><span>Windows · x86</span><span>.NET Framework 4.8</span></div>
-<ul class="release-notes-list">
-<li>Чернетки списання тепер можна зберігати й відновлювати із вибраними партіями та активною коміркою. Закриття вікна або Escape зберігає чернетку, окрема дія дозволяє її відкинути.</li>
-<li>Чернетки не створюють складських чи фінансових рухів і не потрапляють до звітів як проведені документи.</li>
-<li>Проведення чернетки виконується атомарно під її початковим номером із перевіркою актуальних залишків, партій і ревізій. У разі помилки чернетка зберігається, повторне проведення захищене від дублювання.</li>
-<li>Виправлено читання чисел SQLite в експоненційному записі, зокрема історичних значень на кшталт 1E-14, що могли спричиняти помилку FormatException у списаннях та виборі партій.</li>
-<li>Прибрано математичний шум біля сітки кількостей 0,001 без втрати суттєвих дробових залишків, цін і раніше збережених проводок.</li>
-<li>Перевірено сценарії з реальною WPF-формою у двох інтерфейсах, збереження/відновлення чернеток, десяткову кому, партійне списання та попередню помилку на копії бази. Власник підтвердив робочу експлуатацію v0.24.43 протягом кількох днів.</li>
-</ul><p>Інсталятор <code>OutPOSt-Setup-v0.24.43.exe</code> має розмір 15 438 330 байтів, SHA-256 <code>33951C63C14D194FB7E938CE9593EDC9529394CF339F291DBE98C6F60B42A82F</code>. Додаток та інсталятор поки не мають цифрового підпису Authenticode. <a href="/download">Завантажити оновлення →</a></p>
-</div></section>
+<section aria-labelledby="current-release-02443-title" class="changelog-current" id="release-02443"><div class="changelog-version"><span>Поточний реліз</span><strong>0.24.43</strong></div><div><h2 id="current-release-02443-title">v0.24.43 — Чернетки списання та точність залишків</h2><p>Оновлено списання й партійний облік. Перед встановленням збережіть копію бази.</p><div class="changelog-facts"><span>2026-10-17</span><span>Windows x86 · .NET 4.8</span></div><ul class="release-notes-list"><li>Списання можна зберегти як чернетку й відкрити знову зі своїми партіями. Чернетка не змінює залишки та фінанси.</li><li>Проведення атомарне: перевіряються залишки й ревізії, помилки не видаляють чернетку, повторення не дублює рухи.</li><li>Усунено FormatException від SQLite-чисел у форматі 1E-14 під час списання та вибору партій.</li><li>Прибрано дробовий шум біля сітки 0,001 без втрати важливих залишків, цін чи старих записів.</li><li>Перевірено сценарії WPF у двох темах та роботу на копії бази. Власник підтвердив кілька днів використання v0.24.43.</li></ul><p>Інсталятор: 15 438 330 байтів; цифровий підпис відсутній. <a href="/download">Завантажити →</a></p></div></section>
 <section aria-labelledby="current-release-02442-title" class="changelog-current" id="release-02442">
 <div class="changelog-version"><span>Попередній реліз</span><strong>0.24.42</strong></div>
 <div><h2 id="current-release-02442-title">v0.24.42 — Резервна каса та відновлення відповіді MINI-T400</h2>
@@ -592,7 +579,7 @@
 </div>
 <div class="footer-download">
 <a class="btn btn-primary btn-compact" href="/download">Завантажити</a>
-<span>Windows 10/11<br/>актуальна версія v0.24.42</span>
+<span>Windows 10/11<br/>актуальна версія v0.24.43</span>
 </div>
 </div>
 <nav aria-label="Рішення OutPOSt для магазину" class="shell footer-solutions"><strong>Рішення для магазину</strong><div class="footer-solutions-links"><a href="/programa-dlya-nevelykogo-magazynu">Невеликий магазин</a><a href="/programa-dlya-fop">Магазин ФОП</a><a href="/oblik-tovariv-u-magazyni">Облік товарів</a><a href="/prodazh-v-borg">Продаж у борг</a><a href="/avtomatyzatsiya-magazynu">Автоматизація магазину</a><a href="/offline-programa-dlya-magazynu">Без постійного Інтернету</a><a href="/programa-dlya-kasy-windows">Каса Windows</a><a href="/avtomatyzatsiya-zakupivel-i-skladu">Закупівлі й склад</a><a href="/avtomatyzatsiya-rozdribnoi-torgivli">Роздрібна торгівля</a><a href="/buhgalterska-programa-dlya-fop">Бухгалтерія для ФОП</a><a href="/buhgalterskyi-oblik-dlya-magazynu">Облік для магазину</a></div></nav><div class="shell footer-bottom"><span>© 2026 OutPOSt. Усі права захищено.</span><span>Без cookies · Без онлайн‑платежів</span></div>
