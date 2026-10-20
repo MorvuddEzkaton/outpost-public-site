@@ -31,9 +31,29 @@ const SUPPORT_ONLY_FAQ = Object.freeze([
     answer: "Не повторюйте чек або повернення навмання. Спочатку перевірте стан черги/recovery та зафіксуйте текст помилки. Для фіскальних інтеграцій важливо встановити, чи документ уже був створений зовнішнім сервісом або РРО."
   }
 ]);
+
+// Outage and backup FAQ is public-site only; it is not part of Telegram bot content.
+const RESERVE_FAQ = Object.freeze([
+  {
+    id: "reserve_power",
+    question: "Що робити, якщо вимкнули світло й основний касовий ПК недоступний?",
+    answer: "Якщо резервна каса OutPOSt була підготовлена заздалегідь, на телефоні можна знайти товари за локальним каталогом, перевірити останню синхронізовану ціну, сформувати кошик і зберегти резервний запис. Коли Windows-каса знову працюватиме, записи потрібно звірити й опрацювати в основній програмі."
+  },
+  {
+    id: "reserve_offline",
+    question: "Чи працює резервна каса без мобільного Інтернету?",
+    answer: "Після попереднього завантаження каталог зберігається на телефоні й може бути доступний при тимчасовій втраті зв’язку. Резервні записи зберігаються локально до синхронізації. Без попередньої підготовки гарантувати наявність каталогу не можна; після відновлення зв’язку перевірте час останнього оновлення."
+  },
+  {
+    id: "reserve_fiscal",
+    question: "Чи є резервний запис фіскальним чеком?",
+    answer: "Ні. Резервний запис із телефона не є фіскальним чеком і не замінює РРО або ПРРО. Перш ніж переносити чи проводити операцію після відновлення основної каси, звірте її стан та фіскальний статус, щоб уникнути дублювання продажу або повторної фіскалізації."
+  }
+]);
 const faqEntities = () => [
   ...Object.values(TELEGRAM_FAQ_SECTIONS).flatMap((section) => section.items),
   ...SUPPORT_ONLY_FAQ,
+  ...RESERVE_FAQ,
 ].map((item) => ({
   "@type": "Question",
   name: item.question,
@@ -80,6 +100,7 @@ const navItems = [
   ["management-faq", "Директор і зарплатня"],
   ["excise-faq", "еАкциз"],
   ["updates-faq", "Оновлення й база"],
+  ["reserve-faq", "Резервна каса"],
   ["errors-faq", "Помилки"]
 ];
 
@@ -96,7 +117,10 @@ function detailsHtml(items) {
 }
 
 function groupHtml(id, title, items) {
-  return `<section class="support-group" id="${id}"><h2>${escapeHtml(title)}</h2><div class="faq-compact">${detailsHtml(items)}</div></section>`;
+  const reserveGuide = id === "reserve-faq"
+    ? '<p><a href="/offline-programa-dlya-magazynu#reserve-cash">Детальний порядок роботи з резервною касою →</a></p>'
+    : "";
+  return `<section class="support-group" id="${id}"><h2>${escapeHtml(title)}</h2><div class="faq-compact">${detailsHtml(items)}</div>${reserveGuide}</section>`;
 }
 
 function supportGroupsHtml() {
@@ -113,6 +137,7 @@ function supportGroupsHtml() {
     groupHtml("management-faq", "Кабінет директора та зарплатня", TELEGRAM_FAQ_SECTIONS.management.items),
     groupHtml("excise-faq", "еАкциз / XTrace", TELEGRAM_FAQ_SECTIONS.eakcyz.items),
     groupHtml("updates-faq", "Оновлення, база та резервні копії", updateItems),
+    groupHtml("reserve-faq", "Резервна каса та відключення світла", RESERVE_FAQ),
     groupHtml("errors-faq", "Помилки та звернення в підтримку", errorItems)
   ].join("\n");
 }
