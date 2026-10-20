@@ -1,0 +1,38 @@
+name: One-time owner-approved candidate binary transfer
+on:
+  push:
+    branches: [codex/v02443-unverified-candidate-20261020]
+    paths: [.github/workflows/one-time-v02443-candidate-transfer.yml]
+permissions:
+  contents: write
+jobs:
+  transfer:
+    if: github.repository == 'MorvuddEzkaton/outpost-public-site' && github.ref == 'refs/heads/codex/v02443-unverified-candidate-20261020'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: true
+      - name: Download only exact hash-pinned owner-supplied unverified installer
+        shell: bash
+        env:
+          SOURCE: 'https://uc11eaa5149371dde2c6447ddc96.dl.dropboxusercontent.com/cd/0/get/DKWypU4HEMI89a3u1Qr9dgioeTk2bwTujPORbLFIcULWqCo8lxDxP_nrO1q3SorK_EvTfLZDZx8fCPfE9wBkJEkrEstl-5BZHygZEE_YpZGI0-lhf16Qj11Ds0KmpiDlpunbQmu9Ic2hmK1c9v6g99G1CifJmzZpTUeHV8V5TQoR6g/file?c_luid=8829622b'
+          EXPECTED_SHA: '33951C63C14D194FB7E938CE9593EDC9529394CF339F291DBE98C6F60B42A82F'
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${SOURCE}"
+          mkdir -p site/previews
+          FILE=site/previews/OutPOSt-Preview-v0.24.43.exe
+          test ! -e "${FILE}"
+          curl --fail --location --silent --show-error --max-time 180 --retry 0 --output "${FILE}" "${SOURCE}"
+          test "$(wc -c < "${FILE}" | tr -d ' ')" = "15438330"
+          ACTUAL=$(sha256sum "${FILE}" | cut -d ' ' -f 1 | tr 'a-f' 'A-F')
+          test "${ACTUAL}" = "${EXPECTED_SHA}"
+          test "$(head -c 2 "${FILE}")" = "MZ"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${FILE}"
+          git commit -m "Stage exact v0.24.43 candidate binary without release approval"
+          git push origin HEAD:refs/heads/codex/v02443-unverified-candidate-20261020
+          echo "Hash-pinned preview artifact transferred; no official release status changed."
