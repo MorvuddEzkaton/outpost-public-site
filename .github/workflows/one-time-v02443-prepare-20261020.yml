@@ -89,6 +89,8 @@ jobs:
           done < <(git diff --name-only)
           git diff --quiet -- site/_worker.js site/_telegram-support.js site/_telegram-faq.js site/_headers wrangler.jsonc
           git diff --check
+      - name: Install the standard image decoder used by repository security tests
+        run: python -m pip install --disable-pip-version-check Pillow==11.3.0
       - name: Run production static quality without deployment
         run: python scripts/run_production_quality.py
       - name: Commit release onto isolated topic branch; never touch main
