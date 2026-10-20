@@ -49,7 +49,11 @@ jobs:
           new = 'Бухгалтерія 1.0.2 приймає управлінські розрахунки винагороди з OutPOSt.'
           if before.count(old) != 1:
               raise SystemExit('Expected exactly one outdated payroll compatibility version')
-          p.write_text(before.replace(old, new), encoding='utf-8', newline='\n')
+          second_old = 'потім OutPOSt до 0.24.42.'
+          second_new = 'потім OutPOSt до актуальної версії.'
+          if before.count(second_old) != 1:
+              raise SystemExit('Expected exactly one stale setup order version')
+          p.write_text(before.replace(old, new).replace(second_old, second_new), encoding='utf-8', newline='\n')
           PY
       - name: Dry-run standard release preparer
         run: python scripts/prepare_public_release.py 0.24.43
