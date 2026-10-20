@@ -55,6 +55,19 @@ jobs:
               raise SystemExit('Expected exactly one stale setup order version')
           p.write_text(before.replace(old, new).replace(second_old, second_new), encoding='utf-8', newline='\n')
           PY
+      - name: Synchronize current-version footer on the changelog
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('site/changelog.html')
+          before = p.read_text(encoding='utf-8')
+          old = 'актуальна версія v0.24.42'
+          new = 'актуальна версія v0.24.43'
+          if before.count(old) != 1:
+              raise SystemExit('Expected exactly one stale changelog footer label')
+          p.write_text(before.replace(old, new), encoding='utf-8', newline='\n')
+          PY
       - name: Dry-run standard release preparer
         run: python scripts/prepare_public_release.py 0.24.43
       - name: Apply standard release preparer and check artifact inventory
