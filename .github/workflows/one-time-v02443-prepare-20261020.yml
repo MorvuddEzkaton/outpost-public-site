@@ -1,0 +1,76 @@
+name: One-time owner-accepted 0.24.43 release preparation
+on:
+  push:
+    branches: [codex/one-time-v02443-preparer-20261020]
+    paths: [.github/workflows/one-time-v02443-prepare-20261020.yml]
+permissions:
+  contents: write
+jobs:
+  prepare:
+    if: github.repository == 'MorvuddEzkaton/outpost-public-site' && github.ref == 'refs/heads/codex/one-time-v02443-preparer-20261020'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact trusted release-input branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: codex/outpost-v02443-approved-inputs-20261020
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Verify pinned main and exactly four owner-accepted inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          test "$(git rev-parse origin/main)" = '27b4eac1bed1dcc1ea236fdea57e3bdc7cede8ae'
+          test "$(git rev-parse HEAD)" = '4a9b9412ce9335679e1a64d0c6f17586c6e6f8c8'
+          git diff --name-status origin/main HEAD > /tmp/outpost-inputs.txt
+          test "$(wc -l </tmp/outpost-inputs.txt | tr -d ' ')" = '4'
+          grep -q $'^A\\tsite/downloads/OutPOSt-Setup-v0.24.43.exe$' /tmp/outpost-inputs.txt
+          grep -q $'^A\\tsite/downloads/OutPOSt-Setup-v0.24.43.sha256.txt$' /tmp/outpost-inputs.txt
+          grep -q $'^A\\trelease/evidence/outpost-v0.24.43.json$' /tmp/outpost-inputs.txt
+          grep -q $'^M\\tsite/changelog.html$' /tmp/outpost-inputs.txt
+          test "$(wc -c <site/downloads/OutPOSt-Setup-v0.24.43.exe | tr -d ' ')" = '15438330'
+          echo '33951C63C14D194FB7E938CE9593EDC9529394CF339F291DBE98C6F60B42A82F *site/downloads/OutPOSt-Setup-v0.24.43.exe' | sha256sum --check - --status
+          git diff --check origin/main HEAD
+          echo 'Scope PASS; owner-used Windows acceptance is documented, not an invented automated acceptance suite.'
+      - name: Dry-run standard release preparer
+        run: python scripts/prepare_public_release.py 0.24.43
+      - name: Apply standard release preparer and check artifact inventory
+        run: |
+          set -euo pipefail
+          python scripts/prepare_public_release.py 0.24.43 --apply
+          python scripts/prepare_public_release.py --check-current
+          python scripts/release_integrity.py --base-ref origin/main
+          git diff --check
+      - name: Validate generated diff stays within site and release registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r filename; do
+            case "$filename" in
+              site/*.html|site/sitemap.xml|release/artifact-registry.json) ;;
+              *) echo "Unexpected generated mutation: $filename"; exit 1 ;;
+            esac
+          done < <(git diff --name-only)
+          git diff --quiet -- site/_worker.js site/_telegram-support.js site/_telegram-faq.js site/_headers wrangler.jsonc
+          git diff --check
+      - name: Run production static quality without deployment
+        run: python scripts/run_production_quality.py
+      - name: Commit release onto isolated topic branch; never touch main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse origin/main)" = '27b4eac1bed1dcc1ea236fdea57e3bdc7cede8ae'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c codex/outpost-v02443-official-release-20261020
+          git add -- site/ release/artifact-registry.json
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No generated changes'; exit 1; }
+          git commit -m 'Prepare standard OutPOSt v0.24.43 publication'
+          git push origin HEAD:refs/heads/codex/outpost-v02443-official-release-20261020
