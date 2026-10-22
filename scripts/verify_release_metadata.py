@@ -8,6 +8,8 @@ future release can update the site and installer together. The guard is read-onl
 from __future__ import annotations
 
 from html.parser import HTMLParser
+from html import unescape
+import json
 import hashlib
 from pathlib import Path
 import re
@@ -131,6 +133,72 @@ def validate_changelog_change_counts(html: str) -> list[str]:
     return errors
 
 
+def validate_changelog_seo_current_release(html: str, current_version: str) -> list[str]:
+    """Fail closed when changelog search/social/JSON-LD descriptions lag the release.
+
+    Only metadata is validated here. Historical versions in the visible
+    changelog are intentionally left untouched.
+    """
+    errors: list[str] = []
+    head_match = re.search(r"<head\\b[^>]*>([\\s\\S]*?)</head>", html, re.IGNORECASE)
+    if not head_match:
+        return ["site/changelog.html: missing head for release SEO metadata"]
+
+    head = head_match.group(1)
+    values: dict[str, list[str]] = {
+        "description": [],
+        "og:description": [],
+        "WebPage JSON-LD description": [],
+    }
+
+    for tag in re.findall(r"<meta\\b[^>]*>", head, re.IGNORECASE):
+        attrs = {
+            key.lower(): unescape(value)
+            for key, value in re.findall(r'([\\w:-]+)\\s*=\\s*["\\\']([^"\\\']*)["\\\']', tag)
+        }
+        if attrs.get("name", "").lower() == "description":
+            values["description"].append(attrs.get("content", ""))
+        if attrs.get("property", "").lower() == "og:description":
+            values["og:description"].append(attrs.get("content", ""))
+
+    for script in re.findall(
+        r'<script\\b[^>]*\\btype=["\\\']application/ld\\+json["\\\'][^>]*>([\\s\\S]*?)</script>',
+        head,
+        re.IGNORECASE,
+    ):
+        try:
+            data = json.loads(script)
+        except json.JSONDecodeError:
+            errors.append("site/changelog.html: invalid SEO JSON-LD")
+            continue
+        if not isinstance(data, dict):
+            continue
+        nodes = data.get("@graph", [data])
+        if not isinstance(nodes, list):
+            continue
+        for item in nodes:
+            if isinstance(item, dict) and item.get("@id") == "https://outpost.com.ua/changelog#webpage":
+                values["WebPage JSON-LD description"].append(item.get("description", ""))
+
+    validated: list[str] = []
+    for label, descriptions in values.items():
+        if len(descriptions) != 1 or not isinstance(descriptions[0], str):
+            errors.append(f"site/changelog.html: expected exactly one {label}; found {len(descriptions)}")
+            continue
+        description = descriptions[0]
+        validated.append(description)
+        versions = re.findall(r"\\bреліз\\s+v(\\d+\\.\\d+\\.\\d+)\\b", description, re.IGNORECASE)
+        if versions != [current_version]:
+            errors.append(
+                f"site/changelog.html: {label} must describe current OutPOSt release v{current_version}; "
+                f"found {versions!r}"
+            )
+    if len(validated) == len(values) and len(set(validated)) != 1:
+        errors.append("site/changelog.html: search, social and WebPage JSON-LD descriptions differ")
+
+    return errors
+
+
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -164,6 +232,9 @@ def main() -> int:
         current_version = None
     else:
         current_version = next(iter(referenced_versions))
+
+    if current_version is not None and CHANGELOG_PAGE.is_file():
+        errors.extend(validate_changelog_seo_current_release(read(CHANGELOG_PAGE), current_version))
 
     if current_version is not None:
         exe_name = f"OutPOSt-Setup-v{current_version}.exe"
@@ -325,6 +396,7 @@ def main() -> int:
     print("  structured softwareVersion/downloadUrl/fileSize references match the current release")
     print("  all visible internal outpost.com.ua anchors are relative and preview-safe across public HTML")
     print("  changelog declared change counts match release-note item counts")
+    print("  changelog SEO descriptions match the current release and each other")
     return 0
 
 
