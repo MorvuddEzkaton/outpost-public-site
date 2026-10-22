@@ -444,7 +444,7 @@ test("cashier page documents current FEFO while keeping older base-sale screensh
 
 test("shared real screenshot carousels have equal-sized stages and same-page lightbox", async ({page}) => {
   const cases = [
-    {path:"/modules",groups:[7,8]},
+    {path:"/modules",groups:[7,2,8]},
     {path:"/avtomatyzatsiya-magazynu",groups:[4,8]},
     {path:"/features",groups:[7]},
     {path:"/prodazh-v-borg",groups:[7,1]},
@@ -603,6 +603,8 @@ test("writeoff walkthrough shows six real batch stages and same-page lightbox", 
   await expect(tour.getByText("Списання конкретних партій — від документа до контрольованого скасування")).toBeVisible();
   await expect(tour.locator(".tour-eyebrow")).toHaveText("РЕАЛЬНИЙ СЦЕНАРІЙ · СПИСАННЯ ПАРТІЙ");
   await expect(tour.locator(".tour-note")).toContainText("явний вибір конкретних партій");
+  await expect(tour.locator(".tour-note")).toContainText("Чернетки списання");
+  await expect(tour).toHaveAttribute("id","writeoff-tour");
   await expect(tour.locator(".tour-note")).toContainText("Cabinet, D1 і хмарна статистика не використовувалися");
   const heights = [];
   for (let i=0;i<6;i++) {
@@ -881,6 +883,10 @@ test("modules page presents current module capabilities without milestone histor
     await expect(page.locator("#promotions-loyalty a[href='/avtomatyzatsiya-rozdribnoi-torgivli']")).toHaveCount(1);
     await expect(page.locator("#batch-expiry a[href='#batch-registry-tour']")).toHaveCount(1);
     await expect(page.locator("#batch-registry-tour figure.tour-shot")).toHaveCount(7);
+    await expect(page.locator("#batch-writeoff-tour figure.tour-shot")).toHaveCount(2);
+    await expect(page.locator("#batch-writeoff-tour img[src='/assets/screenshots/02426/writeoff/01-dokument-spysannia.webp']")).toHaveCount(1);
+    await expect(page.locator("#batch-writeoff-tour a[href='/oblik-tovariv-u-magazyni#writeoff-tour']")).toHaveCount(1);
+    await expect(page.locator("#batch-expiry")).toContainText("Чернетки списання");
     await expect(page.locator("#batch-registry-tour")).toContainText("Сім реальних екранів OutPOSt");
     await expect(page.locator("#batch-registry-tour")).not.toContainText("v0.24.19");
     await expect(page.locator("#batch-registry-tour .tour-note a[href='/oblik-tovariv-u-magazyni']")).toHaveCount(1);
