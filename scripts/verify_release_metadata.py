@@ -140,7 +140,7 @@ def validate_changelog_seo_current_release(html: str, current_version: str) -> l
     changelog are intentionally left untouched.
     """
     errors: list[str] = []
-    head_match = re.search(r"<head\\b[^>]*>([\\s\\S]*?)</head>", html, re.IGNORECASE)
+    head_match = re.search(r"<head\b[^>]*>([\s\S]*?)</head>", html, re.IGNORECASE)
     if not head_match:
         return ["site/changelog.html: missing head for release SEO metadata"]
 
@@ -151,10 +151,10 @@ def validate_changelog_seo_current_release(html: str, current_version: str) -> l
         "WebPage JSON-LD description": [],
     }
 
-    for tag in re.findall(r"<meta\\b[^>]*>", head, re.IGNORECASE):
+    for tag in re.findall(r"<meta\b[^>]*>", head, re.IGNORECASE):
         attrs = {
             key.lower(): unescape(value)
-            for key, value in re.findall(r'([\\w:-]+)\\s*=\\s*["\\\']([^"\\\']*)["\\\']', tag)
+            for key, value in re.findall(r'([\w:-]+)\s*=\s*["\\']([^"\\']*)["\\']', tag)
         }
         if attrs.get("name", "").lower() == "description":
             values["description"].append(attrs.get("content", ""))
@@ -162,7 +162,7 @@ def validate_changelog_seo_current_release(html: str, current_version: str) -> l
             values["og:description"].append(attrs.get("content", ""))
 
     for script in re.findall(
-        r'<script\\b[^>]*\\btype=["\\\']application/ld\\+json["\\\'][^>]*>([\\s\\S]*?)</script>',
+        r'<script\b[^>]*\btype=["\\']application/ld\+json["\\'][^>]*>([\s\S]*?)</script>',
         head,
         re.IGNORECASE,
     ):
@@ -187,7 +187,7 @@ def validate_changelog_seo_current_release(html: str, current_version: str) -> l
             continue
         description = descriptions[0]
         validated.append(description)
-        versions = re.findall(r"\\bреліз\\s+v(\\d+\\.\\d+\\.\\d+)\\b", description, re.IGNORECASE)
+        versions = re.findall(r"\bреліз\s+v(\d+\.\d+\.\d+)\b", description, re.IGNORECASE)
         if versions != [current_version]:
             errors.append(
                 f"site/changelog.html: {label} must describe current OutPOSt release v{current_version}; "
