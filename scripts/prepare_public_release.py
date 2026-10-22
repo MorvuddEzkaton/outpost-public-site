@@ -245,6 +245,30 @@ def prepare_html_changes(current: str, target: str, target_size: int, target_sha
         if text != original:
             changes[path] = text
 
+
+    # Changelog release notes are prepared/reviewed separately. Only its three
+    # SEO descriptions are current-release metadata and may be advanced here.
+    # Historical release notes and the visible release body remain immutable.
+    changelog_original = read(CHANGELOG)
+    head_end = changelog_original.lower().find("</head>")
+    if head_end < 0:
+        raise ReleaseError("site/changelog.html is missing head; cannot synchronize release SEO metadata")
+    head = changelog_original[:head_end]
+    tail = changelog_original[head_end:]
+    old_marker = f"реліз v{current}"
+    new_marker = f"реліз v{target}"
+    if head.count(old_marker) == 3:
+        head = head.replace(old_marker, new_marker)
+    elif head.count(old_marker) != 0 or head.count(new_marker) != 3:
+        raise ReleaseError(
+            "changelog requires three aligned search, social and structured SEO release descriptions"
+        )
+    if head.count(new_marker) != 3:
+        raise ReleaseError("changelog release SEO descriptions were not updated exactly three times")
+    changelog_updated = head + tail
+    if changelog_updated != changelog_original:
+        changes[CHANGELOG] = changelog_updated
+
     # Every old current-release reference outside changelog must be accounted for.
     leftovers: list[str] = []
     for path in sorted(SITE.glob("*.html")):

@@ -6,6 +6,7 @@ from __future__ import annotations
 from datetime import date
 
 from verify_sitemap_freshness import VerifyError, freshness_error, future_lastmod_error, parse_iso_date
+from verify_release_sitemap import PUBLIC_ORIGIN, validate_release_dates
 
 
 def require(condition: bool, message: str) -> None:
@@ -64,6 +65,32 @@ def test_today_lastmod_passes() -> None:
     )
 
 
+
+def test_independent_changelog_lastmod_is_valid() -> None:
+    dates = {
+        f"{PUBLIC_ORIGIN}/": date(2026, 10, 20),
+        f"{PUBLIC_ORIGIN}/download": date(2026, 10, 20),
+        f"{PUBLIC_ORIGIN}/changelog": date(2026, 10, 22),
+    }
+    require(
+        validate_release_dates(dates, date(2026, 10, 22)) == [],
+        "metadata-only changelog changes must not fake edits to homepage/download",
+    )
+
+
+def test_release_sitemap_still_rejects_future_dates() -> None:
+    dates = {
+        f"{PUBLIC_ORIGIN}/": date(2026, 10, 20),
+        f"{PUBLIC_ORIGIN}/download": date(2026, 10, 20),
+        f"{PUBLIC_ORIGIN}/changelog": date(2026, 10, 23),
+    }
+    errors = validate_release_dates(dates, date(2026, 10, 22))
+    require(
+        len(errors) == 1 and "in the future" in errors[0] and "/changelog" in errors[0],
+        "release sitemap must still fail closed for future dates",
+    )
+
+
 def main() -> int:
     tests = (
         test_equal_date_passes,
@@ -72,12 +99,15 @@ def main() -> int:
         test_invalid_date_fails_closed,
         test_future_lastmod_fails_closed,
         test_today_lastmod_passes,
+        test_independent_changelog_lastmod_is_valid,
+        test_release_sitemap_still_rejects_future_dates,
     )
     for test in tests:
         test()
     print("Sitemap Git freshness synthetic tests: PASS")
     print(f"  {len(tests)}/{len(tests)} offline tests passed")
     print("  stale, future and invalid lastmod dates fail closed")
+    print("  non-release changelog copy may have its own truthful lastmod date")
     print("  production network was not called")
     return 0
 

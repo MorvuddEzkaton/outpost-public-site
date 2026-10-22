@@ -128,10 +128,22 @@ def build_fixture(root: Path, *, bad_target_checksum: bool = False, bad_changelo
     )
 
     marker_version = CURRENT if bad_changelog else TARGET
+    seo_description = f"Повна історія версій OutPOSt: реліз v{CURRENT}; Бухгалтерія v1.0.2."
+    seo_jsonld = json.dumps({
+        "@graph": [{
+            "@type": "WebPage",
+            "@id": f"{PUBLIC_ORIGIN}/changelog#webpage",
+            "description": seo_description,
+        }]
+    }, ensure_ascii=False)
     write(
         site / "changelog.html",
         f'''<!doctype html>
-<html><body>
+<html><head>
+<meta content="{seo_description}" name="description"/>
+<meta content="{seo_description}" property="og:description"/>
+<script type="application/ld+json">{seo_jsonld}</script>
+</head><body>
 <div class="changelog-version"><span>Поточний реліз</span><strong>{marker_version}</strong></div>
 <a href="/download">Завантажити v{marker_version}</a>
 <div class="changelog-version"><span>Попередній реліз</span><strong>{CURRENT}</strong></div>
@@ -232,6 +244,17 @@ def test_success_path() -> None:
         applied = run_release(root, TARGET, "--apply")
         require(applied.returncode == 0, f"apply failed:\n{applied.stdout}\n{applied.stderr}")
         require("APPLIED" in applied.stdout, "apply did not report APPLIED")
+
+        changelog_after_apply = (root / "site" / "changelog.html").read_text(encoding="utf-8")
+        changelog_head = changelog_after_apply.split("</head>", 1)[0]
+        require(
+            changelog_head.count(f"реліз v{TARGET}") == 3,
+            "standard release preparation did not advance all three changelog SEO descriptions",
+        )
+        require(
+            f"реліз v{CURRENT}" not in changelog_head,
+            "changelog SEO still describes the previous public release",
+        )
 
         metadata = run_metadata_guard(root)
         require(
