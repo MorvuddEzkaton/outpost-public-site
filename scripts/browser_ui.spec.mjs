@@ -1353,3 +1353,20 @@ test("homepage landmark order and label-workflow links stay accessible", async (
   await page.goto(origin + "/prro", {waitUntil:"load"});
   await expect(page.locator('main a[href="/prro-checkbox"]')).toHaveCount(1);
 });
+
+
+test("feature cards deep-link to the existing inventory and loyalty screenshot tours", async ({page}) => {
+  const cases = [
+    {href:"/oblik-tovariv-u-magazyni#inventory-tour",anchor:"#inventory-tour",count:5},
+    {href:"/avtomatyzatsiya-rozdribnoi-torgivli#loyalty-tour",anchor:"#loyalty-tour",count:6},
+  ];
+  for (const item of cases) {
+    await page.goto(origin + "/features", {waitUntil:"load"});
+    const link = page.locator('main a[href="' + item.href + '"]');
+    await expect(link).toHaveCount(1);
+    await link.click();
+    await expect(page).toHaveURL(origin + item.href);
+    await expect(page.locator(item.anchor + " figure.tour-shot")).toHaveCount(item.count);
+    await expect(page.locator(item.anchor + " img[src^='/assets/screenshots/']")).toHaveCount(item.count);
+  }
+});
