@@ -20,6 +20,21 @@ RELEASE_URLS = (
 )
 
 
+
+def validate_release_dates(parsed: dict[str, date], today_kyiv: date) -> list[str]:
+    """Allow independent content dates while rejecting future release sitemap dates.
+
+    A new software release updates all three URLs through release_sitemap.py;
+    a subsequent copy/SEO edit may update only one of them. Per-URL Git
+    freshness is independently enforced by verify_sitemap_freshness.py.
+    """
+    return [
+        f"{url}: lastmod {value.isoformat()} is in the future for Europe/Kyiv"
+        for url, value in parsed.items()
+        if value > today_kyiv
+    ]
+
+
 def main() -> int:
     errors: list[str] = []
     if not SITEMAP.is_file():
@@ -59,26 +74,7 @@ def main() -> int:
 
     if len(parsed) == len(RELEASE_URLS):
         today_kyiv = datetime.now(ZoneInfo("Europe/Kyiv")).date()
-        for url, value in parsed.items():
-            if value > today_kyiv:
-                errors.append(f"{url}: lastmod {value.isoformat()} is in the future for Europe/Kyiv")
-
-        homepage = parsed[f"{PUBLIC_ORIGIN}/"]
-        download = parsed[f"{PUBLIC_ORIGIN}/download"]
-        changelog = parsed[f"{PUBLIC_ORIGIN}/changelog"]
-
-        # A product release updates all three pages together, but ordinary public-site
-        # work may legitimately update the homepage and/or download page without
-        # changing the changelog. The fail-closed condition we need is therefore that
-        # release-facing pages must never look older than the current changelog.
-        if homepage < changelog:
-            errors.append(
-                f"homepage lastmod {homepage.isoformat()} is older than changelog {changelog.isoformat()}"
-            )
-        if download < changelog:
-            errors.append(
-                f"download lastmod {download.isoformat()} is older than changelog {changelog.isoformat()}"
-            )
+        errors.extend(validate_release_dates(parsed, today_kyiv))
 
     if errors:
         print(f"Release sitemap guard: FAIL ({len(errors)} issue(s))", file=sys.stderr)
@@ -96,10 +92,10 @@ def main() -> int:
         print(f"  /, /download and /changelog share release lastmod {changelog.isoformat()}")
     else:
         print(
-            "  non-release content updates are newer than the current changelog: "
+            "  release URLs have independent content dates: "
             f"/={homepage.isoformat()}, /download={download.isoformat()}, /changelog={changelog.isoformat()}"
         )
-    print("  release-facing lastmod dates are valid ISO dates and not older than /changelog")
+    print("  release-facing lastmod dates are valid ISO dates; per-page Git freshness is checked separately")
     print("  no release-critical lastmod is in the future for Europe/Kyiv")
     return 0
 
