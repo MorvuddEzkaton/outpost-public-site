@@ -154,7 +154,7 @@ def validate_changelog_seo_current_release(html: str, current_version: str) -> l
     for tag in re.findall(r"<meta\b[^>]*>", head, re.IGNORECASE):
         attrs = {
             key.lower(): unescape(value)
-            for key, value in re.findall(r'([\w:-]+)\s*=\s*["\\']([^"\\']*)["\\']', tag)
+            for key, value in re.findall(r"""([\w:-]+)\s*=\s*["']([^"']*)["']""", tag)
         }
         if attrs.get("name", "").lower() == "description":
             values["description"].append(attrs.get("content", ""))
@@ -162,7 +162,7 @@ def validate_changelog_seo_current_release(html: str, current_version: str) -> l
             values["og:description"].append(attrs.get("content", ""))
 
     for script in re.findall(
-        r'<script\b[^>]*\btype=["\\']application/ld\+json["\\'][^>]*>([\s\S]*?)</script>',
+        r"""<script\b[^>]*\btype=["']application/ld\+json["'][^>]*>([\s\S]*?)</script>""",
         head,
         re.IGNORECASE,
     ):
