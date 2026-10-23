@@ -102,7 +102,12 @@ jobs:
           git add -f -- "$expected"
           test "$(git diff --cached --name-only)" = "$expected"
           test "$(git diff --cached --diff-filter=A --name-only)" = "$expected"
-          git diff --quiet
+          # Git checkout can normalize the existing CRLF checksum in the worktree.
+          # Only this exact already-reviewed checksum may differ, never stage it.
+          tracked_changes="$(git diff --name-only)"
+          if [ -n "$tracked_changes" ]; then
+            test "$tracked_changes" = "site/downloads/OutPOSt-Setup-v${VERSION}.sha256.txt"
+          fi
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Stage verified OutPOSt v${VERSION} installer from Dropbox"
           git fetch origin main staging --prune
           test "$(git rev-parse origin/main)" = "$MAIN_SHA"
