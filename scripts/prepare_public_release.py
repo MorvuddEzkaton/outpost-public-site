@@ -196,7 +196,7 @@ def prepare_html_changes(current: str, target: str, target_size: int, target_sha
             if not separator:
                 raise ReleaseError("download page must contain </head> for SEO size synchronization")
             head, seo_size_updates = re.subn(
-                r"(Інсталятор\\s+)[0-9]+(?:[,.][0-9]+)?\\s*МБ",
+                r"(Інсталятор\s+)[0-9]+(?:[,.][0-9]+)?\s*МБ",
                 lambda match: f"{match.group(1)}{target_mb_comma}",
                 head,
             )
