@@ -113,14 +113,16 @@ class DropboxInstallerImportTests(unittest.TestCase):
         path = Path(__file__).resolve().parents[1] / ".github/workflows/import-outpost-installer.yml"
         raw = path.read_text(encoding="utf-8")
         for required in ("workflow_dispatch:", "github.actor == 'MorvuddEzkaton'",
-                         "github.ref == 'refs/heads/main'", "vars.OUTPOST_DROPBOX_IMPORT_ENABLED == '1'",
+                         "github.ref == 'refs/heads/staging'", "vars.OUTPOST_DROPBOX_IMPORT_ENABLED == '1'",
                          "permissions:\n  contents: read", "git merge-base --is-ancestor",
                          "git switch --detach", "python scripts/import_dropbox_installer.py",
                          "git push origin HEAD:refs/heads/staging"):
             self.assertIn(required, raw)
         self.assertNotIn("gh pr merge", raw)
         self.assertNotIn("wrangler", raw.lower())
-        self.assertIn("  push:\n", raw)\n        self.assertIn("    branches:\n      - staging", raw)\n        self.assertNotRegex(raw, r"(?m)^  (?:pull_request|schedule|pull_request_target):")
+        self.assertIn("  push:\n", raw)
+        self.assertIn("    branches:\n      - staging", raw)
+        self.assertNotRegex(raw, r"(?m)^  (?:pull_request|schedule|pull_request_target):")
 
 
 if __name__ == "__main__":
