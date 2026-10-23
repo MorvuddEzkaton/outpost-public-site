@@ -46,5 +46,8 @@ class ReleaseWorkflowSecurityTests(unittest.TestCase):
                     self.assertNotEqual(self.run_guard(product, lambda s: s + '\n          ' + mutation + '\n'), 0)
 
 
+# Include Dropbox offline importer and privilege-boundary checks in the existing required CI gate.
+from test_dropbox_installer_import import DropboxInstallerImportTests
+
 if __name__ == "__main__":
     unittest.main()
