@@ -457,7 +457,14 @@ def run_live(root, command):
     gate.require(command in LIVE_COMMANDS, 'unexpected_live_verifier')
     result = subprocess.run([sys.executable, str(root / 'scripts' / command)], cwd=root,
                             env=live_environment(os.environ), capture_output=True, timeout=240, check=False)
-    return result.returncode == 0
+    if result.returncode != 0:
+        # Only the reviewed verifier basename and integer status are logged.
+        # stdout/stderr are intentionally discarded: live HTTP responses may
+        # carry sensitive context and must never leak into GitHub Actions logs.
+        print(f'Live verifier: FAIL — {command} (exit {result.returncode})', flush=True)
+        return False
+    print(f'Live verifier: PASS — {command}', flush=True)
+    return True
 
 def verify_live(env, root, journal, client, runner=run_live):
     data = validate_journal(journal.data, env)
