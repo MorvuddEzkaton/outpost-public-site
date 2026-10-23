@@ -127,6 +127,7 @@ class RecoveryTests(unittest.TestCase):
                 'first_unarchived_run_number':17, 'last_reconciled_run_number':42,
                 'frontier':self.anchor,
                 'resolution':'last_successful_live_deployment_is_new_frontier_only',
+                'late_adoption':history.ADOPTED_FAILED_RUN,
             }
             raw=(json.dumps(record)+'\n').encode()
             path.write_bytes(raw)
