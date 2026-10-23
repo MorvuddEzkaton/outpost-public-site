@@ -232,7 +232,8 @@ def validate_historical_journal(data, metadata):
 
 def history_clear(client, env, root):
     records = checkpoints.load_checked(root, env['GITHUB_SHA'], validate_journal_evidence)
-    history.assert_clear(client, env, validate_historical_journal, records)
+    return history.assert_clear(client, env, validate_historical_journal, records,
+                                recovery=history.recovery_marker(root))
 
 class Clients(history.HistoryReads, gate.ReadOnlyClients):
     def __init__(self, env):
@@ -290,7 +291,7 @@ def preflight(env, root, client, notification_mode=True):
     sha = context(env)
     # Different source commits cannot escape an older unresolved attempt.
     # This is transaction/replay evidence, never a CI quality PASS substitute.
-    history_clear(client, env, root)
+    recovered_source = history_clear(client, env, root)
     config, config_hash = gate.local_source(root, sha)
     gate.require(config_hash == APPROVED_CONFIG_HASH and not (root / '.release-hold').exists(), 'approved_configuration_or_release_hold_rejected')
     review = gate.review_proof(client, sha, automatic=gate.automatic_approval_enabled(env))
@@ -302,6 +303,13 @@ def preflight(env, root, client, notification_mode=True):
     inventory_valid(items)
     base = canonical(project)
     gate.require(base['id'] in {item['id'] for item in items}, 'canonical_not_in_inventory')
+    if recovered_source is not None:
+        # The recovered frontier is valid only against the actual canonical
+        # production deployment, not merely the repository's green checks.
+        gate.require(source_metadata(base).get('commit_hash') == recovered_source and
+                     source_metadata(base).get('branch') == 'main' and
+                     source_metadata(base).get('commit_dirty') is False,
+                     'recovery_production_baseline_not_proven')
     return sha, config, config_hash, review, project, items
 
 def prepare(env, root, file, client):
