@@ -1,6 +1,12 @@
 name: Import verified OutPOSt installer from Dropbox
 
 on:
+  push:
+    branches:
+      - staging
+    paths:
+      - '.github/workflows/import-outpost-installer.yml'
+      - 'release/evidence/outpost-v*.json'
   workflow_dispatch:
     inputs:
       version:
@@ -17,7 +23,7 @@ concurrency:
 
 jobs:
   import-installer:
-    if: github.repository == 'MorvuddEzkaton/outpost-public-site' && github.ref == 'refs/heads/main' && github.actor == 'MorvuddEzkaton' && vars.OUTPOST_DROPBOX_IMPORT_ENABLED == '1'
+    if: github.repository == 'MorvuddEzkaton/outpost-public-site' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging') && github.actor == 'MorvuddEzkaton' && vars.OUTPOST_DROPBOX_IMPORT_ENABLED == '1'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -41,8 +47,15 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || exit 1
           git fetch origin main staging --prune
+          if [ -z "$VERSION" ]; then
+            mapfile -t receipt_paths < <(git diff --name-only origin/main origin/staging | grep -E '^release/evidence/outpost-v[0-9]+\.[0-9]+\.[0-9]+\.json$')
+            test "${#receipt_paths[@]}" -eq 1
+            VERSION="${receipt_paths[0]#release/evidence/outpost-v}"
+            VERSION="${VERSION%.json}"
+          fi
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || exit 1
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           MAIN_SHA=$(git rev-parse origin/main)
           STAGING_SHA=$(git rev-parse origin/staging)
           test "$(git rev-parse HEAD)" = "$MAIN_SHA"
@@ -68,7 +81,7 @@ jobs:
 
       - name: Download and verify exact Windows-approved installer
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.scope.outputs.version }}
           OUTPOST_DROPBOX_APP_KEY: ${{ secrets.OUTPOST_DROPBOX_APP_KEY }}
           OUTPOST_DROPBOX_APP_SECRET: ${{ secrets.OUTPOST_DROPBOX_APP_SECRET }}
           OUTPOST_DROPBOX_REFRESH_TOKEN: ${{ secrets.OUTPOST_DROPBOX_REFRESH_TOKEN }}
@@ -76,7 +89,64 @@ jobs:
 
       - name: Ensure exact four-input staging diff; push only staging
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.scope.outputs.version }}
+          MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
+          STAGING_SHA: ${{ steps.scope.outputs.staging_sha }}
+        run: |
+          set -euo pipefail
+          python scripts/verify_prepare_release_workflow.py
+          test "$(git rev-parse HEAD)" = "$STAGING_SHA"
+          expected="site/downloads/OutPOSt-Setup-v${VERSION}.exe"
+          test "$(git status --porcelain --untracked-files=all)" = "?? $expected"
+          git add -- "$expected"
+          test "$(git diff --cached --name-only)" = "$expected"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Stage verified OutPOSt v${VERSION} installer from Dropbox"
+          git fetch origin main staging --prune
+          test "$(git rev-parse origin/main)" = "$MAIN_SHA"
+          test "$(git rev-parse origin/staging)" = "$STAGING_SHA"
+          # Non-force push refuses races; no main/production/Cloudflare/Telegram mutation.
+          git push origin HEAD:refs/heads/staging
+)
+            test "${#receipt_paths[@]}" -eq 1
+            VERSION="${receipt_paths[0]#release/evidence/outpost-v}"
+            VERSION="${VERSION%.json}"
+          fi
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || exit 1
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          MAIN_SHA=$(git rev-parse origin/main)
+          STAGING_SHA=$(git rev-parse origin/staging)
+          test "$(git rev-parse HEAD)" = "$MAIN_SHA"
+          git merge-base --is-ancestor "$MAIN_SHA" "$STAGING_SHA"
+          test "$MAIN_SHA" != "$STAGING_SHA"
+          expected_checksum="site/downloads/OutPOSt-Setup-v${VERSION}.sha256.txt"
+          expected_evidence="release/evidence/outpost-v${VERSION}.json"
+          mapfile -t changes < <(git diff --name-status "$MAIN_SHA" "$STAGING_SHA")
+          test "${#changes[@]}" -eq 3
+          for entry in "${changes[@]}"; do
+            case "$entry" in
+              $'M\t'site/changelog.html|$'A\t'"$expected_checksum"|$'A\t'"$expected_evidence") ;;
+              *) echo 'Unexpected or unreviewed staging change: import blocked' >&2; exit 1 ;;
+            esac
+          done
+          test "$(printf '%s\n' "${changes[@]}" | cut -f 2 | sort -u | wc -l)" -eq 3
+          test "$(printf '%s\n' "${changes[@]}" | grep -c $'M\tsite/changelog.html')" -eq 1
+          test "$(printf '%s\n' "${changes[@]}" | grep -c -F -x $'A\t'"$expected_checksum")" -eq 1
+          test "$(printf '%s\n' "${changes[@]}" | grep -c -F -x $'A\t'"$expected_evidence")" -eq 1
+          echo "main_sha=$MAIN_SHA" >> "$GITHUB_OUTPUT"
+          echo "staging_sha=$STAGING_SHA" >> "$GITHUB_OUTPUT"
+          git switch --detach "$STAGING_SHA"
+
+      - name: Download and verify exact Windows-approved installer
+        env:
+          VERSION: ${{ steps.scope.outputs.version }}
+          OUTPOST_DROPBOX_APP_KEY: ${{ secrets.OUTPOST_DROPBOX_APP_KEY }}
+          OUTPOST_DROPBOX_APP_SECRET: ${{ secrets.OUTPOST_DROPBOX_APP_SECRET }}
+          OUTPOST_DROPBOX_REFRESH_TOKEN: ${{ secrets.OUTPOST_DROPBOX_REFRESH_TOKEN }}
+        run: python scripts/import_dropbox_installer.py "$VERSION"
+
+      - name: Ensure exact four-input staging diff; push only staging
+        env:
+          VERSION: ${{ steps.scope.outputs.version }}
           MAIN_SHA: ${{ steps.scope.outputs.main_sha }}
           STAGING_SHA: ${{ steps.scope.outputs.staging_sha }}
         run: |
