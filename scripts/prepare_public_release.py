@@ -189,14 +189,23 @@ def prepare_html_changes(current: str, target: str, target_size: int, target_sha
             # The download page is exclusively about the current release.
             text = text.replace(current, target)
             text = text.replace(current_sha, target_sha)
-            text, installer_mb_updates = re.subn(
-                r"(Інсталятор\s+)[0-9]+(?:[,.][0-9]+)?\s*МБ",
-                rf"\g<1>{target_mb_comma}",
-                text,
-                count=1,
+            # The current installer size appears in exactly three SEO descriptions:
+            # search meta, Open Graph and JSON-LD WebPage.description.
+            # Scope substitutions to <head> to leave Accounting and body copy alone.
+            head, separator, body = text.partition("</head>")
+            if not separator:
+                raise ReleaseError("download page must contain </head> for SEO size synchronization")
+            head, seo_size_updates = re.subn(
+                r"(Інсталятор\\s+)[0-9]+(?:[,.][0-9]+)?\\s*МБ",
+                lambda match: f"{match.group(1)}{target_mb_comma}",
+                head,
             )
-            if installer_mb_updates != 1:
-                raise ReleaseError("download page must contain exactly one OutPOSt installer-size marker")
+            if seo_size_updates != 3:
+                raise ReleaseError(
+                    "download page must contain exactly three current installer-size SEO descriptions "
+                    "(meta, Open Graph, JSON-LD)"
+                )
+            text = head + separator + body
 
             panel_match = re.search(
                 r'<section\b[^>]*\bdata-download-product="outpost"[^>]*>.*?</section>',
