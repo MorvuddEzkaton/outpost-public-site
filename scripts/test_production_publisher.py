@@ -542,8 +542,17 @@ class LiveVerifierEnvironmentTests(unittest.TestCase):
             self.assertEqual(run.call_args.kwargs['timeout'], 240)
 
     def test_nonzero_exit_remains_failed(self):
-        with patch.object(publisher.subprocess, 'run', return_value=publisher.subprocess.CompletedProcess([], 1)):
-            self.assertFalse(publisher.run_live(Path('/reviewed'), 'verify_live_production.py'))
+        with patch.object(publisher.subprocess, 'run', return_value=publisher.subprocess.CompletedProcess([], 1, b'private response', b'private error')):
+            with patch('builtins.print') as printed:
+                self.assertFalse(publisher.run_live(Path('/reviewed'), 'verify_live_production.py'))
+            printed.assert_called_once_with('Live verifier: FAIL — verify_live_production.py (exit 1)', flush=True)
+            self.assertNotIn('private', str(printed.call_args))
+
+    def test_success_logs_only_approved_verifier_basename(self):
+        with patch.object(publisher.subprocess, 'run', return_value=publisher.subprocess.CompletedProcess([], 0, b'secret', b'private')):
+            with patch('builtins.print') as printed:
+                self.assertTrue(publisher.run_live(Path('/reviewed'), 'verify_live_production.py'))
+            printed.assert_called_once_with('Live verifier: PASS — verify_live_production.py', flush=True)
 
     def test_real_offline_python_child_can_start_without_operational_environment(self):
         parent = {**dict(publisher.os.environ), 'CLOUDFLARE_API_TOKEN': 'offline-pages',
