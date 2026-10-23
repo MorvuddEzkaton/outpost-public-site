@@ -351,7 +351,7 @@ class PublisherTests(unittest.TestCase):
         commands = []
         with self.assertRaises(gate.GateError):
             self.live(lambda _, command: commands.append(command) or False)
-        self.assertEqual(len(commands), 1)
+        self.assertEqual(commands, ['verify_live_production.py'] * 2)
         self.assertEqual(self.journal.data['state'], 'live_failed')
 
     def test_live_cannot_begin_on_unknown_upload(self):
@@ -366,6 +366,45 @@ class PublisherTests(unittest.TestCase):
         self.client.health_value = {}
         publisher.rollback(self.env, self.root, self.journal, self.client)
         self.assertEqual(self.journal.data['state'], 'rolled_back')
+
+    def test_transient_readonly_live_failure_retries_once_without_upload_replay(self):
+        self.execute()
+        calls = []
+        def transient(root, command):
+            calls.append(command)
+            return calls.count(command) > 1 if command == 'verify_live_sitemap.py' else True
+        self.live(transient)
+        self.assertEqual(self.journal.data['state'], 'live_pass')
+        self.assertEqual(calls.count('verify_live_sitemap.py'), 2)
+        self.assertEqual(len(self.client.items), 2, 'single upload only')
+
+    def test_persistent_readonly_live_failure_remains_blocked(self):
+        self.execute()
+        calls = []
+        def failing(root, command):
+            calls.append(command)
+            return False
+        with self.assertRaises(gate.GateError):
+            self.live(failing)
+        self.assertEqual(self.journal.data['state'], 'live_failed')
+        self.assertEqual(calls, ['verify_live_production.py'] * 2)
+        self.assertEqual(len(self.client.items), 2, 'never replay upload')
+
+    def test_canonical_changes_after_first_failure_block_retry(self):
+        self.execute()
+        calls = []
+        def changing(root, command):
+            calls.append(command)
+            other = deepcopy(self.client.items[-1])
+            other['id'] = OTHER
+            self.client.items.append(other)
+            self.client.project['canonical_deployment'] = other
+            return False
+        with self.assertRaises(gate.GateError):
+            self.live(changing)
+        self.assertEqual(self.journal.data['state'], 'live_failed')
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(self.client.rollback_calls, [])
 
     def test_rollback_only_after_live_failure(self):
         self.execute()

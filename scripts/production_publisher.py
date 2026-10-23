@@ -487,7 +487,20 @@ def verify_live(env, root, journal, client, runner=run_live):
             # No canonical GET if mode/source/deployment changed between validators.
             gate.verify_current(env, root, client)
             gate.require(resolve(data, client.pages(), client.inventory()) == own, 'canonical_changed_during_live')
-            gate.require(runner(root, command), 'critical_live_verification_failed')
+            # A single transient public-GET failure must not force a rollback
+            # after an otherwise verified upload. Retry ONLY this same
+            # credential-free verifier; never repeat the Cloudflare upload.
+            if not runner(root, command):
+                gate.verify_current(env, root, client)
+                gate.require(resolve(data, client.pages(), client.inventory()) == own,
+                             'canonical_changed_before_live_retry')
+                print('Live verifier: one read-only retry — ' + command, flush=True)
+                if runner is run_live:
+                    time.sleep(3)
+                gate.verify_current(env, root, client)
+                gate.require(resolve(data, client.pages(), client.inventory()) == own,
+                             'canonical_changed_during_live_retry')
+                gate.require(runner(root, command), 'critical_live_verification_failed')
         gate.verify_current(env, root, client)
         journal.event('live_pass', deployment_id=own)
     except Exception:
