@@ -480,6 +480,48 @@ def verified_recovery_frontier(client, run, env, validator):
     return anchor['head_sha']
 
 
+def verified_successful_frontier(client, run, env, validator):
+    """Future clean successful runs may replace an older reviewed frontier.
+
+    Expired GitHub ZIPs alone must not deadlock all future publishing. A new
+    frontier requires immutable GitHub successful writer-step evidence AND
+    Cloudflare canonical matching its exact SHA (checked in preflight).
+    Ambiguous, failed and rolled-back attempts never qualify.
+    """
+    gate.require(run.get('run_number', 0) > RECOVERY_FRONTIER['run_number'] and
+                 run.get('status') == 'completed' and run.get('conclusion') == 'success',
+                 'future_frontier_not_successful')
+    artifacts = client.publication_artifacts(run)
+    if artifacts:
+        proof = read_resolved_record(client, run, env, validator)
+        gate.require(proof['kind'] == 'journal' and
+                     proof['proof'][1]['journal']['state'] == 'live_pass' and
+                     proof['proof'][1]['journal']['events'][-1].get('state') == 'live_pass',
+                     'future_frontier_not_live')
+    else:
+        jobs = client.skipped_publication_jobs(run)
+        gate.require(isinstance(jobs, list) and len(jobs) == 3 and
+                     sorted(x.get('name') for x in jobs) ==
+                     ['browser-quality', 'publish', 'static-quality'] and
+                     all(x.get('status') == 'completed' and x.get('conclusion') == 'success' and
+                         x.get('run_id') == run['id'] and x.get('head_sha') == run['head_sha'] and
+                         x.get('run_attempt') == 1 for x in jobs),
+                     'future_frontier_provenance_missing')
+        writer = next(x for x in jobs if x['name'] == 'publish')
+        steps = {x.get('name'): x.get('conclusion') for x in writer.get('steps', [])}
+        required = ('Prepare read-only deployment plan',
+                    'Persist intent before any upload',
+                    'Upload once and require actual matching canonical deployment',
+                    'Verify all live contracts only after exact deployment proof',
+                    'Save final journal even on failure; never upload credentials or raw logs')
+        gate.require(len(steps) == len(writer.get('steps', [])) and
+                     all(steps.get(name) == 'success' for name in required),
+                     'future_frontier_provenance_missing')
+        # This is not a claim that expired ZIP contents are known. The
+        # subsequent canonical exact-SHA match is non-optional.
+    return run['head_sha']
+
+
 def assert_clear(client, env, validator, records=(), recovery=False):
     runs = merge_runs(client.publication_runs(), records)
     current = validate_runs(runs, env)
@@ -489,15 +531,27 @@ def assert_clear(client, env, validator, records=(), recovery=False):
         gate.require(current['run_number'] > RECOVERY_FRONTIER['run_number'],
                      'recovery_frontier_current_run_invalid')
         anchor = next((run for run in ordered if run['run_number'] == RECOVERY_FRONTIER['run_number']), None)
-        gate.require(anchor is not None, 'recovery_anchor_deleted')
-        last_live_sha = verified_recovery_frontier(client, anchor, env, validator)
+        gate.require(anchor is not None and anchor['head_sha'] == RECOVERY_FRONTIER['head_sha'] and
+                     anchor['conclusion'] == 'success', 'recovery_anchor_deleted')
+        # Explicitly verify the pinned original witness on every preflight,
+        # even after a later clean successful run has superseded it.
+        verified_recovery_frontier(client, anchor, env, validator)
+        candidates = [run for run in ordered if RECOVERY_FRONTIER['run_number'] <=
+                      run['run_number'] < current['run_number'] and
+                      run['status'] == 'completed' and run['conclusion'] == 'success']
+        gate.require(bool(candidates), 'no_proven_successful_frontier')
+        frontier = candidates[-1]
+        last_live_sha = (RECOVERY_FRONTIER['head_sha'] if frontier['run_number'] ==
+                         RECOVERY_FRONTIER['run_number'] else
+                         verified_successful_frontier(client, frontier, env, validator))
     else:
+        frontier = None
         last_live_sha = None
     for run in ordered:
         if run['run_number'] >= current['run_number'] or run['id'] in archived:
             continue
-        if recovery and run['run_number'] <= RECOVERY_FRONTIER['run_number']:
-            continue  # The historical gap remains documented, never falsified.
+        if recovery and run['run_number'] <= frontier['run_number']:
+            continue  # Superseded earlier attempts remain in immutable GitHub history.
         proof = read_resolved_record(client, run, env, validator)
         if recovery and proof['kind'] == 'journal' and proof['proof'][1]['journal']['state'] == 'live_pass':
             last_live_sha = run['head_sha']
