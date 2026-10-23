@@ -35,7 +35,7 @@ def verify(text):
         'python scripts/run_production_quality.py', 'Pillow==12.3.0', 'sha256sum --check --strict',
         'gitleaks" dir .', 'gitleaks" git .', '--redact=100', 'actions: read',
         'GITHUB_TOKEN: ${{ github.token }}', 'secrets.OUTPOST_PAGES_DEPLOY_TOKEN',
-        'steps.intent.outputs.artifact-url', 'if-no-files-found: error', 'retention-days: 7',
+        'steps.intent.outputs.artifact-url', 'if-no-files-found: error', 'retention-days: 90',
         'scripts/publisher-tools/package-lock.json', 'npm ci --ignore-scripts',
         'node scripts/test_telegram_transport_workerd.mjs',
         "failure() && steps.live.outcome == 'failure' && vars.OUTPOST_PRODUCTION_ROLLBACK_ENABLED == '1'",
