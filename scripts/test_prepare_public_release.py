@@ -69,7 +69,11 @@ def build_fixture(root: Path, *, bad_target_checksum: bool = False, bad_changelo
     write(
         site / "download.html",
         f'''<!doctype html>
-<html><body>
+<html><head>
+<meta name="description" content="Офіційний реліз v{CURRENT}. Інсталятор 0,0 МБ, SHA-256."/>
+<meta property="og:description" content="Офіційний реліз v{CURRENT}. Інсталятор 0,0 МБ, SHA-256."/>
+<script type="application/ld+json">{{"@type":"WebPage","description":"Офіційний реліз v{CURRENT}. Інсталятор 0,0 МБ, SHA-256."}}</script>
+</head><body>
 <script type="application/ld+json">{{"softwareVersion":"{CURRENT}","fileSize":"0.0 MB","downloadUrl":"{PUBLIC_ORIGIN}/downloads/{current_exe}"}}</script>
 <section data-download-product="outpost">
 <h1>OutPOSt v{CURRENT}</h1>
@@ -263,6 +267,12 @@ def test_success_path() -> None:
         )
 
         download = (root / "site" / "download.html").read_text(encoding="utf-8")
+        expected_seo_mb = f"{int(fixture['target_bytes']) / 1_000_000:.1f}".replace(".", ",")
+        seo_head = download.split("</head>", 1)[0]
+        require(seo_head.count(f"Інсталятор {expected_seo_mb} МБ") == 3,
+                "download meta, Open Graph and JSON-LD must all use new installer size")
+        require("Інсталятор 0,0 МБ" not in seo_head,
+                "download SEO descriptions still contain stale installer size")
         index = (root / "site" / "index.html").read_text(encoding="utf-8")
         mini = (root / "site" / "mini-t400.html").read_text(encoding="utf-8")
         prro = (root / "site" / "prro-checkbox.html").read_text(encoding="utf-8")
