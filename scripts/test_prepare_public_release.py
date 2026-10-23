@@ -62,7 +62,8 @@ def build_fixture(root: Path, *, bad_target_checksum: bool = False, bad_changelo
     (downloads / target_exe).write_bytes(target_bytes)
     write(downloads / current_sum, f"{current_sha} *{current_exe}\n")
     published_target_sha = "0" * 64 if bad_target_checksum else target_sha
-    write(downloads / target_sum, f"{published_target_sha} *{target_exe}\n")
+    # The real Windows-produced checksum uses CRLF; its exact byte digest must be preserved.
+    (downloads / target_sum).write_bytes(f"{published_target_sha} *{target_exe}\r\n".encode("utf-8"))
     write(root / "release/artifact-registry.json", json.dumps({"schema_version": 1, "artifacts": [fixture_row(downloads / current_exe, "outpost", CURRENT)]}))
     write_synthetic_receipt(root, downloads / target_exe, "outpost", TARGET)
 
@@ -248,6 +249,12 @@ def test_success_path() -> None:
         applied = run_release(root, TARGET, "--apply")
         require(applied.returncode == 0, f"apply failed:\n{applied.stdout}\n{applied.stderr}")
         require("APPLIED" in applied.stdout, "apply did not report APPLIED")
+
+        registry_rows = json.loads((root / "release/artifact-registry.json").read_text(encoding="utf-8"))["artifacts"]
+        checksum_bytes = (root / "site/downloads" / fixture["target_sum"]).read_bytes()
+        require(checksum_bytes.endswith(b"\r\n"), "fixture must preserve Windows CRLF checksum")
+        require(registry_rows[-1]["checksum_sha256"] == digest(checksum_bytes),
+                "artifact registry must hash original checksum bytes without newline normalization")
 
         changelog_after_apply = (root / "site" / "changelog.html").read_text(encoding="utf-8")
         changelog_head = changelog_after_apply.split("</head>", 1)[0]

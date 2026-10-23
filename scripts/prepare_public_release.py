@@ -350,7 +350,8 @@ def main() -> int:
         exe_name, checksum_name, _, _, target_size, target_sha = artifact_info(target)
         receipt = load_receipt(ROOT, "outpost", target, args.evidence)
         rows = verify_registry(ROOT, allow_new={exe_name, checksum_name})
-        registry_text = json.dumps(append_target(rows, receipt, read(DOWNLOADS / checksum_name)), ensure_ascii=False, indent=2) + "\n"
+        # Hash original checksum bytes (including Windows CRLF), not universal-newline normalized text.
+        registry_text = json.dumps(append_target(rows, receipt, (DOWNLOADS / checksum_name).read_bytes().decode("utf-8")), ensure_ascii=False, indent=2) + "\n"
         require_changelog_current(target)
         changes = prepare_html_changes(current, target, target_size, target_sha)
         try:
