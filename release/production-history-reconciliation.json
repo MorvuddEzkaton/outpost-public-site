@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "incident": "expired_production_journal_run_18_not_reconstructed",
+  "first_unarchived_run_number": 17,
+  "last_reconciled_run_number": 42,
+  "frontier": {
+    "run_number": 42,
+    "id": 39732581172,
+    "head_sha": "ddd41915cb845c1448a519959f671d8b616b4065",
+    "deployment_id": "3d034a08-be56-4ef9-8a73-f1275a936607",
+    "intent_id": 12405542870,
+    "intent_digest": "sha256:4b41a6366986ab372544cd6f953c0d2219eb7634cbcea105e9d7688b998ead48",
+    "result_id": 12406083047,
+    "result_digest": "sha256:60447a2bdcb6f7686c08a137ddcc75a36be6bee2b9828e7466a757a371325ebc"
+  },
+  "resolution": "last_successful_live_deployment_is_new_frontier_only"
+}

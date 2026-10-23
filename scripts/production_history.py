@@ -384,11 +384,175 @@ def read_resolved_record(client, run, env, validator):
     return {'run': run_projection(run), 'kind': 'journal', 'proof': proof}
 
 
-def assert_clear(client, env, validator, records=()):
+# Incident 2026-10-23: GitHub removed run #18 journal ZIPs before the
+# owner-reviewed checkpoint could capture them. Never invent a run #18 journal.
+# A later, independently successful *live* deployment is the reconciled new
+# frontier; the historical gap remains explicitly recorded as unknown.
+# This whitelist is deliberately not user-configurable or a catch-all bypass.
+RECOVERY_FRONTIER = {
+    'run_number': 42,
+    'id': 39732581172,
+    'head_sha': 'ddd41915cb845c1448a519959f671d8b616b4065',
+    'deployment_id': '3d034a08-be56-4ef9-8a73-f1275a936607',
+    'intent_id': 12405542870,
+    'intent_digest': 'sha256:4b41a6366986ab372544cd6f953c0d2219eb7634cbcea105e9d7688b998ead48',
+    'result_id': 12406083047,
+    'result_digest': 'sha256:60447a2bdcb6f7686c08a137ddcc75a36be6bee2b9828e7466a757a371325ebc',
+}
+RECOVERY_MARKER = 'release/production-history-reconciliation.json'
+
+
+def recovery_marker(root):
+    """Owner-reviewed explicit one-time reconciliation, never an env toggle."""
+    from pathlib import Path
+    import subprocess
+    root = Path(root)
+    path = root / RECOVERY_MARKER
+    if not path.exists():
+        return False
+    gate.require(path.is_file() and not any(item.is_symlink() for item in [path, *path.parents]),
+                 'recovery_witness_not_regular_file')
+    try:
+        sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, timeout=10,
+                                      stderr=subprocess.DEVNULL).decode().strip()
+        tracked = subprocess.check_output(['git', 'show', sha + ':' + RECOVERY_MARKER], cwd=root,
+                                          timeout=10, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        raise gate.GateError('recovery_witness_not_reviewed') from None
+    gate.require(path.read_bytes() == tracked, 'recovery_witness_not_reviewed')
+    try:
+        value = json.loads(tracked, object_pairs_hook=unique_json_pairs)
+    except Exception:
+        raise gate.GateError('recovery_witness_invalid') from None
+    required = {
+        'schema': 1,
+        'incident': 'expired_production_journal_run_18_not_reconstructed',
+        'first_unarchived_run_number': 17,
+        'last_reconciled_run_number': 42,
+        'frontier': RECOVERY_FRONTIER,
+        'resolution': 'last_successful_live_deployment_is_new_frontier_only',
+    }
+    gate.require(value == required, 'recovery_witness_changed')
+    return True
+
+
+def verified_recovery_frontier(client, run, env, validator):
+    """Require exact trusted run + provider evidence; never treat CI green as a journal."""
+    anchor = RECOVERY_FRONTIER
+    gate.require(run['run_number'] == anchor['run_number'] and
+                 run['id'] == anchor['id'] and
+                 run['head_sha'] == anchor['head_sha'] and
+                 run['status'] == 'completed' and run['conclusion'] == 'success',
+                 'recovery_anchor_identity_mismatch')
+    artifacts = client.publication_artifacts(run)
+    if artifacts:
+        record = read_resolved_record(client, run, env, validator)
+        gate.require(record['kind'] == 'journal', 'recovery_anchor_journal_missing')
+        intent, result = record['proof']
+        gate.require(intent['id'] == anchor['intent_id'] and
+                     intent['digest'] == anchor['intent_digest'] and
+                     result['id'] == anchor['result_id'] and
+                     result['digest'] == anchor['result_digest'] and
+                     result['journal']['state'] == 'live_pass' and
+                     result['journal']['events'][-1].get('deployment_id') == anchor['deployment_id'],
+                     'recovery_anchor_journal_mismatch')
+    else:
+        # After the original 7-day retention, GitHub job steps remain a
+        # corroborating witness, not a replacement copy of expired journals.
+        jobs = client.skipped_publication_jobs(run)
+        gate.require(isinstance(jobs, list) and len(jobs) == 3 and
+                     sorted(x.get('name') for x in jobs) ==
+                     ['browser-quality', 'publish', 'static-quality'] and
+                     all(x.get('status') == 'completed' and x.get('conclusion') == 'success'
+                         and x.get('run_id') == run['id'] and x.get('head_sha') == run['head_sha'] for x in jobs),
+                     'recovery_anchor_job_proof_missing')
+        writer = next(x for x in jobs if x['name'] == 'publish')
+        steps = {x.get('name'): x.get('conclusion') for x in writer.get('steps', [])}
+        for step in ('Prepare read-only deployment plan',
+                     'Persist intent before any upload',
+                     'Upload once and require actual matching canonical deployment',
+                     'Verify all live contracts only after exact deployment proof',
+                     'Save final journal even on failure; never upload credentials or raw logs'):
+            gate.require(steps.get(step) == 'success', 'recovery_anchor_job_proof_missing')
+        # A mandatory Cloudflare *current canonical SHA* check is performed by
+        # publisher.preflight even in this fallback. This does not prove missing
+        # historical ZIP bytes and must never authorize arbitrary older gaps.
+    return anchor['head_sha']
+
+
+def verified_successful_frontier(client, run, env, validator):
+    """Future clean successful runs may replace an older reviewed frontier.
+
+    Expired GitHub ZIPs alone must not deadlock all future publishing. A new
+    frontier requires immutable GitHub successful writer-step evidence AND
+    Cloudflare canonical matching its exact SHA (checked in preflight).
+    Ambiguous, failed and rolled-back attempts never qualify.
+    """
+    gate.require(run.get('run_number', 0) > RECOVERY_FRONTIER['run_number'] and
+                 run.get('status') == 'completed' and run.get('conclusion') == 'success',
+                 'future_frontier_not_successful')
+    artifacts = client.publication_artifacts(run)
+    if artifacts:
+        proof = read_resolved_record(client, run, env, validator)
+        gate.require(proof['kind'] == 'journal' and
+                     proof['proof'][1]['journal']['state'] == 'live_pass' and
+                     proof['proof'][1]['journal']['events'][-1].get('state') == 'live_pass',
+                     'future_frontier_not_live')
+    else:
+        jobs = client.skipped_publication_jobs(run)
+        gate.require(isinstance(jobs, list) and len(jobs) == 3 and
+                     sorted(x.get('name') for x in jobs) ==
+                     ['browser-quality', 'publish', 'static-quality'] and
+                     all(x.get('status') == 'completed' and x.get('conclusion') == 'success' and
+                         x.get('run_id') == run['id'] and x.get('head_sha') == run['head_sha'] and
+                         x.get('run_attempt') == 1 for x in jobs),
+                     'future_frontier_provenance_missing')
+        writer = next(x for x in jobs if x['name'] == 'publish')
+        steps = {x.get('name'): x.get('conclusion') for x in writer.get('steps', [])}
+        required = ('Prepare read-only deployment plan',
+                    'Persist intent before any upload',
+                    'Upload once and require actual matching canonical deployment',
+                    'Verify all live contracts only after exact deployment proof',
+                    'Save final journal even on failure; never upload credentials or raw logs')
+        gate.require(len(steps) == len(writer.get('steps', [])) and
+                     all(steps.get(name) == 'success' for name in required),
+                     'future_frontier_provenance_missing')
+        # This is not a claim that expired ZIP contents are known. The
+        # subsequent canonical exact-SHA match is non-optional.
+    return run['head_sha']
+
+
+def assert_clear(client, env, validator, records=(), recovery=False):
     runs = merge_runs(client.publication_runs(), records)
     current = validate_runs(runs, env)
     archived = {record['run']['id'] for record in records}
-    for run in sorted(runs, key=lambda item: item['run_number']):
+    ordered = sorted(runs, key=lambda item: item['run_number'])
+    if recovery:
+        gate.require(current['run_number'] > RECOVERY_FRONTIER['run_number'],
+                     'recovery_frontier_current_run_invalid')
+        anchor = next((run for run in ordered if run['run_number'] == RECOVERY_FRONTIER['run_number']), None)
+        gate.require(anchor is not None and anchor['head_sha'] == RECOVERY_FRONTIER['head_sha'] and
+                     anchor['conclusion'] == 'success', 'recovery_anchor_deleted')
+        # Explicitly verify the pinned original witness on every preflight,
+        # even after a later clean successful run has superseded it.
+        verified_recovery_frontier(client, anchor, env, validator)
+        candidates = [run for run in ordered if RECOVERY_FRONTIER['run_number'] <=
+                      run['run_number'] < current['run_number'] and
+                      run['status'] == 'completed' and run['conclusion'] == 'success']
+        gate.require(bool(candidates), 'no_proven_successful_frontier')
+        frontier = candidates[-1]
+        last_live_sha = (RECOVERY_FRONTIER['head_sha'] if frontier['run_number'] ==
+                         RECOVERY_FRONTIER['run_number'] else
+                         verified_successful_frontier(client, frontier, env, validator))
+    else:
+        frontier = None
+        last_live_sha = None
+    for run in ordered:
         if run['run_number'] >= current['run_number'] or run['id'] in archived:
             continue
-        read_resolved_record(client, run, env, validator)
+        if recovery and run['run_number'] <= frontier['run_number']:
+            continue  # Superseded earlier attempts remain in immutable GitHub history.
+        proof = read_resolved_record(client, run, env, validator)
+        if recovery and proof['kind'] == 'journal' and proof['proof'][1]['journal']['state'] == 'live_pass':
+            last_live_sha = run['head_sha']
+    return last_live_sha
