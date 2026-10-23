@@ -390,6 +390,25 @@ class PublisherTests(unittest.TestCase):
         publisher.rollback(self.env, self.root, self.journal, self.client)
         self.assertEqual(self.journal.data['state'], 'rolled_back')
 
+    def test_reconciled_history_rollback_checks_own_live_sha_not_old_frontier(self):
+        self.fail_live()
+        self.assertEqual(self.journal.data['baseline_sha'], 'c' * 40)
+        # Recovery frontier was sound before uploading, but the current
+        # canonical SHA is now our just-uploaded commit, as it must be.
+        with patch.object(publisher, 'history_clear', return_value='c' * 40):
+            publisher.rollback(self.env, self.root, self.journal, self.client)
+        self.assertEqual(self.client.rollback_calls, [OLD])
+        self.assertEqual(self.journal.data['state'], 'rolled_back')
+
+    def test_reconciled_history_cannot_rollback_foreign_canonical_source(self):
+        self.fail_live()
+        self.client.project['canonical_deployment']['deployment_trigger']['metadata']['commit_hash'] = 'f' * 40
+        with patch.object(publisher, 'history_clear', return_value='c' * 40):
+            with self.assertRaises(gate.GateError):
+                publisher.rollback(self.env, self.root, self.journal, self.client)
+        self.assertEqual(self.client.rollback_calls, [])
+        self.assertEqual(self.journal.data['state'], 'live_failed')
+
     def test_repeated_rollback_never_sends_second_post(self):
         self.fail_live()
         publisher.rollback(self.env, self.root, self.journal, self.client)
@@ -542,8 +561,17 @@ class LiveVerifierEnvironmentTests(unittest.TestCase):
             self.assertEqual(run.call_args.kwargs['timeout'], 240)
 
     def test_nonzero_exit_remains_failed(self):
-        with patch.object(publisher.subprocess, 'run', return_value=publisher.subprocess.CompletedProcess([], 1)):
-            self.assertFalse(publisher.run_live(Path('/reviewed'), 'verify_live_production.py'))
+        with patch.object(publisher.subprocess, 'run', return_value=publisher.subprocess.CompletedProcess([], 1, b'private response', b'private error')):
+            with patch('builtins.print') as printed:
+                self.assertFalse(publisher.run_live(Path('/reviewed'), 'verify_live_production.py'))
+            printed.assert_called_once_with('Live verifier: FAIL — verify_live_production.py (exit 1)', flush=True)
+            self.assertNotIn('private', str(printed.call_args))
+
+    def test_success_logs_only_approved_verifier_basename(self):
+        with patch.object(publisher.subprocess, 'run', return_value=publisher.subprocess.CompletedProcess([], 0, b'secret', b'private')):
+            with patch('builtins.print') as printed:
+                self.assertTrue(publisher.run_live(Path('/reviewed'), 'verify_live_production.py'))
+            printed.assert_called_once_with('Live verifier: PASS — verify_live_production.py', flush=True)
 
     def test_real_offline_python_child_can_start_without_operational_environment(self):
         parent = {**dict(publisher.os.environ), 'CLOUDFLARE_API_TOKEN': 'offline-pages',

@@ -741,6 +741,9 @@ test("demo customer debt ledger tracks repayment and write-off", async ({ browse
       name: customer.name,
       debt: Number(customer.debt),
       cashExpected: Number(cash.expected),
+      seededRepayments: window.OUTPOST_DEMO_API.getState().cashMovements.filter((item) =>
+        item.type === "DebtRepayment" && item.customerId === customer.id
+      ).length,
     } : null;
   });
   expect(target).not.toBeNull();
@@ -814,7 +817,7 @@ test("demo customer debt ledger tracks repayment and write-off", async ({ browse
   }, target.id);
   expect(resetDebt.debt).toBe(target.debt);
   expect(resetDebt.writeOffCount).toBe(0);
-  expect(resetDebt.manualRepayments).toBe(0);
+  expect(resetDebt.manualRepayments).toBe(target.seededRepayments);
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
   await context.close();
