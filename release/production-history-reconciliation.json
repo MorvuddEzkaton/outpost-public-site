@@ -13,5 +13,18 @@
     "result_id": 12406083047,
     "result_digest": "sha256:60447a2bdcb6f7686c08a137ddcc75a36be6bee2b9828e7466a757a371325ebc"
   },
-  "resolution": "last_successful_live_deployment_is_new_frontier_only"
+  "resolution": "last_successful_live_deployment_is_new_frontier_only",
+  "late_adoption": {
+    "run_number": 45,
+    "id": 39966734026,
+    "head_sha": "5a3e3633b4f32b04c4482a6e992e99a56357de7e",
+    "deployment_id": "7e1c6fa4-c6ba-42a4-afc1-8b164d219262",
+    "intent_id": 12506593860,
+    "intent_digest": "sha256:0b30b7abe90cb0c12ca84b1c56863ec5da5e7f2f9461c74928c6baa4911cb8e8",
+    "result_id": 12508335001,
+    "result_digest": "sha256:c0cd0850c0812ba11638ea20731402787bfd4b27b8d1f82bc518514a775e6a8d",
+    "readonly_diagnostic_run": 39975297833,
+    "readonly_diagnostic_head_sha": "1fd31e0d9b6c794fb65753b5f8f66a57471a0655",
+    "independent_provenance_run": 39966734014
+  }
 }
