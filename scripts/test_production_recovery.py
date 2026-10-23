@@ -77,6 +77,47 @@ class RecoveryTests(unittest.TestCase):
             with self.assertRaises(gate.GateError):
                 history.verified_recovery_frontier(self.client, self.run, {}, lambda *_: None)
 
+    def test_future_successful_frontier_works_with_verified_original_journals(self):
+        future = dict(self.run, run_number=45, id=7777, head_sha='a'*40)
+        evidence = {'kind': 'journal', 'proof': [
+            {'journal': {'state':'prepared','events':[{'state':'prepared'}]}},
+            {'journal': {'state':'live_pass','events':[{'state':'live_pass'}]}}]}
+        with patch.object(history,'read_resolved_record',return_value=evidence):
+            self.assertEqual(history.verified_successful_frontier(
+                self.client,future,{},lambda *_:None),future['head_sha'])
+        broken=deepcopy(evidence);broken['proof'][1]['journal']['state']='upload_unknown'
+        with patch.object(history,'read_resolved_record',return_value=broken),self.assertRaises(gate.GateError):
+            history.verified_successful_frontier(self.client,future,{},lambda *_:None)
+
+    def test_future_expired_success_cannot_skip_failed_upload_proof(self):
+        future = dict(self.run, run_number=45, id=7777, head_sha='a'*40)
+        self.client.publication_artifacts.return_value=[]
+        def job(name):
+            return {'name':name,'run_id':future['id'],'head_sha':future['head_sha'],
+                    'run_attempt':1,'status':'completed','conclusion':'success'}
+        publisher=job('publish')
+        required=[
+            'Prepare read-only deployment plan',
+            'Persist intent before any upload',
+            'Upload once and require actual matching canonical deployment',
+            'Verify all live contracts only after exact deployment proof',
+            'Save final journal even on failure; never upload credentials or raw logs',
+        ]
+        publisher['steps']=[{'name':name,'conclusion':'success'} for name in required]
+        jobs=[job('static-quality'),job('browser-quality'),publisher]
+        self.client.skipped_publication_jobs.return_value=jobs
+        self.assertEqual(history.verified_successful_frontier(self.client,future,{},None),future['head_sha'])
+        for edit in [lambda j:j[2]['steps'][2].update(conclusion='failure'),
+                     lambda j:j[1].update(run_attempt=2),
+                     lambda j:j[0].update(conclusion='failure')]:
+            broken=deepcopy(jobs);edit(broken)
+            self.client.skipped_publication_jobs.return_value=broken
+            with self.assertRaises(gate.GateError):
+                history.verified_successful_frontier(self.client,future,{},None)
+        with self.assertRaises(gate.GateError):
+            history.verified_successful_frontier(self.client,
+                dict(future,conclusion='failure'),{},None)
+
     def test_marker_cannot_be_edited_or_created_without_reviewed_git_blob(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);path=root/history.RECOVERY_MARKER
