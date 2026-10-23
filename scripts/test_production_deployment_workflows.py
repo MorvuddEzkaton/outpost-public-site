@@ -13,14 +13,14 @@ class WorkflowTests(unittest.TestCase):
 
     def test_all_privilege_and_provenance_guards_required(self):
         for marker in ["environment: production", "github.ref == 'refs/heads/main'", "ref: ${{ github.sha }}", "persist-credentials: false",
-                       "python scripts/production_deployment_gate.py --check --wait-seconds 900", "secrets.OUTPOST_PAGES_DEPLOY_TOKEN",
+                       "python scripts/production_deployment_gate.py --check --wait-seconds 2100", "secrets.OUTPOST_PAGES_DEPLOY_TOKEN",
                        "GITHUB_TOKEN: ${{ github.token }}",
                        "github.repository == 'MorvuddEzkaton/outpost-public-site'", "github.actor == github.repository_owner", "OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED: ${{ vars.OUTPOST_AUTOMATIC_PRODUCTION_APPROVAL_ENABLED }}"]:
             with self.subTest(marker=marker): self.assertTrue(verify_live(self.live.replace(marker,'REMOVED',1)))
 
     def test_source_only_check_cannot_substitute_for_deployment_proof(self):
-        self.assertTrue(verify_live(self.live.replace('--check --wait-seconds 900','',1)))
-        self.assertTrue(verify_live(self.live.replace('timeout-minutes: 25', 'timeout-minutes: 8', 1)))
+        self.assertTrue(verify_live(self.live.replace('--check --wait-seconds 2100','',1)))
+        self.assertTrue(verify_live(self.live.replace('timeout-minutes: 45', 'timeout-minutes: 8', 1)))
 
     def test_live_get_before_provenance_fails(self):
         pos=self.live.index('      - name: Require reviewed exact-SHA')
