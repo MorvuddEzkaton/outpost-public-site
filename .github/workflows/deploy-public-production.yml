@@ -123,7 +123,7 @@ jobs:
           name: outpost-production-intent-${{ github.sha }}-${{ github.run_id }}
           path: ${{ runner.temp }}/outpost-production-journal.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
       - name: Upload once and require actual matching canonical deployment
         id: upload
         env:
@@ -155,7 +155,7 @@ jobs:
           name: outpost-production-result-${{ github.sha }}-${{ github.run_id }}
           path: ${{ runner.temp }}/outpost-production-journal.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
       - name: Confirm future releases only after accepted live publication
         if: >-
           success() && github.event_name == 'push' &&
