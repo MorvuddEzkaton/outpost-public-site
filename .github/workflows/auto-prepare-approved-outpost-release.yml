@@ -1,6 +1,8 @@
 name: Auto-prepare verified OutPOSt release PR
 
 on:
+  # Explicit fallback when the importer finished before this workflow was enabled.
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -23,7 +25,7 @@ jobs:
       github.repository == 'MorvuddEzkaton/outpost-public-site' &&
       vars.OUTPOST_RELEASE_PREPARATION_ENABLED == '1' &&
       github.actor == 'MorvuddEzkaton' &&
-      (github.event_name == 'push' ||
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'staging'))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
