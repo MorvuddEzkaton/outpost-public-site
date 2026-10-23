@@ -351,7 +351,7 @@ class PublisherTests(unittest.TestCase):
         commands = []
         with self.assertRaises(gate.GateError):
             self.live(lambda _, command: commands.append(command) or False)
-        self.assertEqual(len(commands), 1)
+        self.assertEqual(commands, ['verify_live_production.py'] * 2)
         self.assertEqual(self.journal.data['state'], 'live_failed')
 
     def test_live_cannot_begin_on_unknown_upload(self):
