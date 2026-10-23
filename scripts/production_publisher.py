@@ -287,7 +287,7 @@ class Clients(history.HistoryReads, gate.ReadOnlyClients):
         except Exception:
             raise gate.GateError('rollback_response_ambiguous') from None
 
-def preflight(env, root, client, notification_mode=True):
+def preflight(env, root, client, notification_mode=True, rollback_own_deployment=None):
     sha = context(env)
     # Different source commits cannot escape an older unresolved attempt.
     # This is transaction/replay evidence, never a CI quality PASS substitute.
@@ -303,9 +303,17 @@ def preflight(env, root, client, notification_mode=True):
     inventory_valid(items)
     base = canonical(project)
     gate.require(base['id'] in {item['id'] for item in items}, 'canonical_not_in_inventory')
-    if recovered_source is not None:
-        # The recovered frontier is valid only against the actual canonical
-        # production deployment, not merely the repository's green checks.
+    if rollback_own_deployment is not None:
+        # Rollback runs AFTER our upload. The canonical source must therefore
+        # be our exact in-flight deployment, not the pre-upload recovery frontier.
+        # The separate saved journal and baseline target are checked below.
+        gate.require(base['id'] == rollback_own_deployment and
+                     source_metadata(base).get('commit_hash') == sha and
+                     source_metadata(base).get('branch') == 'main' and
+                     source_metadata(base).get('commit_dirty') is False,
+                     'rollback_current_deployment_not_proven')
+    elif recovered_source is not None:
+        # Normal plan/upload still REQUIRE the reviewed recovery baseline.
         gate.require(source_metadata(base).get('commit_hash') == recovered_source and
                      source_metadata(base).get('branch') == 'main' and
                      source_metadata(base).get('commit_dirty') is False,
@@ -493,7 +501,8 @@ def rollback(env, root, journal, client):
     own = deployment_id(data)
     # Broken current health is itself a possible rollback reason; do not require
     # a successful live endpoint to restore the known-good saved code.
-    sha, _, _, _, project, items = preflight(env, root, client, notification_mode=False)
+    sha, _, _, _, project, items = preflight(env, root, client, notification_mode=False,
+                                             rollback_own_deployment=own)
     gate.require(sha == data['source_sha'] and resolve(data, project, items) == own, 'rollback_would_overwrite_other_rollout')
     history_clear(client, env, root)
     target = client.pages('/deployments/' + data['baseline_id'])
