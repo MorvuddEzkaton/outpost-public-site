@@ -49,7 +49,13 @@ jobs:
           set -euo pipefail
           git fetch origin main staging --prune
           if [ -z "$VERSION" ]; then
-            mapfile -t receipt_paths < <(git diff --name-only origin/main origin/staging | grep -E '^release/evidence/outpost-v[0-9]+\.[0-9]+\.[0-9]+\.json
+            mapfile -t receipt_paths < <(git diff --name-only origin/main origin/staging | grep -E '^release/evidence/outpost-v[0-9]+\.[0-9]+\.[0-9]+\.json$')
+            test "${#receipt_paths[@]}" -eq 1
+            VERSION="${receipt_paths[0]#release/evidence/outpost-v}"
+            VERSION="${VERSION%.json}"
+          fi
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || exit 1
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           MAIN_SHA=$(git rev-parse origin/main)
           STAGING_SHA=$(git rev-parse origin/staging)
           test "$(git rev-parse HEAD)" = "$MAIN_SHA"
