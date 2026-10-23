@@ -107,6 +107,110 @@ class HistoryTests(unittest.TestCase):
                 patch.object(publisher, 'upload_package'), patch.object(publisher, 'verify_package'):
             publisher.execute(self.env, self.root, self.journal, self.directory / 'upload', self.client, uploader)
 
+    def late_adoption_proof(self):
+        self.set_result('live_failed')
+        artifacts = {item['name'].split('outpost-production-')[1].split('-')[0]: item
+                     for item in self.client.records[self.prior['id']]}
+        pin = {
+            'run_number': self.prior['run_number'], 'id': self.prior['id'],
+            'head_sha': self.prior['head_sha'], 'deployment_id': NEW,
+            'intent_id': artifacts['intent']['id'], 'intent_digest': artifacts['intent']['digest'],
+            'result_id': artifacts['result']['id'], 'result_digest': artifacts['result']['digest'],
+            'readonly_diagnostic_run': 789, 'readonly_diagnostic_head_sha': 'e' * 40,
+            'independent_provenance_run': 790,
+        }
+        def audit(path):
+            identity = int(path.rsplit('/', 1)[-1])
+            if identity == pin['readonly_diagnostic_run']:
+                return {'id': identity, 'path': '.github/workflows/live-contract-diagnostics.yml',
+                        'head_sha': pin['readonly_diagnostic_head_sha'], 'event': 'pull_request',
+                        'status': 'completed', 'conclusion': 'success', 'run_attempt': 1,
+                        'repository': {'id': history.REPOSITORY_ID},
+                        'head_repository': {'id': history.REPOSITORY_ID}}
+            return {'id': identity, 'path': '.github/workflows/live-production-verify.yml',
+                    'head_sha': pin['head_sha'], 'event': 'push',
+                    'status': 'completed', 'conclusion': 'success', 'run_attempt': 1,
+                    'repository': {'id': history.REPOSITORY_ID},
+                    'head_repository': {'id': history.REPOSITORY_ID}}
+        states = {
+            'Prepare read-only deployment plan': 'success',
+            'Persist intent before any upload': 'success',
+            'Upload once and require actual matching canonical deployment': 'success',
+            'Verify all live contracts only after exact deployment proof': 'failure',
+            'Restore only our saved code after a critical live failure': 'failure',
+            'Save final journal even on failure; never upload credentials or raw logs': 'success',
+        }
+        jobs = [
+            {'name': name, 'run_id': self.prior['id'], 'run_attempt': 1,
+             'head_sha': self.prior['head_sha'], 'status': 'completed',
+             'conclusion': ('failure' if name == 'publish' else 'success'),
+             'steps': ([{'name': name, 'conclusion': outcome}
+                        for name, outcome in states.items()] if name == 'publish' else [])}
+            for name in ('static-quality', 'browser-quality', 'publish')
+        ]
+        return pin, audit, jobs
+
+    def test_late_adoption_requires_original_failed_journal_and_exact_audits(self):
+        pin, audit, jobs = self.late_adoption_proof()
+        with patch.object(history, 'ADOPTED_FAILED_RUN', pin), \
+             patch.object(self.client, 'history_json', side_effect=audit, create=True), \
+             patch.object(self.client, 'skipped_publication_jobs', return_value=jobs):
+            self.assertEqual(
+                history.verified_late_adopted_run(self.client, self.prior, self.env,
+                                                  publisher.validate_historical_journal),
+                self.prior['head_sha'])
+            # An explicit recovery frontier can bridge only this pinned failed
+            # run; it does not rewrite its original live_failed journal.
+            first = {**self.prior, 'run_number': 1, 'id': history.FIRST_RUN_ID,
+                     'head_sha': history.FIRST_SOURCE, 'conclusion': 'success'}
+            with patch.object(history, 'RECOVERY_FRONTIER', {
+                **history.RECOVERY_FRONTIER, 'run_number': 1, 'id': history.FIRST_RUN_ID,
+                'head_sha': history.FIRST_SOURCE}), \
+                 patch.object(history, 'verified_recovery_frontier', return_value=history.FIRST_SOURCE):
+                self.assertEqual(
+                    history.assert_clear(self.client, self.env,
+                                         publisher.validate_historical_journal, recovery=True),
+                    self.prior['head_sha'])
+        self.assertEqual(self.result['state'], 'live_failed')
+
+    def test_late_adoption_rejects_foreign_run_or_altered_original_digest(self):
+        pin, audit, jobs = self.late_adoption_proof()
+        with patch.object(history, 'ADOPTED_FAILED_RUN', pin), \
+             patch.object(self.client, 'history_json', side_effect=audit, create=True), \
+             patch.object(self.client, 'skipped_publication_jobs', return_value=jobs):
+            with self.assertRaises(gate.GateError):
+                history.verified_late_adopted_run(self.client, {**self.prior, 'head_sha': 'f' * 40},
+                                                  self.env, publisher.validate_historical_journal)
+            with patch.object(history, 'ADOPTED_FAILED_RUN',
+                              {**pin, 'result_digest': 'sha256:' + '0' * 64}):
+                with self.assertRaises(gate.GateError):
+                    history.verified_late_adopted_run(self.client, self.prior, self.env,
+                                                      publisher.validate_historical_journal)
+
+    def test_late_adoption_never_accepts_unconfirmed_rollback_or_bad_audit(self):
+        pin, audit, jobs = self.late_adoption_proof()
+        self.result['events'].append({'state': 'rollback_intent', 'at': publisher.now()})
+        self.result['state'] = 'rollback_intent'
+        self.write_records()
+        pin['result_digest'] = next(a['digest'] for a in self.client.records[self.prior['id']]
+                                    if a['id'] == pin['result_id'])
+        with patch.object(history, 'ADOPTED_FAILED_RUN', pin), \
+             patch.object(self.client, 'history_json', side_effect=audit, create=True), \
+             patch.object(self.client, 'skipped_publication_jobs', return_value=jobs):
+            with self.assertRaises(gate.GateError):
+                history.verified_late_adopted_run(self.client, self.prior, self.env,
+                                                  publisher.validate_historical_journal)
+        self.set_result('live_failed')
+        pin['result_digest'] = next(a['digest'] for a in self.client.records[self.prior['id']]
+                                    if a['id'] == pin['result_id'])
+        with patch.object(history, 'ADOPTED_FAILED_RUN', pin), \
+             patch.object(self.client, 'history_json', side_effect=lambda p: {
+                 **audit(p), 'conclusion': 'failure'}, create=True), \
+             patch.object(self.client, 'skipped_publication_jobs', return_value=jobs):
+            with self.assertRaises(gate.GateError):
+                history.verified_late_adopted_run(self.client, self.prior, self.env,
+                                                  publisher.validate_historical_journal)
+
     def test_different_source_prepared_without_upload_is_safe(self):
         self.clear()
         self.assertNotEqual(self.intent['source_sha'], self.env['GITHUB_SHA'])
