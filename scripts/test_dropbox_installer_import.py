@@ -120,7 +120,7 @@ class DropboxInstallerImportTests(unittest.TestCase):
             self.assertIn(required, raw)
         self.assertNotIn("gh pr merge", raw)
         self.assertNotIn("wrangler", raw.lower())
-        self.assertNotRegex(raw, r"(?m)^  (?:push|pull_request|schedule|pull_request_target):")
+        self.assertIn("  push:\n", raw)\n        self.assertIn("    branches:\n      - staging", raw)\n        self.assertNotRegex(raw, r"(?m)^  (?:pull_request|schedule|pull_request_target):")
 
 
 if __name__ == "__main__":
