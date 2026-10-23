@@ -96,7 +96,8 @@ class HistoryReads:
         gate.require(suffix == '/actions/workflows/' + WORKFLOW or
                      re.fullmatch(r'/actions/workflows/' + re.escape(WORKFLOW) + r'/runs\?per_page=100&page=[1-9][0-9]*', suffix) or
                      re.fullmatch(r'/actions/runs/[1-9][0-9]*/artifacts\?per_page=100', suffix) or
-                     re.fullmatch(r'/actions/runs/[1-9][0-9]*/attempts/1/jobs\?per_page=100', suffix),
+                     re.fullmatch(r'/actions/runs/[1-9][0-9]*/attempts/1/jobs\?per_page=100', suffix) or
+                     suffix in ('/actions/runs/39975297833', '/actions/runs/39966734014'),
                      'unapproved_history_read')
         return self._json('https://api.github.com/repos/' + gate.REPOSITORY + suffix,
                           {'Authorization': 'Bearer ' + self.github_token,
@@ -399,6 +400,22 @@ RECOVERY_FRONTIER = {
     'result_id': 12406083047,
     'result_digest': 'sha256:60447a2bdcb6f7686c08a137ddcc75a36be6bee2b9828e7466a757a371325ebc',
 }
+# Pinned, owner-requested late adoption of exactly one already-uploaded run.
+# Its original journal is STILL live_failed; this is not a retroactive PASS.
+ADOPTED_FAILED_RUN = {
+    'run_number': 45,
+    'id': 39966734026,
+    'head_sha': '5a3e3633b4f32b04c4482a6e992e99a56357de7e',
+    'deployment_id': '7e1c6fa4-c6ba-42a4-afc1-8b164d219262',
+    'intent_id': 12506593860,
+    'intent_digest': 'sha256:0b30b7abe90cb0c12ca84b1c56863ec5da5e7f2f9461c74928c6baa4911cb8e8',
+    'result_id': 12508335001,
+    'result_digest': 'sha256:c0cd0850c0812ba11638ea20731402787bfd4b27b8d1f82bc518514a775e6a8d',
+    'readonly_diagnostic_run': 39975297833,
+    'readonly_diagnostic_head_sha': '1fd31e0d9b6c794fb65753b5f8f66a57471a0655',
+    'independent_provenance_run': 39966734014,
+}
+
 RECOVERY_MARKER = 'release/production-history-reconciliation.json'
 
 
@@ -431,6 +448,7 @@ def recovery_marker(root):
         'last_reconciled_run_number': 42,
         'frontier': RECOVERY_FRONTIER,
         'resolution': 'last_successful_live_deployment_is_new_frontier_only',
+        'late_adoption': ADOPTED_FAILED_RUN,
     }
     gate.require(value == required, 'recovery_witness_changed')
     return True
@@ -522,6 +540,101 @@ def verified_successful_frontier(client, run, env, validator):
     return run['head_sha']
 
 
+def verified_late_adopted_run(client, run, env, validator):
+    """Adopt one deployed but originally live_failed run after later 20/20 audit.
+
+    The original failed journal and original CI outcome remain unchanged.
+    Only exact preserved run #45, checked Cloudflare canonical SHA (publisher
+    preflight), job step boundaries and an independent later read-only audit
+    may bridge it. This MUST NOT be used for arbitrary failed/unknown runs.
+    """
+    pin = ADOPTED_FAILED_RUN
+    gate.require(run.get('run_number') == pin['run_number'] and
+                 run.get('id') == pin['id'] and run.get('head_sha') == pin['head_sha'] and
+                 run.get('status') == 'completed' and run.get('conclusion') == 'failure' and
+                 run.get('run_attempt') == 1, 'late_adoption_run_identity_mismatch')
+
+    # GitHub independently confirmed the source SHA was deployed successfully
+    # at that moment, but it is NOT proof that all 20 contracts passed then.
+    audits = (
+        (pin['readonly_diagnostic_run'],
+         '.github/workflows/live-contract-diagnostics.yml',
+         pin['readonly_diagnostic_head_sha'], 'pull_request'),
+        (pin['independent_provenance_run'],
+         '.github/workflows/live-production-verify.yml',
+         pin['head_sha'], 'push'),
+    )
+    for run_id, path, sha, event in audits:
+        metadata = client.history_json('/actions/runs/' + str(run_id))
+        gate.require(metadata.get('id') == run_id and metadata.get('path') == path and
+                     metadata.get('head_sha') == sha and metadata.get('event') == event and
+                     metadata.get('status') == 'completed' and metadata.get('conclusion') == 'success' and
+                     metadata.get('run_attempt') == 1 and
+                     metadata.get('repository', {}).get('id') == REPOSITORY_ID and
+                     metadata.get('head_repository', {}).get('id') == REPOSITORY_ID,
+                     'late_adoption_external_audit_missing')
+
+    jobs = client.skipped_publication_jobs(run)
+    gate.require(isinstance(jobs, list) and len(jobs) == 3 and
+                 sorted(x.get('name') for x in jobs) ==
+                 ['browser-quality', 'publish', 'static-quality'] and
+                 all(x.get('run_id') == run['id'] and x.get('head_sha') == run['head_sha'] and
+                     x.get('run_attempt') == 1 and x.get('status') == 'completed' for x in jobs),
+                 'late_adoption_job_proof_missing')
+    worker = next(x for x in jobs if x['name'] == 'publish')
+    gate.require(worker.get('conclusion') == 'failure' and
+                 all(x.get('conclusion') == 'success' for x in jobs if x['name'] != 'publish'),
+                 'late_adoption_job_proof_missing')
+    steps = {x.get('name'): x.get('conclusion') for x in worker.get('steps', [])}
+    for name, outcome in (
+        ('Prepare read-only deployment plan', 'success'),
+        ('Persist intent before any upload', 'success'),
+        ('Upload once and require actual matching canonical deployment', 'success'),
+        ('Verify all live contracts only after exact deployment proof', 'failure'),
+        ('Restore only our saved code after a critical live failure', 'failure'),
+        ('Save final journal even on failure; never upload credentials or raw logs', 'success'),
+    ):
+        gate.require(steps.get(name) == outcome, 'late_adoption_job_proof_missing')
+
+    artifacts = client.publication_artifacts(run)
+    if artifacts:
+        gate.require(len(artifacts) == 2, 'late_adoption_journal_missing')
+        original = {}
+        for kind in ('intent', 'result'):
+            matches = [a for a in artifacts if a.get('name') == artifact_name(kind, run)]
+            gate.require(len(matches) == 1, 'late_adoption_journal_missing')
+            artifact = matches[0]
+            validate_artifact(artifact, run, kind)
+            gate.require(artifact['id'] == pin[kind + '_id'] and
+                         artifact['digest'] == pin[kind + '_digest'],
+                         'late_adoption_journal_digest_mismatch')
+            original[kind] = client.publication_journal(artifact)
+            past_env = {**env, 'GITHUB_SHA': run['head_sha'], 'GITHUB_RUN_ID': str(run['id']),
+                        'GITHUB_RUN_NUMBER': str(run['run_number'])}
+            validator(original[kind], past_env)
+        intent, result = original['intent'], original['result']
+        gate.require(intent['state'] == 'prepared' and result['state'] == 'live_failed' and
+                     result['events'][:1] == intent['events'] and
+                     {k: v for k, v in intent.items() if k not in ('state', 'events')} ==
+                     {k: v for k, v in result.items() if k not in ('state', 'events')} and
+                     [x.get('state') for x in result['events']] ==
+                     ['prepared', 'upload_intent', 'upload_returned', 'deployment_success',
+                      'live_intent', 'live_failed'] and
+                     all(x.get('deployment_id') == pin['deployment_id'] for x in
+                         result['events'] if x.get('deployment_id')) and
+                     result['events'][3].get('deployment_id') == pin['deployment_id'] and
+                     result['events'][5].get('deployment_id') == pin['deployment_id'],
+                     'late_adoption_original_failed_state_mismatch')
+    else:
+        # Reviewed digests remain immutable in Git history if GitHub expires
+        # the original ZIP after 90 days. Step proof + current Cloudflare
+        # exact-source verification are still mandatory. Never assert that
+        # the expired ZIP content has been recovered.
+        gate.require(steps.get('Upload once and require actual matching canonical deployment') == 'success',
+                     'late_adoption_expired_journal_not_proven')
+    return pin['head_sha']
+
+
 def assert_clear(client, env, validator, records=(), recovery=False):
     runs = merge_runs(client.publication_runs(), records)
     current = validate_runs(runs, env)
@@ -552,6 +665,11 @@ def assert_clear(client, env, validator, records=(), recovery=False):
             continue
         if recovery and run['run_number'] <= frontier['run_number']:
             continue  # Superseded earlier attempts remain in immutable GitHub history.
+        if recovery and run['run_number'] == ADOPTED_FAILED_RUN['run_number']:
+            # Exact same already-deployed SHA is now independently healthy.
+            # A different run or an unknown upload remains blocked.
+            last_live_sha = verified_late_adopted_run(client, run, env, validator)
+            continue
         proof = read_resolved_record(client, run, env, validator)
         if recovery and proof['kind'] == 'journal' and proof['proof'][1]['journal']['state'] == 'live_pass':
             last_live_sha = run['head_sha']
