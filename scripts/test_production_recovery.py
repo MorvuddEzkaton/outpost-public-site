@@ -91,7 +91,7 @@ class RecoveryTests(unittest.TestCase):
             path.write_bytes(raw)
             def fake_git(args, **kwargs):
                 return b'c'*40 if args[1]=='rev-parse' else raw
-            with patch.object(history.subprocess, 'check_output', side_effect=fake_git):
+            with patch('subprocess.check_output', side_effect=fake_git):
                 self.assertTrue(history.recovery_marker(root))
                 path.write_text('{"schema":1}',encoding='utf-8')
                 with self.assertRaises(gate.GateError):
@@ -99,7 +99,7 @@ class RecoveryTests(unittest.TestCase):
                 path.write_bytes(raw)
                 changed=dict(record, first_unarchived_run_number=18)
                 wrong=json.dumps(changed).encode()
-                with patch.object(history.subprocess, 'check_output',side_effect=lambda a,**k:b'c'*40 if a[1]=='rev-parse' else wrong),self.assertRaises(gate.GateError):
+                with patch('subprocess.check_output',side_effect=lambda a,**k:b'c'*40 if a[1]=='rev-parse' else wrong),self.assertRaises(gate.GateError):
                     history.recovery_marker(root)
 
     def test_exact_frontier_keeps_newer_ambiguous_attempt_blocked(self):
