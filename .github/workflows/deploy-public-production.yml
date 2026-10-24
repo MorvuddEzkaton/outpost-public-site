@@ -110,7 +110,9 @@ jobs:
         working-directory: ${{ runner.temp }}
         env:
           OUTPOST_WRANGLER_JS: ${{ runner.temp }}/outpost-publisher-tools/node_modules/wrangler/bin/wrangler.js
-        run: node ${{ github.workspace }}/scripts/test_telegram_transport_workerd.mjs
+        run: |
+          ln -s "$GITHUB_WORKSPACE/scripts" "$RUNNER_TEMP/scripts"
+          node scripts/test_telegram_transport_workerd.mjs
       - name: Assert publisher checkout is clean before deployment plan
         run: |
           if [ -n "$(git status --porcelain)" ]; then
