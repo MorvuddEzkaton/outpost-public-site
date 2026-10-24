@@ -173,6 +173,44 @@ class HistoryTests(unittest.TestCase):
                     self.prior['head_sha'])
         self.assertEqual(self.result['state'], 'live_failed')
 
+    def test_late_adoption_retains_original_proof_after_diagnostic_rerun(self):
+        pin, audit, jobs = self.late_adoption_proof()
+        requests = []
+        def rerun_metadata(path):
+            requests.append(path)
+            if path == '/actions/runs/789':
+                return {**audit(path), 'run_attempt': 2}
+            if path == '/actions/runs/789/attempts/1':
+                return audit('/actions/runs/789')
+            return audit(path)
+        with patch.object(self.client, 'history_json', side_effect=rerun_metadata, create=True), \
+             patch.object(self.client, 'skipped_publication_jobs', return_value=jobs):
+            self.assertEqual(
+                history.verified_late_adopted_run(self.client, self.prior, self.env,
+                                                  publisher.validate_historical_journal, pin=pin),
+                self.prior['head_sha'])
+        self.assertIn('/actions/runs/789/attempts/1', requests)
+
+    def test_second_pinned_failed_upload_requires_exact_new_audit_and_journal(self):
+        pin, audit, jobs = self.late_adoption_proof()
+        pin.pop('independent_provenance_run')
+        pin['readonly_diagnostic_attempt'] = 2
+        def second_attempt(path):
+            return {**audit(path), 'run_attempt': 2}
+        with patch.object(self.client, 'history_json', side_effect=second_attempt, create=True), \
+             patch.object(self.client, 'skipped_publication_jobs', return_value=jobs):
+            self.assertEqual(
+                history.verified_late_adopted_run(self.client, self.prior, self.env,
+                                                  publisher.validate_historical_journal, pin=pin),
+                self.prior['head_sha'])
+            with self.assertRaises(gate.GateError):
+                history.verified_late_adopted_run(self.client, {**self.prior, 'id': 13}, self.env,
+                                                  publisher.validate_historical_journal, pin=pin)
+            tampered = {**pin, 'result_digest': 'sha256:' + '0' * 64}
+            with self.assertRaises(gate.GateError):
+                history.verified_late_adopted_run(self.client, self.prior, self.env,
+                                                  publisher.validate_historical_journal, pin=tampered)
+
     def test_late_adoption_rejects_foreign_run_or_altered_original_digest(self):
         pin, audit, jobs = self.late_adoption_proof()
         with patch.object(history, 'ADOPTED_FAILED_RUN', pin), \
