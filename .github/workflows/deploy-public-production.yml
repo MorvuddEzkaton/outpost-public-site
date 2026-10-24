@@ -105,14 +105,14 @@ jobs:
           mkdir "$RUNNER_TEMP/outpost-publisher-tools"
           cp scripts/publisher-tools/package.json scripts/publisher-tools/package-lock.json "$RUNNER_TEMP/outpost-publisher-tools/"
           npm ci --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/outpost-publisher-tools"
+      - name: Link offline transport test into the temporary runtime directory
+        run: ln -s "$GITHUB_WORKSPACE/scripts" "$RUNNER_TEMP/scripts"
       - name: Verify Telegram transport in the actual offline edge runtime
         # Miniflare/workerd may create ephemeral files relative to cwd; keep them outside checked-out Git sources.
         working-directory: ${{ runner.temp }}
         env:
           OUTPOST_WRANGLER_JS: ${{ runner.temp }}/outpost-publisher-tools/node_modules/wrangler/bin/wrangler.js
-        run: |
-          ln -s "$GITHUB_WORKSPACE/scripts" "$RUNNER_TEMP/scripts"
-          node scripts/test_telegram_transport_workerd.mjs
+        run: node scripts/test_telegram_transport_workerd.mjs
       - name: Assert publisher checkout is clean before deployment plan
         run: |
           if [ -n "$(git status --porcelain)" ]; then
