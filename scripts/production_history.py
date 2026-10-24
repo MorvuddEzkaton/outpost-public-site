@@ -430,7 +430,7 @@ ADOPTED_FAILED_RUN_50 = {
     'intent_id': 12526572205,
     'intent_digest': 'sha256:4b05d01964a5e8ccdaaec1de2455a355f631eb16bc6fd636259c08a220c4149f',
     'result_id': 12527041637,
-    'result_digest': 'sha256:1e44a210143d54546092e04abff5afbbff2bc2c1dcde2455a355f631eb16bc552c',
+    'result_digest': 'sha256:1e44a210143d54546092e04abff5afbbff2bc2c1dcde2f2e9250067991bc552c',
     'readonly_diagnostic_run': 39975297833,
     'readonly_diagnostic_attempt': 2,
     'readonly_diagnostic_head_sha': '1fd31e0d9b6c794fb65753b5f8f66a57471a0655',
