@@ -173,6 +173,20 @@ class HistoryTests(unittest.TestCase):
                     self.prior['head_sha'])
         self.assertEqual(self.result['state'], 'live_failed')
 
+    def test_run50_recovery_pin_matches_original_github_artifact_evidence(self):
+        pin = history.ADOPTED_FAILED_RUN_50
+        self.assertEqual(pin['run_number'], 50)
+        self.assertEqual(pin['id'], 40011219988)
+        self.assertEqual(pin['head_sha'], '9b9b31e4e2868ed39acab34c0d61549c2b4fb72f')
+        self.assertEqual(pin['deployment_id'], '0da20cbd-6faa-4721-8987-3fca2930b6ac')
+        self.assertEqual(pin['intent_id'], 12526572205)
+        self.assertEqual(pin['result_id'], 12527041637)
+        self.assertEqual(pin['intent_digest'],
+                         'sha256:4b05d01964a5e8ccdaaec1de2455a355f631eb16bc6fd636259c08a220c4149f')
+        self.assertEqual(pin['result_digest'],
+                         'sha256:1e44a210143d54546092e04abff5afbbff2bc2c1dcde2f2e9250067991bc552c')
+        self.assertEqual(pin['readonly_diagnostic_attempt'], 2)
+
     def test_late_adoption_retains_original_proof_after_diagnostic_rerun(self):
         pin, audit, jobs = self.late_adoption_proof()
         requests = []
