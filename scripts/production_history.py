@@ -289,50 +289,106 @@ PREFLIGHT_STEPS = {
 }
 PREFLIGHT_PROOF_FIELDS = ('id', 'name', 'run_id', 'run_attempt', 'head_sha', 'status', 'conclusion', 'steps')
 PREFLIGHT_STEP_FIELDS = ('number', 'name', 'status', 'conclusion')
+PREFLIGHT_SETUP = (
+    'Set up job',
+    'Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+    'Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97',
+    'Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1',
+    'Install pinned publisher tool without lifecycle scripts or credentials',
+)
+_LEGACY_PREFLIGHT = tuple((name, 'success') for name in PREFLIGHT_SETUP) + tuple(PREFLIGHT_STEPS.values())
+_GUARDED_PREFIX = tuple((name, 'success') for name in PREFLIGHT_SETUP) + (
+    ('Link offline transport test into the temporary runtime directory', 'success'),
+    PREFLIGHT_STEPS[6],
+)
+_GUARDED_TAIL = tuple(PREFLIGHT_STEPS[number] for number in range(8, 14))
+# Finite workflow versions and failure positions, never an arbitrary failed step.
+PREFLIGHT_PROFILES = {
+    'legacy-plan': _LEGACY_PREFLIGHT,
+    'guarded-clean-checkout': _GUARDED_PREFIX + (
+        ('Assert publisher checkout is clean before deployment plan', 'failure'),
+        ('Prepare read-only deployment plan', 'skipped'),
+    ) + _GUARDED_TAIL,
+    'guarded-plan': _GUARDED_PREFIX + (
+        ('Assert publisher checkout is clean before deployment plan', 'success'),
+        ('Prepare read-only deployment plan', 'failure'),
+    ) + _GUARDED_TAIL,
+}
+PREFLIGHT_CLEANUP = (
+    ('Post ' + PREFLIGHT_SETUP[3], 'skipped'),
+    ('Post ' + PREFLIGHT_SETUP[2], 'skipped'),
+    ('Post ' + PREFLIGHT_SETUP[1], 'success'),
+    ('Complete job', 'success'),
+)
+
+
+def exact_preflight_steps(steps, expected, first=1):
+    return (isinstance(steps, list) and len(steps) == len(expected) and
+            all(isinstance(step, dict) and set(step) == set(PREFLIGHT_STEP_FIELDS) and
+                type(step['number']) is int and step['number'] == number and
+                step['name'] == name and step['status'] == 'completed' and step['conclusion'] == conclusion
+                for number, (step, (name, conclusion)) in enumerate(zip(steps, expected), first)))
+
+
+def preflight_profile(steps):
+    matches = [name for name, expected in PREFLIGHT_PROFILES.items()
+               if exact_preflight_steps(steps, expected)]
+    gate.require(len(matches) == 1, 'unproven_preflight_failure')
+    return matches[0]
+
+
+def validate_preflight_cleanup(steps, profile):
+    # Actual GitHub Jobs API numbering, including gaps before post-action steps.
+    first = 24 if profile == 'legacy-plan' else 28
+    gate.require(exact_preflight_steps(steps, PREFLIGHT_CLEANUP, first), 'unproven_preflight_failure')
 
 
 def validate_preflight_proof(run, proof):
-    gate.require(isinstance(proof, dict) and set(proof) == set(PREFLIGHT_PROOF_FIELDS) and
+    gate.require(isinstance(proof, dict) and set(proof) in
+                 (set(PREFLIGHT_PROOF_FIELDS), set(PREFLIGHT_PROOF_FIELDS) | {'cleanup_steps'}) and
                  type(proof['id']) is int and proof['id'] > 0 and
-                 proof['name'] == 'publish' and proof['run_id'] == run['id'] and
+                 type(proof['run_id']) is int and proof['name'] == 'publish' and proof['run_id'] == run['id'] and
                  type(proof['run_attempt']) is int and proof['run_attempt'] == 1 and
+                 type(run.get('run_attempt')) is int and run['run_attempt'] == 1 and
                  proof['head_sha'] == run['head_sha'] and
                  proof['status'] == 'completed' and proof['conclusion'] == 'failure' and
-                 run['status'] == 'completed' and run['conclusion'] == 'failure' and
-                 isinstance(proof['steps'], list) and len(proof['steps']) == 13,
+                 run['status'] == 'completed' and run['conclusion'] == 'failure',
                  'unproven_preflight_failure')
-    for number, step in enumerate(proof['steps'], 1):
-        gate.require(isinstance(step, dict) and set(step) == set(PREFLIGHT_STEP_FIELDS) and
-                     type(step['number']) is int and step['number'] == number and
-                     step['status'] == 'completed', 'unproven_preflight_failure')
-        if number < 6:
-            gate.require(step['conclusion'] == 'success', 'unproven_preflight_failure')
-        else:
-            required_name, required_conclusion = PREFLIGHT_STEPS[number]
-            gate.require(step['name'] == required_name and step['conclusion'] == required_conclusion,
-                         'unproven_preflight_failure')
+    profile = preflight_profile(proof['steps'])
+    # Preserve the existing 13-step checkpoint representation. New profiles
+    # retain their cleanup witness too, so checkpoint validation cannot drop it.
+    if profile == 'legacy-plan':
+        gate.require(set(proof) == set(PREFLIGHT_PROOF_FIELDS), 'unproven_preflight_failure')
+    else:
+        validate_preflight_cleanup(proof.get('cleanup_steps'), profile)
     return proof
 
 
 def preflight_failed_without_intent(client, run, jobs=None):
     if jobs is None:
         jobs = client.skipped_publication_jobs(run)
-    gate.require(isinstance(jobs, list) and len(jobs) == 3 and
-                 sorted(job.get('name') for job in jobs if isinstance(job, dict)) ==
+    gate.require(isinstance(jobs, list) and len(jobs) == 3 and all(isinstance(job, dict) for job in jobs) and
+                 all(type(job.get('id')) is int and job['id'] > 0 for job in jobs) and
+                 len({job['id'] for job in jobs}) == 3 and sorted(job.get('name', '') for job in jobs) ==
                  ['browser-quality', 'publish', 'static-quality'], 'unproven_preflight_failure')
     for job in jobs:
-        gate.require(job.get('run_id') == run['id'] and job.get('run_attempt') == 1 and
+        gate.require(type(job.get('run_id')) is int and job['run_id'] == run['id'] and
+                     type(job.get('run_attempt')) is int and job['run_attempt'] == 1 and
                      job.get('head_sha') == run['head_sha'] and job.get('status') == 'completed' and
                      (job.get('conclusion') == 'failure' if job['name'] == 'publish'
                       else job.get('conclusion') == 'success'), 'unproven_preflight_failure')
     publisher = next(job for job in jobs if job['name'] == 'publish')
     steps = publisher.get('steps')
-    gate.require(isinstance(steps, list) and len(steps) >= 13, 'unproven_preflight_failure')
-    # Steps 1..13 are the guarded publishing sequence. The provider may include
-    # later post-job cleanup, which does not change an unexecuted upload.
-    first = steps[:13]
+    gate.require(isinstance(steps, list) and len(steps) in (17, 19) and
+                 all(isinstance(step, dict) for step in steps), 'unproven_preflight_failure')
+    projected = [{field: step.get(field) for field in PREFLIGHT_STEP_FIELDS} for step in steps]
+    first, cleanup = projected[:-4], projected[-4:]
+    profile = preflight_profile(first)
+    validate_preflight_cleanup(cleanup, profile)
     proof = {key: publisher.get(key) for key in PREFLIGHT_PROOF_FIELDS if key != 'steps'}
-    proof['steps'] = [{field: step.get(field) for field in PREFLIGHT_STEP_FIELDS} for step in first]
+    proof['steps'] = first
+    if profile != 'legacy-plan':
+        proof['cleanup_steps'] = cleanup
     return validate_preflight_proof(run, proof)
 
 

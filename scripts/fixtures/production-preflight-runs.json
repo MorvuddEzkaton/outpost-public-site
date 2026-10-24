@@ -1,0 +1,956 @@
+[
+  {
+    "source": "https://api.github.com/repos/MorvuddEzkaton/outpost-public-site/actions/runs/40122244591",
+    "run": {
+      "id": 40122244591,
+      "run_number": 60,
+      "head_sha": "fc3f77587f4b8605ce4602e549972879921eb368",
+      "head_branch": "main",
+      "run_attempt": 1,
+      "workflow_id": 382921011,
+      "path": ".github/workflows/deploy-public-production.yml",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "repository": {
+        "id": 1415330072,
+        "full_name": "MorvuddEzkaton/outpost-public-site"
+      },
+      "head_repository": {
+        "id": 1415330072
+      }
+    },
+    "jobs": [
+      {
+        "id": 120956123104,
+        "name": "static-quality",
+        "run_id": 40122244591,
+        "run_attempt": 1,
+        "head_sha": "fc3f77587f4b8605ce4602e549972879921eb368",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Install existing pinned image decoder",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Complete credential-free source quality",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Scan source and short public history with the existing verified scanner",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 12,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 13,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 14,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 15,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 120956333181,
+        "name": "browser-quality",
+        "run_id": 40122244591,
+        "run_attempt": 1,
+        "head_sha": "fc3f77587f4b8605ce4602e549972879921eb368",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Run npm install --no-save --no-package-lock @playwright/test@1.55.0 @axe-core/playwright@4.10.2",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Run npx playwright install --with-deps chromium",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Run npx playwright test scripts/browser_a11y.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 8,
+            "name": "Run npx playwright test scripts/browser_keyboard.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 9,
+            "name": "Run npx playwright test scripts/browser_runtime.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 10,
+            "name": "Run npx playwright test scripts/browser_ui.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 18,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 19,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 20,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 21,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 120957463177,
+        "name": "publish",
+        "run_id": 40122244591,
+        "run_attempt": 1,
+        "head_sha": "fc3f77587f4b8605ce4602e549972879921eb368",
+        "status": "completed",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Install pinned publisher tool without lifecycle scripts or credentials",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Verify Telegram transport in the actual offline edge runtime",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Prepare read-only deployment plan",
+            "status": "completed",
+            "conclusion": "failure"
+          },
+          {
+            "number": 8,
+            "name": "Persist intent before any upload",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 9,
+            "name": "Upload once and require actual matching canonical deployment",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 10,
+            "name": "Verify all live contracts only after exact deployment proof",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 11,
+            "name": "Restore only our saved code after a critical live failure",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 12,
+            "name": "Save final journal even on failure; never upload credentials or raw logs",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 13,
+            "name": "Confirm future releases only after accepted live publication",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 24,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 25,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 26,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 27,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": []
+  },
+  {
+    "source": "https://api.github.com/repos/MorvuddEzkaton/outpost-public-site/actions/runs/40123522827",
+    "run": {
+      "id": 40123522827,
+      "run_number": 61,
+      "head_sha": "c5616168366b391ded9636dfe6896812bc707efd",
+      "head_branch": "main",
+      "run_attempt": 1,
+      "workflow_id": 382921011,
+      "path": ".github/workflows/deploy-public-production.yml",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "repository": {
+        "id": 1415330072,
+        "full_name": "MorvuddEzkaton/outpost-public-site"
+      },
+      "head_repository": {
+        "id": 1415330072
+      }
+    },
+    "jobs": [
+      {
+        "id": 120959974958,
+        "name": "static-quality",
+        "run_id": 40123522827,
+        "run_attempt": 1,
+        "head_sha": "c5616168366b391ded9636dfe6896812bc707efd",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Install existing pinned image decoder",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Complete credential-free source quality",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Scan source and short public history with the existing verified scanner",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 12,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 13,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 14,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 15,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 120960197298,
+        "name": "browser-quality",
+        "run_id": 40123522827,
+        "run_attempt": 1,
+        "head_sha": "c5616168366b391ded9636dfe6896812bc707efd",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Run npm install --no-save --no-package-lock @playwright/test@1.55.0 @axe-core/playwright@4.10.2",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Run npx playwright install --with-deps chromium",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Run npx playwright test scripts/browser_a11y.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 8,
+            "name": "Run npx playwright test scripts/browser_keyboard.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 9,
+            "name": "Run npx playwright test scripts/browser_runtime.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 10,
+            "name": "Run npx playwright test scripts/browser_ui.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 18,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 19,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 20,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 21,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 120961317956,
+        "name": "publish",
+        "run_id": 40123522827,
+        "run_attempt": 1,
+        "head_sha": "c5616168366b391ded9636dfe6896812bc707efd",
+        "status": "completed",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Install pinned publisher tool without lifecycle scripts or credentials",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Link offline transport test into the temporary runtime directory",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Verify Telegram transport in the actual offline edge runtime",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 8,
+            "name": "Assert publisher checkout is clean before deployment plan",
+            "status": "completed",
+            "conclusion": "failure"
+          },
+          {
+            "number": 9,
+            "name": "Prepare read-only deployment plan",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 10,
+            "name": "Persist intent before any upload",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 11,
+            "name": "Upload once and require actual matching canonical deployment",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 12,
+            "name": "Verify all live contracts only after exact deployment proof",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 13,
+            "name": "Restore only our saved code after a critical live failure",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 14,
+            "name": "Save final journal even on failure; never upload credentials or raw logs",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 15,
+            "name": "Confirm future releases only after accepted live publication",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 28,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 29,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 30,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 31,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": []
+  },
+  {
+    "source": "https://api.github.com/repos/MorvuddEzkaton/outpost-public-site/actions/runs/40124509242",
+    "run": {
+      "id": 40124509242,
+      "run_number": 62,
+      "head_sha": "7257b1334417432b18be7f3ae44271559835a94e",
+      "head_branch": "main",
+      "run_attempt": 1,
+      "workflow_id": 382921011,
+      "path": ".github/workflows/deploy-public-production.yml",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "repository": {
+        "id": 1415330072,
+        "full_name": "MorvuddEzkaton/outpost-public-site"
+      },
+      "head_repository": {
+        "id": 1415330072
+      }
+    },
+    "jobs": [
+      {
+        "id": 120962942407,
+        "name": "static-quality",
+        "run_id": 40124509242,
+        "run_attempt": 1,
+        "head_sha": "7257b1334417432b18be7f3ae44271559835a94e",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Install existing pinned image decoder",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Complete credential-free source quality",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Scan source and short public history with the existing verified scanner",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 12,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 13,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 14,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 15,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 120963172726,
+        "name": "browser-quality",
+        "run_id": 40124509242,
+        "run_attempt": 1,
+        "head_sha": "7257b1334417432b18be7f3ae44271559835a94e",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Run npm install --no-save --no-package-lock @playwright/test@1.55.0 @axe-core/playwright@4.10.2",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Run npx playwright install --with-deps chromium",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Run npx playwright test scripts/browser_a11y.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 8,
+            "name": "Run npx playwright test scripts/browser_keyboard.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 9,
+            "name": "Run npx playwright test scripts/browser_runtime.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 10,
+            "name": "Run npx playwright test scripts/browser_ui.spec.mjs --reporter=line --workers=1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 18,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 19,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 20,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 21,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 120964272245,
+        "name": "publish",
+        "run_id": 40124509242,
+        "run_attempt": 1,
+        "head_sha": "7257b1334417432b18be7f3ae44271559835a94e",
+        "status": "completed",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "number": 1,
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 2,
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 3,
+            "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 4,
+            "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 5,
+            "name": "Install pinned publisher tool without lifecycle scripts or credentials",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 6,
+            "name": "Link offline transport test into the temporary runtime directory",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 7,
+            "name": "Verify Telegram transport in the actual offline edge runtime",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 8,
+            "name": "Assert publisher checkout is clean before deployment plan",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 9,
+            "name": "Prepare read-only deployment plan",
+            "status": "completed",
+            "conclusion": "failure"
+          },
+          {
+            "number": 10,
+            "name": "Persist intent before any upload",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 11,
+            "name": "Upload once and require actual matching canonical deployment",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 12,
+            "name": "Verify all live contracts only after exact deployment proof",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 13,
+            "name": "Restore only our saved code after a critical live failure",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 14,
+            "name": "Save final journal even on failure; never upload credentials or raw logs",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 15,
+            "name": "Confirm future releases only after accepted live publication",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 28,
+            "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 29,
+            "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "number": 30,
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "number": 31,
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": []
+  }
+]

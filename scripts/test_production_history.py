@@ -403,12 +403,13 @@ class HistoryTests(unittest.TestCase):
         for job in jobs:
             job['conclusion'] = 'failure' if job['name'] == 'publish' else 'success'
         publish = next(job for job in jobs if job['name'] == 'publish')
-        names = ['Set up job', 'Checkout', 'Set up Python', 'Set up Node',
-                 'Install tool', 'Verify Telegram transport in the actual offline edge runtime']
+        names = [*history.PREFLIGHT_SETUP, 'Verify Telegram transport in the actual offline edge runtime']
         names += [history.PREFLIGHT_STEPS[i][0] for i in range(7, 14)]
         publish['steps'] = [{'number': i, 'name': name, 'status': 'completed',
                              'conclusion': 'success' if i <= 6 else history.PREFLIGHT_STEPS[i][1]}
                             for i, name in enumerate(names, 1)]
+        publish['steps'] += [{'number': i, 'name': name, 'status': 'completed', 'conclusion': conclusion}
+                             for i, (name, conclusion) in enumerate(history.PREFLIGHT_CLEANUP, 24)]
         with self.prior_jobs(jobs):
             self.clear()
             record = history.read_resolved_record(self.client, self.prior, self.env, publisher.validate_journal)
@@ -632,6 +633,98 @@ class TransportTests(unittest.TestCase):
             artifact = {'digest': digest or 'sha256:' + hashlib.sha256(payload).hexdigest()}
             with self.subTest(payload_bytes=len(payload)), self.assertRaises(gate.GateError):
                 history.archive_journal(payload, artifact)
+
+
+class ProviderPreflightTests(unittest.TestCase):
+    """Bounded field projections of the three captured GitHub API responses."""
+    def setUp(self):
+        self.records = json.loads((Path(__file__).parent / 'fixtures' / 'production-preflight-runs.json').read_text())
+
+    def resolve(self, record):
+        client = Mock()
+        client.publication_artifacts.return_value = record['artifacts']
+        client.skipped_publication_jobs.return_value = record['jobs']
+        return history.read_resolved_record(client, record['run'], {}, publisher.validate_historical_journal)
+
+    def test_actual_legacy_and_both_guarded_failures_have_exact_projections(self):
+        for record, profile in zip(self.records, ('legacy-plan', 'guarded-clean-checkout', 'guarded-plan')):
+            with self.subTest(run=record['run']['id']):
+                value = self.resolve(record)
+                self.assertEqual(value['kind'], 'preflight_failed')
+                self.assertEqual(history.preflight_profile(value['proof']['steps']), profile)
+                self.assertEqual(value['run'], history.run_projection(record['run']))
+                self.assertEqual(history.validate_preflight_proof(value['run'], value['proof']), value['proof'])
+                publish = next(job for job in record['jobs'] if job['name'] == 'publish')
+                self.assertEqual(value['proof']['steps'], publish['steps'][:-4])
+                if profile == 'legacy-plan':
+                    self.assertEqual(set(value['proof']), set(history.PREFLIGHT_PROOF_FIELDS))
+                else:
+                    self.assertEqual(value['proof']['cleanup_steps'], publish['steps'][-4:])
+
+    def test_every_step_is_required_with_exact_order_name_type_and_outcome(self):
+        for record in self.records:
+            publish = next(job for job in record['jobs'] if job['name'] == 'publish')
+            for index in range(len(publish['steps'])):
+                for field, value in (('name', 'unknown'), ('number', 999), ('number', True),
+                                     ('status', 'in_progress'), ('conclusion', 'success' if
+                                      publish['steps'][index]['conclusion'] != 'success' else 'skipped')):
+                    bad = deepcopy(record)
+                    next(job for job in bad['jobs'] if job['name'] == 'publish')['steps'][index][field] = value
+                    with self.subTest(run=record['run']['id'], step=index, field=field), self.assertRaises(gate.GateError):
+                        self.resolve(bad)
+                bad = deepcopy(record)
+                next(job for job in bad['jobs'] if job['name'] == 'publish')['steps'].pop(index)
+                with self.subTest(run=record['run']['id'], missing=index), self.assertRaises(gate.GateError):
+                    self.resolve(bad)
+
+    def test_foreign_replayed_unfinished_duplicate_or_missing_jobs_block(self):
+        for record in self.records:
+            mutations = []
+            for field, value in (('run_id', 123), ('head_sha', 'f' * 40), ('run_attempt', 2),
+                                 ('run_attempt', True), ('status', 'in_progress'), ('conclusion', 'skipped')):
+                for index in range(3):
+                    mutations.append(lambda r, f=field, v=value, i=index: r['jobs'][i].update({f: v}))
+            mutations += [lambda r: r['jobs'].pop(), lambda r: r['jobs'].append(deepcopy(r['jobs'][0])),
+                          lambda r: r['jobs'][1].update(id=r['jobs'][0]['id']),
+                          lambda r: r['jobs'][0].update(id=True)]
+            for field, value in (('id', 123), ('head_sha', 'e' * 40), ('run_attempt', 2),
+                                 ('status', 'in_progress'), ('conclusion', 'success')):
+                mutations.append(lambda r, f=field, v=value: r['run'].update({f: v}))
+            for index, mutate in enumerate(mutations):
+                bad = deepcopy(record)
+                mutate(bad)
+                with self.subTest(run=record['run']['id'], mutation=index), self.assertRaises(gate.GateError):
+                    self.resolve(bad)
+
+    def test_unknown_or_reordered_extra_steps_and_artifacts_are_not_preflight_proof(self):
+        for record in self.records:
+            for mode in ('swap', 'extra', 'no-cleanup', 'artifact'):
+                bad = deepcopy(record)
+                steps = next(job for job in bad['jobs'] if job['name'] == 'publish')['steps']
+                if mode == 'swap':
+                    steps[1], steps[2] = steps[2], steps[1]
+                elif mode == 'extra':
+                    steps.insert(-4, {'number': 16, 'name': 'Unknown upload', 'status': 'completed', 'conclusion': 'success'})
+                elif mode == 'no-cleanup':
+                    del steps[-4:]
+                else:
+                    bad['artifacts'] = [{'id': 99, 'name': 'unexpected intent'}]
+                with self.subTest(run=record['run']['id'], mode=mode), self.assertRaises(gate.GateError):
+                    self.resolve(bad)
+
+    def test_guarded_checkpoint_cannot_lose_or_alter_cleanup_witness(self):
+        for record in self.records[1:]:
+            value = self.resolve(record)
+            for mode in ('missing', 'truncated', 'outcome', 'renamed'):
+                proof = deepcopy(value['proof'])
+                if mode == 'missing':
+                    del proof['cleanup_steps']
+                elif mode == 'truncated':
+                    proof['cleanup_steps'].pop()
+                else:
+                    proof['cleanup_steps'][0]['conclusion' if mode == 'outcome' else 'name'] = 'unknown'
+                with self.subTest(run=record['run']['id'], mode=mode), self.assertRaises(gate.GateError):
+                    history.validate_preflight_proof(value['run'], proof)
 
 
 if __name__ == '__main__':

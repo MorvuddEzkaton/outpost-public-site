@@ -59,7 +59,7 @@ class CheckpointTests(unittest.TestCase):
     def test_exact_preflight_failure_checkpoint_cannot_fake_an_upload_skip(self):
         run = deepcopy(self.fixture.prior)
         run['conclusion'] = 'failure'
-        steps = [{'number': i, 'name': (history.PREFLIGHT_STEPS[i][0] if i >= 6 else 'setup'),
+        steps = [{'number': i, 'name': (history.PREFLIGHT_STEPS[i][0] if i >= 6 else history.PREFLIGHT_SETUP[i - 1]),
                   'status': 'completed',
                   'conclusion': (history.PREFLIGHT_STEPS[i][1] if i >= 6 else 'success')}
                  for i in range(1, 14)]
@@ -85,6 +85,22 @@ class CheckpointTests(unittest.TestCase):
             value = deepcopy(self.value)
             value['records'][1]['proof'][1]['journal'] = self.fixture.result
             with self.subTest(state=state), self.assertRaises(gate.GateError):
+                checkpoints.validate(self.reseal(value), VALIDATOR)
+
+    def test_guarded_profiles_survive_checkpoint_validation_with_cleanup(self):
+        fixtures = json.loads((Path(__file__).parent / 'fixtures' / 'production-preflight-runs.json').read_text())
+        provider = history_tests.ProviderPreflightTests()
+        for fixture in fixtures[1:]:
+            record = provider.resolve(fixture)
+            run = history.run_projection(self.fixture.prior)
+            record['run'] = run
+            record['proof'].update(run_id=run['id'], head_sha=run['head_sha'])
+            value = deepcopy(self.value)
+            value['records'] = value['records'][:1]
+            value['records'].append(checkpoints.seal(record, value['records'][0]['record_sha256']))
+            self.assertEqual(checkpoints.validate(value, VALIDATOR), value)
+            del value['records'][1]['proof']['cleanup_steps']
+            with self.assertRaises(gate.GateError):
                 checkpoints.validate(self.reseal(value), VALIDATOR)
 
     def test_no_extra_data_logs_tokens_or_actor_fields(self):
