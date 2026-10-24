@@ -9,6 +9,9 @@
 *.tsv text eol=lf
 *.txt text eol=lf
 *.sha256 text eol=lf
+# Preserve the exact Windows-produced checksum bytes (including CRLF) in Git worktrees.
+# The immutable release registry hashes these original file bytes, not normalized text.
+site/downloads/*.sha256.txt -text
 
 *.png binary
 *.webp binary
