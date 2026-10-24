@@ -23,6 +23,8 @@ SITEMAP = SITE / "sitemap.xml"
 
 KIB = 1024
 MAX_HTML = 256 * KIB
+# Changelog preserves the complete append-only release history; it needs a distinct bounded ceiling.
+MAX_CHANGELOG_HTML = 320 * KIB
 MAX_CSS = 128 * KIB
 MAX_JS = 128 * KIB
 MAX_IMAGE = 512 * KIB
@@ -153,8 +155,9 @@ def main() -> int:
             continue
 
         html_size = html_path.stat().st_size
-        if html_size > MAX_HTML:
-            errors.append(f"{page_path}: HTML {human(html_size)} exceeds {human(MAX_HTML)}")
+        html_limit = MAX_CHANGELOG_HTML if page_path == "/changelog" else MAX_HTML
+        if html_size > html_limit:
+            errors.append(f"{page_path}: HTML {human(html_size)} exceeds {human(html_limit)}")
         largest_by_kind["HTML"] = max(largest_by_kind.get("HTML", (0, html_path)), (html_size, html_path), key=lambda x: x[0])
 
         parser = ResourceParser()
