@@ -416,6 +416,26 @@ ADOPTED_FAILED_RUN = {
     'independent_provenance_run': 39966734014,
 }
 
+# Incident 2026-10-23 run #50: original Cloudflare upload SUCCEEDED but
+# read-only live checking failed, then guarded rollback refused after main moved.
+# Immutable intent/result journals and independent 2026-10-24 20/20 public GET
+# audit are verified below. The publisher additionally requires Cloudflare's
+# current canonical main SHA to equal this EXACT failed-run source; otherwise
+# no deployment can proceed. This is not retroactive acceptance of run #50.
+ADOPTED_FAILED_RUN_50 = {
+    'run_number': 50,
+    'id': 40011219988,
+    'head_sha': '9b9b31e4e2868ed39acab34c0d61549c2b4fb72f',
+    'deployment_id': '0da20cbd-6faa-4721-8987-3fca2930b6ac',
+    'intent_id': 12526572205,
+    'intent_digest': 'sha256:4b05d01964a5e8ccdaaec1de2455a355f631eb16bc6fd636259c08a220c4149f',
+    'result_id': 12527041637,
+    'result_digest': 'sha256:1e44a210143d54546092e04abff5afbbff2bc2c1dcde2455a355f631eb16bc552c',
+    'readonly_diagnostic_run': 39975297833,
+    'readonly_diagnostic_attempt': 2,
+    'readonly_diagnostic_head_sha': '1fd31e0d9b6c794fb65753b5f8f66a57471a0655',
+}
+
 RECOVERY_MARKER = 'release/production-history-reconciliation.json'
 
 
@@ -540,15 +560,16 @@ def verified_successful_frontier(client, run, env, validator):
     return run['head_sha']
 
 
-def verified_late_adopted_run(client, run, env, validator):
+def verified_late_adopted_run(client, run, env, validator, pin=None):
     """Adopt one deployed but originally live_failed run after later 20/20 audit.
 
     The original failed journal and original CI outcome remain unchanged.
-    Only exact preserved run #45, checked Cloudflare canonical SHA (publisher
-    preflight), job step boundaries and an independent later read-only audit
-    may bridge it. This MUST NOT be used for arbitrary failed/unknown runs.
+    Only two explicitly pinned incidents (#45 and #50), with checked Cloudflare
+    canonical SHA (publisher preflight), immutable journals, original job step
+    boundaries and independent read-only audits may bridge failed uploads.
+    This MUST NOT be used for arbitrary failed/unknown runs.
     """
-    pin = ADOPTED_FAILED_RUN
+    pin = ADOPTED_FAILED_RUN if pin is None else pin
     gate.require(run.get('run_number') == pin['run_number'] and
                  run.get('id') == pin['id'] and run.get('head_sha') == pin['head_sha'] and
                  run.get('status') == 'completed' and run.get('conclusion') == 'failure' and
@@ -556,20 +577,26 @@ def verified_late_adopted_run(client, run, env, validator):
 
     # GitHub independently confirmed the source SHA was deployed successfully
     # at that moment, but it is NOT proof that all 20 contracts passed then.
-    audits = (
+    audits = [
         (pin['readonly_diagnostic_run'],
          '.github/workflows/live-contract-diagnostics.yml',
-         pin['readonly_diagnostic_head_sha'], 'pull_request'),
-        (pin['independent_provenance_run'],
-         '.github/workflows/live-production-verify.yml',
-         pin['head_sha'], 'push'),
-    )
-    for run_id, path, sha, event in audits:
+         pin['readonly_diagnostic_head_sha'], 'pull_request',
+         pin.get('readonly_diagnostic_attempt', 1)),
+    ]
+    if 'independent_provenance_run' in pin:
+        audits.append((pin['independent_provenance_run'],
+                       '.github/workflows/live-production-verify.yml',
+                       pin['head_sha'], 'push', 1))
+    for run_id, path, sha, event, attempt in audits:
         metadata = client.history_json('/actions/runs/' + str(run_id))
+        # A later rerun cannot destroy the immutable original attempt's proof.
+        # Retrieve its exact historical attempt instead of treating attempt N as 1.
+        if metadata.get('run_attempt') != attempt:
+            metadata = client.history_json('/actions/runs/' + str(run_id) + '/attempts/' + str(attempt))
         gate.require(metadata.get('id') == run_id and metadata.get('path') == path and
                      metadata.get('head_sha') == sha and metadata.get('event') == event and
                      metadata.get('status') == 'completed' and metadata.get('conclusion') == 'success' and
-                     metadata.get('run_attempt') == 1 and
+                     metadata.get('run_attempt') == attempt and
                      metadata.get('repository', {}).get('id') == REPOSITORY_ID and
                      metadata.get('head_repository', {}).get('id') == REPOSITORY_ID,
                      'late_adoption_external_audit_missing')
@@ -665,10 +692,13 @@ def assert_clear(client, env, validator, records=(), recovery=False):
             continue
         if recovery and run['run_number'] <= frontier['run_number']:
             continue  # Superseded earlier attempts remain in immutable GitHub history.
-        if recovery and run['run_number'] == ADOPTED_FAILED_RUN['run_number']:
-            # Exact same already-deployed SHA is now independently healthy.
-            # A different run or an unknown upload remains blocked.
-            last_live_sha = verified_late_adopted_run(client, run, env, validator)
+        if recovery and run['run_number'] in (
+                ADOPTED_FAILED_RUN['run_number'], ADOPTED_FAILED_RUN_50['run_number']):
+            # Only the two explicitly pinned incidents can bridge an original
+            # live_failed result. Source SHA must still match Cloudflare canonical.
+            pin = (ADOPTED_FAILED_RUN if run['run_number'] == ADOPTED_FAILED_RUN['run_number']
+                   else ADOPTED_FAILED_RUN_50)
+            last_live_sha = verified_late_adopted_run(client, run, env, validator, pin=pin)
             continue
         proof = read_resolved_record(client, run, env, validator)
         if recovery and proof['kind'] == 'journal' and proof['proof'][1]['journal']['state'] == 'live_pass':
