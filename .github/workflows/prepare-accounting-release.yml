@@ -296,6 +296,8 @@ jobs:
           python scripts/verify_installers.py
           python scripts/release_integrity.py --base-ref origin/main
           python scripts/test_release_integrity.py
+          python scripts/desktop_update_feed.py
+          python scripts/test_desktop_update_feed.py
           python scripts/test_release_workflow_security.py
           python scripts/verify_accounting_release.py
           python scripts/prepare_accounting_release.py --check-current

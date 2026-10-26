@@ -5,6 +5,11 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 
+# The signed update description must be revalidated rather than cached as a permanent release.
+/updates/desktop/stable.json
+  Cache-Control: no-cache, max-age=0, must-revalidate
+  X-Robots-Tag: noindex, nofollow
+
 # Online demo changes frequently while it is being brought closer to the desktop app.
 # Revalidate these browser-local assets so a previous demo build cannot mask new keyboard/UI fixes.
 /assets/outpost-demo-v1.css
