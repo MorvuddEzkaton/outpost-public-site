@@ -1,6 +1,6 @@
 # OutPOSt release — operator steps
 
-Operational checkpoint: 2026-10-15. The protected public-repository publisher is
+Operational checkpoint: 2026-10-26. The protected public-repository publisher is
 active. The optional **Prepare public release PR** Action remains OFF; do not enable
 it or Actions PR-creation permissions as a workaround. The supported local path
 uses the same reviewed preparation tool. The authoritative receipt schema,
@@ -57,6 +57,13 @@ local preparation in its owned topic; do not blindly retry or relabel old bytes.
    stale checks on a closed/reused PR do not certify its advanced source branch.
 2. Require owner review and all six actual exact-head required checks, not just
    public smoke. No direct main push, forged status, bot self-approval or weakened gate.
+   **Squash merge caution:** always keep GitHub's generated `(#PR_NUMBER)` suffix
+   in the merge commit subject, including when specifying `commit_title` via API
+   (example: `docs(site): update content (#82)`). The separate
+   `verify_main_push_provenance.py` post-check requires a recognized PR marker.
+   PR #81 was published successfully, but its custom squash title omitted `(#81)`;
+   the independent live verification therefore reported an avoidable failure.
+   Do not rewrite published history or disable the provenance guard to conceal it.
 3. After merge, the protected publisher runs static and browser quality again.
    Its production environment still requires approval. The exact main SHA is the
    rollback reference; no new backup branch is automatically created per release.
@@ -74,6 +81,6 @@ release PR with full gates. It does not merge, synchronize staging, deploy or no
 
 See [PRODUCTION-PUBLISHER.md](PRODUCTION-PUBLISHER.md),
 [CONFIRMED-TELEGRAM-RELEASES.md](CONFIRMED-TELEGRAM-RELEASES.md) and
-[ROLLBACK-RUNBOOK.md](ROLLBACK-RUNBOOK.md). Current baseline OutPOSt 0.24.40 must
+[ROLLBACK-RUNBOOK.md](ROLLBACK-RUNBOOK.md). Current published baseline OutPOSt 0.24.46 must
 not be re-announced; next-release live delivery acceptance remains pending until
 a genuinely new approved package exists.
