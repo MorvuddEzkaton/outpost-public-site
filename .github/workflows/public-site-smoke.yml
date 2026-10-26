@@ -148,6 +148,12 @@ jobs:
       - name: Test release evidence and immutable history
         run: python scripts/test_release_integrity.py
 
+      - name: Verify signed desktop update metadata against the reviewed immutable installer
+        run: python scripts/desktop_update_feed.py
+
+      - name: Test desktop update signature and validity guards
+        run: python scripts/test_desktop_update_feed.py
+
       - name: Test release workflow privilege boundaries
         run: python scripts/test_release_workflow_security.py
 

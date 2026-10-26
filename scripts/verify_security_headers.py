@@ -77,9 +77,9 @@ def parse_headers(text: str) -> tuple[list[str], dict[str, str]]:
 
 
 def header_route_errors(routes: list[str]) -> list[str]:
-    """Shared fail-closed source/live contract: global security plus exact demo cache routes."""
-    # Global CSP applies to every route. Only these five narrow cache overrides
-    # may follow it; extra wildcard/public routes would weaken the boundary.
+    """Shared source/live contract: global security plus exact machine/demo cache routes."""
+    # The single signed-feed route does not override browser security. All
+    # existing demo rules stay exact; additional wildcard scopes remain forbidden.
     allowed_demo_cache_routes = {
         "/assets/outpost-demo-v1.css",
         "/assets/outpost-demo-v1.js",
@@ -87,15 +87,35 @@ def header_route_errors(routes: list[str]) -> list[str]:
         "/assets/outpost-demo-returns-v1.js",
         "/assets/outpost-demo-products-v1.js",
     }
+    allowed_cache_routes=allowed_demo_cache_routes|{"/updates/desktop/stable.json"}
     if not routes or routes[0] != "/*" or routes.count("/*") != 1 or (
-        len(routes) != 1 + len(allowed_demo_cache_routes)
-        or set(routes[1:]) != allowed_demo_cache_routes
+        len(routes) != 1 + len(allowed_cache_routes)
+        or set(routes[1:]) != allowed_cache_routes
     ):
         return [
-            "site/_headers: expected one global /* CSP plus exactly five "
-            f"narrow demo revalidation rules; got {routes!r}"
+            "site/_headers: expected one global /* CSP, exactly five demo cache "
+            f"rules and the single signed update feed rule; got {routes!r}"
         ]
     return []
+
+
+def narrow_cache_route_errors(text: str) -> list[str]:
+    """A narrow cache rule cannot override CSP, permissions, or global security."""
+    blocks=[]
+    for raw in text.splitlines():
+        line=raw.strip()
+        if not line or line.startswith('#'):continue
+        if not raw[0].isspace():blocks.append((line,[]))
+        elif blocks and ':' in line:
+            name,value=line.split(':',1);blocks[-1][1].append((name.strip(),value.strip()))
+    errors=[]
+    for route,headers in blocks:
+        if route=='/*':continue
+        expected={'Cache-Control':'no-cache, max-age=0, must-revalidate'}
+        if route=='/updates/desktop/stable.json':expected['X-Robots-Tag']='noindex, nofollow'
+        if dict(headers)!=expected or len(headers)!=len(expected):
+            errors.append(f'site/_headers: narrow rule {route!r} must contain exactly {expected!r}')
+    return errors
 
 
 def parse_csp(value: str) -> dict[str, set[str]]:
@@ -172,6 +192,7 @@ def main() -> int:
 
     routes, headers = parse_headers(HEADERS_FILE.read_text(encoding="utf-8"))
     errors.extend(header_route_errors(routes))
+    errors.extend(narrow_cache_route_errors(HEADERS_FILE.read_text(encoding="utf-8")))
 
     for name, expected in EXPECTED_SCALAR_HEADERS.items():
         actual = headers.get(name)
