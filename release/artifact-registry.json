@@ -261,6 +261,15 @@
       "sha256": "B15AD9B90709C658BA6907FFFA7CD081A042BB1454B5A6B6B4327BA01787578D",
       "checksum": "OutPOSt-Setup-v0.24.48.sha256.txt",
       "checksum_sha256": "5C3E8324798CA10F74779AFC36EB6EED2DB1CD24382A6BA6D4EEB240B350B9BF"
+    },
+    {
+      "product": "outpost",
+      "version": "0.24.49",
+      "installer": "OutPOSt-Setup-v0.24.49.exe",
+      "size_bytes": 15576420,
+      "sha256": "79B5AA29F05DF53413DFBE3E2CA52146E8A0DC27268436FC977428FAC5179A69",
+      "checksum": "OutPOSt-Setup-v0.24.49.sha256.txt",
+      "checksum_sha256": "3CF76666E46BA5D57FD144E7B62505DF150A0C9BBB3B300E970AD537B9A0147D"
     }
   ]
 }
