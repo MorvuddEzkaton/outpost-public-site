@@ -10,6 +10,29 @@ Windows acceptance and one manual installation. Real updater/UAC/restart accepta
 in an isolated Windows environment remains required before activating that feature.
 Website checks or a signed feed do not replace native acceptance.
 
+## Acceptance status — 2026-10-27
+
+OutPOSt 0.24.48 enables the native application and embedded runner installation
+gates after Windows acceptance. Automatic updates default on, can be disabled
+in the Update Center, and install only during the next safe normal exit. That
+automatic exit leaves the program closed; confirmed manual installation restarts
+it as the original Windows user. An explicit opt-out survives the next launch.
+
+The acceptance exercised the production runner with isolated registry, cache,
+mutex, test key and probe-application boundaries. Real Inno replacement passed
+both normal and administrative/UAC runs: cancellation, complete parent exit,
+version replacement, original-user child/restart, normal-exit behavior and
+unchanged database/license sentinels. The owner confirmed the Windows prompts.
+Actual native WPF, backup/shutdown, signed-package checks and the production
+installer's connector/Inno gates were also verified on the exact release payload.
+The working store installation was not replaced for this test. The reviewed
+receipt is `release/evidence/outpost-v0.24.48.json`.
+
+The installed 0.24.47 client still has its old installation gate disabled. Its
+first upgrade to 0.24.48 needs the normal installer; publishing a newer signed
+JSON cannot change code already installed on a customer's computer. The initial
+0.24.46 bootstrap description above is historical, not the current feed version.
+
 ## Verification
 
 The envelope signs raw UTF-8 payload bytes with RSA-3072/PKCS#1 v1.5/SHA-256. Its
