@@ -65,6 +65,38 @@ Publishing metadata cannot alter the gate compiled into an already installed47.
 Native probes use temporary profiles and never invoke an installer or touch working
 licensing/data. The signed envelope contains no private key or customer information.
 
+## Normal update close — 0.24.51
+
+At the owner's explicit request,0.24.51 removes the mandatory full pre-update
+archive and its30-second wait/busy-backup prerequisite. Its application invokes
+the same normal graceful-close path before committing the installer handoff.
+Fiscal/document guards, clean-session handling and durable committed DB/WAL data
+remain. Independent scheduled/manual backups are unchanged. The confirmation text
+describes this behavior. Receipt: `release/evidence/outpost-v0.24.51.json`.
+
+The regression first fails on immutable50 with the exact busy-copy error, then
+passes on51. Actual WPF40 checks cover a held backup lock, no added archive,
+fiscal/cancel safeguards and a real32MiB database with a pinned WAL reader. Close
+took25ms in the final acceptance run; a separate restarted process read the
+committed stamp and payload size from preserved WAL. This is a test measurement,
+not a universal timing promise. Native account97, isolated core132, integration13,
+XPS39, currency49, shutdown15 and the mandatory production installer gates pass.
+
+The signed independent updater, protocol/handoff sources and embedded runner are
+unchanged (SHA-256
+`7A9D09DAF40DBF1C39C0FA4D7A6EB56BC1AB914A2DFC5C7F8D3F658B58B45903`).
+Reuse of protocol85 and the real48 normal/admin-UAC lifecycle acceptance is explicit;
+new51 application close behavior has its own actual WPF/WAL/shutdown evidence.
+No new51 administrative replacement or working-shop upgrade is claimed.
+
+An already installed48/50 still executes its compiled full-copy prerequisite.
+If it blocks this first transition, close normally and run the normal51 installer
+once; future updates initiated from51 do not require a full archive. Metadata
+cannot alter code already installed. Old50 and current51 real pinned-key fixtures
+verify the signed51 envelope/full package (no installer execution). Live full
+readback is required after protected publication. Older47 retains its existing
+Download/Open-folder/manual first-upgrade rule.
+
 ## Verification
 
 The envelope signs raw UTF-8 payload bytes with RSA-3072/PKCS#1 v1.5/SHA-256. Its
