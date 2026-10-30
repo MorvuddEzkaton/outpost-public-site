@@ -97,6 +97,40 @@ verify the signed51 envelope/full package (no installer execution). Live full
 readback is required after protected publication. Older47 retains its existing
 Download/Open-folder/manual first-upgrade rule.
 
+## OutPOSt 0.25 (package 0.25.0)
+
+The signed stable feed and installer are published together with the current
+website release metadata. Canonical package version 0.25.0 preserves the existing
+X.Y.Z update contract; the product release family is 0.25. The pinned public key,
+minimum updater version and independent runner are unchanged. Receipt:
+`release/evidence/outpost-v0.25.0.json`.
+
+Actual isolated copies of the accepted 0.24.51 and 0.24.52 Update Centers verified
+the new signed envelope and complete installer bytes and exposed Install. The
+0.25.0 Update Center identifies itself as Current. No installer was executed by
+these download probes. Live download readback is required after publication.
+The embedded runner SHA-256 remains
+`7A9D09DAF40DBF1C39C0FA4D7A6EB56BC1AB914A2DFC5C7F8D3F658B58B45903`;
+its previously accepted normal/admin-UAC lifecycle is inherited explicitly.
+The current installer also passed its own trial/pairing/connector, real Inno
+replacement and protected-temp gates. This is not a claim of another full
+administrative installation on a real shop PC.
+
+Older 0.24.47 keeps its existing Download/Open-folder first-upgrade path. An
+already installed 0.24.48/50 retains its compiled backup prerequisite; if that
+blocks its first upgrade, close normally and run the regular 0.25.0 installer
+once. Metadata cannot modify code already installed. From 0.24.51 onward,
+installation uses normal safe shutdown without an additional mandatory full
+archive. Existing document/fiscal guards remain.
+
+Services, currencies and recovery checks run on synthetic isolated databases.
+The 118-table large-database equivalence from the accepted 0.24.52 candidate is
+inherited because business database source is unchanged. The new database
+recovery action never rewrites old store IDs or merges histories: explicit
+administrator consent connects a separate database, with server ownership,
+fingerprint, expiry and race checks. Web Services/Accounting compatibility is
+separate from this desktop publication; Goods sync retains its legacy fallback.
+
 ## Verification
 
 The envelope signs raw UTF-8 payload bytes with RSA-3072/PKCS#1 v1.5/SHA-256. Its
