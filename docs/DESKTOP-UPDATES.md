@@ -179,3 +179,27 @@ This bootstrap intentionally does not add unattended CI signing or broaden bot
 permissions. An expired or invalid description makes the client show an unavailable
 check; it cannot cause execution of an unsigned/unverified installer. Refresh a
 description through the same reviewed path before its expiry (normally 90 days).
+
+## Accounting connector process guard — 0.25.1
+
+A real old-client update exposed a missing combined acceptance case: the runner
+classified the headless Accounting supervisor/server (hosted by OutPOSt.exe) as a
+second POS and aborted before Setup's existing graceful connector bridge ran.
+Earlier isolated runner and installer tests had exercised those stages separately.
+
+0.25.1 permits only exact supervise/autostart/serve commands with the same installed
+image, Windows owner and session to reach Setup. A second POS, unknown arguments
+or unverifiable process metadata still blocks installation. Setup retains its
+source/config validation, saved recovery intent, graceful stop and original-user
+resume. Signature/hash, parent exit, single-instance and normal-exit rules remain.
+
+Combined tests reproduce the old failure and exercise the new production runner
+and bridge together with real Inno replacement: cancellation, manual restart and
+automatic normal-exit install, both connector roles, configuration and synthetic
+data/license sentinels. Existing elevation-launch acceptance is inherited explicitly;
+the new guard does not change that launch code.
+
+An already installed old runner cannot gain this fix from signed feed metadata.
+Its first transition requires one graceful connector pause, with its configuration
+and restart intent preserved, then the normal Update Center installation.
+Future transitions from 0.25.1 delegate connector pause/resume to Setup.
