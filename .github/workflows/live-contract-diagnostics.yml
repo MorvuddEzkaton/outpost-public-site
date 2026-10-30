@@ -24,4 +24,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Diagnose exact public-contract failures without using secrets
+        # A PR may intentionally differ from production until published. Keep
+        # these findings visible, but do not mistake pre-deploy drift for a
+        # production acceptance gate. Manual diagnostics still fail on drift.
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: python scripts/diagnose_live_readonly.py

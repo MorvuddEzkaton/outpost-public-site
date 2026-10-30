@@ -14,6 +14,52 @@ import production_publisher as publisher
 ROOT = Path(__file__).resolve().parents[1]
 
 
+
+def diagnose_static_asset_failures() -> None:
+    """Print only bounded, public URL paths and normalized failure classes.
+
+    No HTTP bodies, response headers, redirect locations, query strings or
+    exceptions are logged. The protected publisher's own acceptance remains
+    unchanged; this diagnostic has no credentials and performs no writes.
+    """
+    from urllib.parse import urlparse
+    import re
+    import verify_live_static_assets as static
+
+    urls, pages, demo = static.collect_public_assets()
+    failures = []
+    for url in urls:
+        problem, cache = static.verify_asset(url, attempts=1, delay_seconds=0)
+        reason = None
+        if problem:
+            status = re.fullmatch(r"expected HTTP 200, got ([0-9]{3})", problem)
+            if status:
+                reason = "http-" + status.group(1)
+            elif problem.startswith("HTTP ") and " redirect -> " in problem:
+                reason = "redirect"
+            elif problem.startswith("content-type "):
+                reason = "content-type-mismatch"
+            elif problem.startswith("network error: "):
+                reason = "network-error"
+            else:
+                reason = "other-http-check-failure"
+        elif url in demo and not static.cache_control_revalidates(cache):
+            reason = "demo-cache-policy"
+
+        if reason:
+            path = urlparse(url).path
+            if not re.fullmatch(r"/[A-Za-z0-9_./%~-]{1,240}", path):
+                path = "[redacted-path]"
+            failures.append((path, reason))
+
+    print(f"Static asset diagnostic: {len(urls)} public files from {pages} sitemap pages; "
+          f"{len(failures)} failures. Read-only; not a deployment acceptance.", flush=True)
+    for path, reason in failures[:30]:
+        print(f"  asset: {path} | {reason}", flush=True)
+    if len(failures) > 30:
+        print(f"  ... {len(failures) - 30} additional failures omitted", flush=True)
+
+
 def main() -> int:
     # Bound diagnosis so a broken public endpoint does not hold a runner for
     # hours. Full protected publisher retains its stricter default retries.
@@ -33,6 +79,11 @@ def main() -> int:
             okay = False
         if not okay:
             failed.append(command)
+            if command == 'verify_live_static_assets.py':
+                try:
+                    diagnose_static_asset_failures()
+                except Exception:
+                    print('Static asset diagnostic aborted without disclosing raw responses', flush=True)
     print(f'Diagnostic summary: {len(publisher.LIVE_COMMANDS) - len(failed)}/{len(publisher.LIVE_COMMANDS)} PASS; public GET only; no acceptance recorded', flush=True)
     return 1 if failed else 0
 
