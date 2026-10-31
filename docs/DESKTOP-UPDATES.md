@@ -203,3 +203,14 @@ An already installed old runner cannot gain this fix from signed feed metadata.
 Its first transition requires one graceful connector pause, with its configuration
 and restart intent preserved, then the normal Update Center installation.
 Future transitions from 0.25.1 delegate connector pause/resume to Setup.
+
+
+## File updates and universal setup — 0.25.2 publication candidate, 2026-10-31
+
+Native 0.25.2 supports optional signed `file_update` metadata while preserving the complete installer fields and `minimum_updater=1`. Existing clients continue using the full installer; unsupported acceleration metadata also falls back to it in new clients. EVERY release must still compile, review, register and retain its full versioned installer. The first transition to the new updater uses the existing full-installer route.
+
+`desktop_file_updates.py` verifies strict program-only paths, compressed and raw hashes/sizes, bounded gzip expansion, the full payload inventory and agreement with the reviewed Windows receipt's payload-manifest digest. Historical signed envelopes in `release/desktop-updates/` authorize retaining old immutable blobs; they never waive runtime expiry. `prepare_desktop_delivery.py` stages only matching signed blobs and retains the full-installer checks. It signs nothing, creates no Windows acceptance and never deploys.
+
+The separately reviewed universal downloader belongs at `/setup/OutPOSt-Setup.exe`, outside the versioned full-installer inventory. It requires `release/bootstrap.json` with kind `owner-reviewed-universal-setup`, version, runtime/architecture, exact SHA-256/size, pinned-public-key digest, official feed URL, genuine Windows acceptance/report digest and explicit publication approval, plus its checksum. The ordinary public security gate rejects it otherwise. The website offers one OutPOSt download button pointing to this stable executable. Its visible checksum describes the downloader; the complete versioned installer, checksum and JSON-LD metadata remain available on the server for installation and recovery. Normal release preparation reuses the reviewed universal executable and updates its signed server-side feed instead of adding another download button. Accounting remains an independent product.
+
+This candidate includes the complete 0.25.2 installer, exact signed feed, program blobs and universal executable. The owner confirmed installing 0.25.2 and opening their database. Private evidence separately records 21 Windows bootstrap UI checks with mocked HTTP (without executing the installer), 10 owner-run isolated elevated file-update checks, old-client compatibility, rollback/corruption checks and the connector-host lifecycle. These scopes are explicit in the reviewed receipts; source preparation does not prove production publication or delivery of customer notifications. The protected publisher must establish those facts after merge. The binaries remain Authenticode unsigned.

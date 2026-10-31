@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
+import crypto from "node:crypto";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1759,4 +1760,36 @@ test("download release cards show both product marks", async ({ browser }) => {
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
   await context.close();
+});
+
+
+test("universal download is one product button and preserves mobile layout", async ({ browser }) => {
+  test.setTimeout(45_000);
+  const setup = path.join(siteRoot, "setup", "OutPOSt-Setup.exe");
+  test.skip(!fs.existsSync(setup), "Universal setup has not been introduced in this fixture");
+  const expected = crypto.createHash("sha256").update(fs.readFileSync(setup)).digest("hex");
+  for (const width of [390, 1440]) {
+    const context = await browser.newContext({ viewport: { width, height: 1000 }, acceptDownloads: true });
+    const page = await context.newPage();
+    await page.goto(origin + "/download", { waitUntil: "load" });
+    const card = page.locator('[data-download-product="outpost"]');
+    const binaries = card.locator('a[href$=".exe"]');
+    await expect(binaries).toHaveCount(1);
+    await expect(binaries).toHaveAttribute("href", "/setup/OutPOSt-Setup.exe");
+    await expect(card.locator('a.btn')).toHaveCount(1);
+    await expect(card.locator('a[href="/setup/OutPOSt-Setup.sha256.txt"]')).toBeVisible();
+    await expect(page.locator('[data-download-product="accounting"] a[href$=".exe"]')).toHaveCount(1);
+    const pending = page.waitForEvent("download");
+    await binaries.click();
+    const download = await pending;
+    expect(download.suggestedFilename()).toBe("OutPOSt-Setup.exe");
+    const saved = path.join(artifactRoot, "universal-" + width + ".exe");
+    await download.saveAs(saved);
+    expect(crypto.createHash("sha256").update(fs.readFileSync(saved)).digest("hex")).toBe(expected);
+    await card.locator('[data-full-package-integrity] summary').click();
+    const dimensions = await page.evaluate(() => ({ viewport: innerWidth, actual: document.documentElement.scrollWidth }));
+    expect(dimensions.actual).toBeLessThanOrEqual(dimensions.viewport + 1);
+    await page.screenshot({ path: path.join(artifactRoot, "universal-download-" + width + ".png"), fullPage: true });
+    await context.close();
+  }
 });

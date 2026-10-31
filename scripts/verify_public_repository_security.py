@@ -4,7 +4,6 @@ import hashlib
 import json
 import re
 import sys
-from PIL import Image, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 ROOT_FILES = {'.gitignore', '.gitattributes', '.gitleaks.toml', 'README.md', 'SECURITY.md', 'NOTICE.md', 'wrangler.jsonc'}
@@ -50,8 +49,17 @@ def installer_errors(relative: str, payload: bytes, root: Path) -> list[str]:
     # Preserve the existing historical two-component artifact; new release tools
     # still require X.Y.Z. This exception never skips PE/size/checksum checks.
     legacy = relative == 'site/downloads/OutPOSt-Setup-v0.24.exe'
-    if not legacy and not re.fullmatch(r'site/downloads/OutPOSt-(?:Accounting-)?Setup-v\d+\.\d+\.\d+\.exe', relative):
+    universal = relative == 'site/setup/OutPOSt-Setup.exe'
+    if not legacy and not universal and not re.fullmatch(r'site/downloads/OutPOSt-(?:Accounting-)?Setup-v\d+\.\d+\.\d+\.exe', relative):
         errors.append('unexpected executable')
+    if universal:
+        try:
+            receipt=json.loads((root/'release/bootstrap.json').read_text(encoding='utf-8'))
+            expected={'kind':'owner-reviewed-universal-setup','runtime':'net48','architecture':'x86','windows_acceptance':'PASS','approved_for_publication':True,'size_bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest().upper(),'feed_url':'https://outpost.com.ua/updates/desktop/stable.json','public_key_sha256':hashlib.sha256((root/'release/desktop-update-public-key.xml').read_bytes()).hexdigest().upper()}
+            if any(type(receipt.get(key)) is not type(value) or receipt[key]!=value for key,value in expected.items()): errors.append('universal setup requires matching reviewed Windows acceptance')
+            if not re.fullmatch('[A-F0-9]{64}',str(receipt.get('windows_report_sha256',''))): errors.append('universal setup acceptance report digest missing')
+            if not re.fullmatch(r'\d+\.\d+\.\d+',str(receipt.get('version',''))): errors.append('universal setup version missing')
+        except (OSError,ValueError): errors.append('universal setup acceptance receipt missing/invalid')
     if len(payload) > 25 * 1024 * 1024:
         errors.append('installer exceeds Pages 25 MiB asset limit')
     if not payload.startswith(b'MZ'):
@@ -67,6 +75,9 @@ def installer_errors(relative: str, payload: bytes, root: Path) -> list[str]:
     return errors
 
 def image_errors(file: Path, reviewed: dict | None) -> list[str]:
+    # Receipt and installer checks use only the standard library. The image
+    # decoder remains mandatory when actually inspecting image assets.
+    from PIL import Image, ImageStat
     errors = []
     try:
         with Image.open(file) as image:
@@ -103,6 +114,13 @@ def verify(root: Path = ROOT) -> list[str]:
             errors.append('screenshot review manifest is invalid')
     else:
         errors.append('screenshot review manifest missing')
+    blobs=root/'site/updates/desktop/blobs'
+    blob_inventory=set()
+    if blobs.exists():
+        try:
+            from desktop_file_updates import validated_blob_inventory
+            blob_inventory=validated_blob_inventory(root)
+        except (OSError,ValueError,KeyError,TypeError) as error: errors.append('signed program blob validation failed: '+str(error))
     for file in sorted(root.rglob('*')):
         if any(part in IGNORED for part in file.relative_to(root).parts):
             continue
@@ -118,6 +136,8 @@ def verify(root: Path = ROOT) -> list[str]:
             reasons += workflow_errors(payload)
         if file.suffix.lower() == '.exe':
             reasons += installer_errors(relative, payload, root)
+        if relative.startswith('site/updates/desktop/blobs/'):
+            if file.parent != blobs or file.name not in blob_inventory or not re.fullmatch(r'[a-f0-9]{64}\.gz',file.name): reasons.append('unreferenced/unreviewed program blob')
         if file.suffix.lower() in {'.png', '.webp', '.jpg', '.jpeg', '.ico'}:
             reasons += image_errors(file, reviews.get(relative))
         errors.extend(f'{relative}: {reason}' for reason in reasons)

@@ -213,6 +213,12 @@ def sha256_file(path: Path) -> str:
 
 def main() -> int:
     errors: list[str] = []
+    bootstrap=None
+    if (ROOT/'site/setup/OutPOSt-Setup.exe').exists():
+        try:
+            from desktop_bootstrap import validated_bootstrap
+            bootstrap=validated_bootstrap(ROOT)
+        except (OSError,ValueError) as error: errors.append('reviewed universal downloader: '+str(error))
 
     if not DOWNLOAD_PAGE.is_file():
         print("OutPOSt release metadata guard: FAIL")
@@ -291,7 +297,7 @@ def main() -> int:
                     errors.append(
                         f"site/index.html: expected exactly one #setup-hash value, got {len(homepage_hashes)}"
                     )
-                elif homepage_hashes[0].upper() != expected_hash:
+                elif homepage_hashes[0].upper() != (bootstrap['sha256'] if bootstrap else expected_hash):
                     errors.append(
                         "site/index.html: displayed #setup-hash does not match current checksum file"
                     )
@@ -375,9 +381,15 @@ def main() -> int:
                         )
 
         if homepage_html is not None:
-            relative_homepage_href = f'href="/downloads/{exe_name}"'
+            relative_homepage_href = 'href="/setup/OutPOSt-Setup.exe"' if bootstrap else f'href="/downloads/{exe_name}"'
             if relative_homepage_href not in homepage_html:
                 errors.append("site/index.html: relative current installer link is missing")
+        if bootstrap:
+            panel=re.search(r'<section\b[^>]*data-download-product="outpost"[^>]*>.*?</section>',download_html,re.S)
+            links=[] if panel is None else re.findall(r'<a\b[^>]*href="([^"]+\.exe)"',panel[0])
+            if links!=['/setup/OutPOSt-Setup.exe']: errors.append('OutPOSt card must offer exactly one reviewed universal download button')
+            if bootstrap['sha256'] not in download_html: errors.append('universal downloader checksum is missing from download page')
+            if f'href="/setup/OutPOSt-Setup.sha256.txt"' not in download_html: errors.append('universal downloader checksum link is missing')
 
     unique_errors = list(dict.fromkeys(errors))
     if unique_errors:
