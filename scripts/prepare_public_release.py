@@ -384,6 +384,11 @@ def main() -> int:
         evidence_path = ROOT / f"release/evidence/outpost-v{target}.json"
         evidence_path.parent.mkdir(parents=True, exist_ok=True)
         evidence_path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+        if (ROOT/'site/setup/OutPOSt-Setup.exe').exists():
+            # Reuse the reviewed stable executable; do not revert buttons to a
+            # full versioned download when preparing the next product release.
+            from desktop_bootstrap import render_universal_downloads
+            render_universal_downloads(ROOT,target)
 
         print("OutPOSt public release preparation: APPLIED")
         print("  run the standard static CI/release guards before any merge to main")

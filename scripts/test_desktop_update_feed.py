@@ -3,6 +3,8 @@ from datetime import datetime,timezone
 import base64,json,unittest
 import desktop_update_feed as feed
 import verify_security_headers as security_headers
+from test_desktop_file_updates import FileDeliveryTests, UniversalSetupBoundaryTests, DeliveryPreparationTests
+from test_universal_downloads import UniversalDownloadTests
 
 class SignedFeedTests(unittest.TestCase):
     @classmethod

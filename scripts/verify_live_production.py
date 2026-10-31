@@ -80,6 +80,7 @@ def request_bytes(url: str, *, range_request: bool = False, timeout: int = 30) -
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
         "Accept": "*/*",
+        "Accept-Encoding": "identity",
     }
     if range_request:
         # Full representation via a range request. The Worker excludes range/resume
@@ -89,6 +90,7 @@ def request_bytes(url: str, *, range_request: bool = False, timeout: int = 30) -
     request = Request(url, headers=headers, method="GET")
     try:
         with urlopen(request, timeout=timeout) as response:
+            if response.geturl()!=url: raise VerifyError('public download changed its canonical URL')
             status = int(getattr(response, "status", response.getcode()))
             response_headers = {key.lower(): value for key, value in response.headers.items()}
             return status, response_headers, response.read()
@@ -106,6 +108,10 @@ def cache_busted(path: str, attempt: int) -> str:
 
 def verify_html(version: str, exe_name: str, expected_sha: str, attempt: int) -> None:
     expected_version_markers = (f"OutPOSt v{version}", f"v{version}")
+    bootstrap=None
+    if (ROOT/'site/setup/OutPOSt-Setup.exe').exists():
+        from desktop_bootstrap import validated_bootstrap
+        bootstrap=validated_bootstrap(ROOT)
 
     for path in ("/", "/download"):
         status, _, payload = request_bytes(cache_busted(path, attempt), timeout=20)
@@ -123,7 +129,7 @@ def verify_html(version: str, exe_name: str, expected_sha: str, attempt: int) ->
                 raise VerifyError(
                     f"/: expected exactly one live #setup-hash value, got {len(homepage_hashes)}"
                 )
-            if homepage_hashes[0].upper() != expected_sha:
+            if homepage_hashes[0].upper() != (bootstrap['sha256'] if bootstrap else expected_sha):
                 raise VerifyError(
                     f"/: live #setup-hash mismatch: expected {expected_sha}, got {homepage_hashes[0].upper()}"
                 )
@@ -196,6 +202,7 @@ def main() -> int:
 
     try:
         verify_installer(exe_name, expected_size, expected_sha)
+        verify_desktop_delivery()
     except Exception as exc:
         print(f"OutPOSt live production verification: FAIL\n  - {exc}", file=sys.stderr)
         return 1
@@ -207,6 +214,26 @@ def main() -> int:
     print("  live installer returned HTTP 206 and matches repository byte size + SHA-256")
     print("  range verification avoids inflating installer download analytics")
     return 0
+
+def verify_desktop_delivery() -> None:
+    """Verify the exact bytes consumed by the new native clients, no analytics writes."""
+    if not (ROOT/'site/setup/OutPOSt-Setup.exe').exists(): return
+    from desktop_bootstrap import validated_bootstrap
+    from desktop_update_feed import validate_feed
+    bootstrap=validated_bootstrap(ROOT); item=validate_feed(ROOT)
+    for path,expected_size,expected_sha in [
+        (bootstrap['url'],bootstrap['size_bytes'],bootstrap['sha256']),
+        *[( '/updates/desktop/blobs/'+row['gzip_sha256'].lower()+'.gz',row['gzip_size_bytes'],row['gzip_sha256']) for row in item.get('file_update',{}).get('files',[])]
+    ]:
+        status,headers,payload=request_bytes(ORIGIN+path,timeout=120)
+        if status!=200 or headers.get('content-encoding','') or len(payload)!=expected_size or hashlib.sha256(payload).hexdigest().upper()!=expected_sha:
+            raise VerifyError('live desktop delivery bytes/headers differ: '+path)
+    status,_,checksum=request_bytes(ORIGIN+bootstrap['checksum_url'])
+    expected=bootstrap['sha256']+' *OutPOSt-Setup.exe'
+    if status!=200 or checksum.decode('utf-8-sig').strip()!=expected: raise VerifyError('universal downloader checksum differs')
+    status,headers,envelope=request_bytes(ORIGIN+'/updates/desktop/stable.json')
+    if status!=200 or headers.get('content-encoding','') or envelope!=(ROOT/'site/updates/desktop/stable.json').read_bytes(): raise VerifyError('live signed desktop description differs')
+    print('  universal downloader, checksum, signed feed and all program blobs match reviewed bytes')
 
 
 if __name__ == "__main__":

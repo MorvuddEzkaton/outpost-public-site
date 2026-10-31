@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "kind": "owner-reviewed-universal-setup",
+  "version": "1.0.0",
+  "runtime": "net48",
+  "architecture": "x86",
+  "windows_acceptance": "PASS",
+  "approved_for_publication": true,
+  "size_bytes": 82432,
+  "sha256": "D60FB7DFA88D72BE604E1B370C05E6CA36F0372F53799829295DC5C7F006C18C",
+  "feed_url": "https://outpost.com.ua/updates/desktop/stable.json",
+  "public_key_sha256": "BF43F6E98B0BD013C6B479D7C00FF164C5023428C06B23E3D0767E8C878BC460",
+  "windows_report_sha256": "AA8B2A58F0ECDD65F708C5487688253232C46495D9A9BE69A04686922846E4DF",
+  "owner_candidate_installation_confirmed": true,
+  "bootstrap_ui_windows_checks": 21,
+  "isolated_uac_checks": 10,
+  "bootstrap_fixture_executed_installer": false,
+  "authenticode": "NotSigned"
+}

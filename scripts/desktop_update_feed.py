@@ -54,11 +54,22 @@ def verify_envelope(envelope,public_xml,now=None):
     require(isinstance(item.get('release_notes'),str) and len(item['release_notes'].encode('utf-16-le'))//2<=24000,'invalid notes')
     published=timestamp(item.get('published_at'));issued=timestamp(item.get('issued_at'));expires=timestamp(item.get('expires_at'))
     require(published<=now+timedelta(hours=24) and issued<=now+timedelta(hours=24) and published<=issued+timedelta(hours=24) and now<expires and issued<expires<=issued+timedelta(days=180),'invalid metadata validity')
+    if 'file_update' in item:
+        from desktop_file_updates import validate_metadata
+        validate_metadata(item['file_update'])
     return item
 
-def validate_feed(root):
+def validate_feed(root, envelope_path=None, historical=False):
     root=Path(root).resolve()
-    item=verify_envelope((root/FEED_RELATIVE).read_bytes(),(root/KEY_RELATIVE).read_text(encoding='utf-8'))
+    envelope=(Path(envelope_path) if envelope_path is not None else root/FEED_RELATIVE).read_bytes()
+    now=None
+    if historical:
+        # Archive validation authorizes retaining old immutable blobs, never runtime
+        # installation. Runtime clients always enforce the current expiration date.
+        require(0<len(envelope)<=MAX_ENVELOPE,'invalid archived envelope size')
+        payload=base64.b64decode(json.loads(envelope)['payload'],validate=True)
+        now=timestamp(json.loads(payload)['issued_at'])
+    item=verify_envelope(envelope,(root/KEY_RELATIVE).read_text(encoding='utf-8'),now)
     name='OutPOSt-Setup-v'+item['version']+'.exe'
     installer=root/'site/downloads'/name
     digest=hashlib.sha256()
@@ -69,10 +80,15 @@ def validate_feed(root):
     for field,value in {'kind':'owner-reviewed-windows-release','product':'outpost','version':item['version'],'installer':name,'size_bytes':item['size_bytes'],'sha256':item['sha256'],'windows_acceptance':'PASS','runtime':'net48','architecture':'x86','approved_for_publication':True}.items():
         require(type(receipt.get(field)) is type(value) and receipt[field]==value,'reviewed Windows receipt mismatch: '+field)
     require(item['published_at'][:10]==receipt['published_date'],'publication date differs from reviewed date')
+    if 'file_update' in item:
+        from desktop_file_updates import validate_blobs
+        validate_blobs(root,item['file_update'],receipt)
     registry=json.loads((root/'release/artifact-registry.json').read_text(encoding='utf-8'))['artifacts']
     require(any(row['product']=='outpost' and row['version']==item['version'] and row['installer']==name and row['size_bytes']==item['size_bytes'] and row['sha256']==item['sha256'] for row in registry),'signed artifact is absent from immutable release registry')
     current=set(re.findall(r'OutPOSt-Setup-v(\d+\.\d+\.\d+)\.exe',(root/'site/download.html').read_text(encoding='utf-8')))
     require(len(current)==1 and version(item['version'])<=version(next(iter(current))),'unpublished/future update feed')
+    if not historical and (root/'site/setup/OutPOSt-Setup.exe').exists():
+        require(item['version']==next(iter(current)),'universal downloader must resolve the current approved release')
     return item
 
 def main():
