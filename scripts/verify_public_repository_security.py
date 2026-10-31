@@ -4,7 +4,6 @@ import hashlib
 import json
 import re
 import sys
-from PIL import Image, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 ROOT_FILES = {'.gitignore', '.gitattributes', '.gitleaks.toml', 'README.md', 'SECURITY.md', 'NOTICE.md', 'wrangler.jsonc'}
@@ -76,6 +75,9 @@ def installer_errors(relative: str, payload: bytes, root: Path) -> list[str]:
     return errors
 
 def image_errors(file: Path, reviewed: dict | None) -> list[str]:
+    # Receipt and installer checks use only the standard library. The image
+    # decoder remains mandatory when actually inspecting image assets.
+    from PIL import Image, ImageStat
     errors = []
     try:
         with Image.open(file) as image:
