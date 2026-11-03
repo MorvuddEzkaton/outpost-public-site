@@ -549,6 +549,32 @@ test("veteran license page shows the full product without document imagery", asy
   }
 });
 
+test("Lite landing offers the free product first and preserves the full UBD benefit",async({page})=>{
+  test.setTimeout(45_000);
+  const output=process.env.OUTPOST_LITE_QA_DIRECTORY||artifactRoot;
+  fs.mkdirSync(output,{recursive:true});
+  for(const width of [1280,390]){
+    await page.setViewportSize({width,height:900});
+    await page.goto(origin+"/bezkoshtovna-programa-dlya-magazynu",{waitUntil:"load"});
+    const hero=page.locator("#lite");
+    await expect(hero.locator("h1")).toContainText("OutPOSt Lite");
+    await expect(hero).toContainText("Без реєстрації та ліцензійного ключа");
+    await expect(hero.locator('a[download]')).toHaveAttribute("href","/downloads/OutPOSt-Lite-Setup-v1.1.0.exe");
+    await expect(page.locator(".lite-grid article")).toHaveCount(6);
+    await expect(page.locator("#ubd")).toContainText("чинного посвідчення УБД");
+    await expect(page.locator("#ubd")).toContainText("2 роки");
+    await expect(page.locator(".feature-tour img")).toHaveCount(4);
+    await page.locator(".lite-faq details").first().locator("summary").click();
+    await expect(page.locator(".lite-faq details").first()).toContainText("Будь-хто");
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+    await hero.screenshot({path:path.join(output,"lite-landing-"+width+".png")});
+    await page.goto(origin+"/",{waitUntil:"load"});
+    await expect(page.locator(".lite-home h2")).toContainText("OutPOSt Lite");
+    await expect(page.locator('.lite-home a[href="/bezkoshtovna-programa-dlya-magazynu"]')).toHaveCount(1);
+    await page.locator(".lite-home").screenshot({path:path.join(output,"lite-home-"+width+".png")});
+  }
+});
+
 test("fiscal screenshots stay assigned to the correct provider", async ({page}) => {
   await page.setViewportSize({width:1280,height:900});
 

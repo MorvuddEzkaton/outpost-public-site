@@ -18,6 +18,13 @@ SITE = ROOT / "site"
 SITEMAP = SITE / "sitemap.xml"
 ORIGIN = "https://outpost.com.ua"
 
+def is_lite_software(node: dict, page_url: str) -> bool:
+    page=ORIGIN+"/bezkoshtovna-programa-dlya-magazynu"
+    return (page_url==page and node.get("@type")=="SoftwareApplication"
+            and node.get("@id")==page+"#lite-software" and node.get("url")==page
+            and node.get("name")=="OutPOSt Lite" and node.get("isAccessibleForFree") is True
+            and re.fullmatch(re.escape(ORIGIN)+r"/downloads/OutPOSt-Lite-Setup-v\d+\.\d+\.\d+\.exe",str(node.get("downloadUrl",""))) is not None)
+
 
 class SeoParser(HTMLParser):
     def __init__(self) -> None:
@@ -478,6 +485,8 @@ def main() -> int:
                         f"{url}: embedded WebSite #website differs semantically from homepage entity"
                     )
             for software in software_apps:
+                if is_lite_software(software,url):
+                    continue
                 if software.get("@id") != f"{ORIGIN}/#software" or software.get("url") != f"{ORIGIN}/":
                     errors.append(
                         f"{url}: embedded SoftwareApplication must reuse canonical product entity "
@@ -531,6 +540,10 @@ def main() -> int:
                     )
 
                 expected_software_id = f"{ORIGIN}/#software"
+                if url==ORIGIN+"/bezkoshtovna-programa-dlya-magazynu":
+                    expected_software_id=url+"#lite-software"
+                    if sum(is_lite_software(software,url) for software in software_apps)!=1:
+                        errors.append(f"{url}: expected one identified free Lite software entity")
                 about = web_page.get("about")
                 actual_software_id = about.get("@id") if isinstance(about, dict) else None
                 if actual_software_id != expected_software_id:

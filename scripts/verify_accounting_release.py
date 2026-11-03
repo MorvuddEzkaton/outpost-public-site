@@ -76,6 +76,18 @@ def guard_download_consistency(text: str, errors: list[str]) -> None:
     stable = STABLE_PANEL_RE.search(text)
     stable_hashes = set(re.findall(r"\b[A-Fa-f0-9]{64}\b", stable.group(0))) if stable else set()
     allowed = {EXPECTED_SHA256, *[value.upper() for value in stable_hashes]}
+    lite=re.search(r'<section\b(?=[^>]*data-download-product="lite")[^>]*>.*?</section>',text,re.DOTALL)
+    if lite:
+        from release_integrity import load_receipt
+        versions=re.findall(r'href="/downloads/OutPOSt-Lite-Setup-v(\d+\.\d+\.\d+)\.exe"',lite.group(0))
+        try:
+            if len(set(versions))!=1:raise ValueError('Lite download identity missing/ambiguous')
+            receipt=load_receipt(ROOT,'lite',versions[0])
+            lite_hashes={value.upper() for value in re.findall(r'\b[A-Fa-f0-9]{64}\b',lite.group(0))}
+            if lite_hashes!={receipt['sha256']}:raise ValueError('Lite checksum differs from its reviewed artifact')
+            allowed.add(receipt['sha256'])
+        except (ValueError,IntegrityError,OSError) as exc:
+            errors.append('site/download.html: invalid independent Lite checksum: '+str(exc))
     shown = {value.upper() for value in re.findall(r"\b[A-Fa-f0-9]{64}\b", plain)}
     if shown != allowed:
         errors.append("site/download.html: checksum example disagrees with current installers")

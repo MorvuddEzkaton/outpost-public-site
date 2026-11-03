@@ -1762,6 +1762,27 @@ test("download release cards show both product marks", async ({ browser }) => {
   await context.close();
 });
 
+test("Lite download is independent and matches its approved bytes",async({browser})=>{
+  test.setTimeout(45_000);
+  const receipt=JSON.parse(fs.readFileSync(path.join(repoRoot,"release/evidence/lite-v1.1.0.json"),"utf8"));
+  for(const width of [390,1440]){
+    const context=await browser.newContext({viewport:{width,height:960},acceptDownloads:true});
+    const page=await context.newPage();await page.goto(origin+"/download",{waitUntil:"load"});
+    const card=page.locator('[data-download-product="lite"]');
+    await expect(card).toContainText("Безстрокова локальна версія");
+    await expect(card.locator('a[href$=".exe"]')).toHaveCount(1);
+    await expect(page.locator('[data-download-product="outpost"] a[href$=".exe"]')).toHaveAttribute("href","/setup/OutPOSt-Setup.exe");
+    await expect(page.locator('[data-download-product="accounting"] a[href$=".exe"]')).toHaveCount(1);
+    const pending=page.waitForEvent("download");await card.locator('a[download]').click();const file=await pending;
+    expect(file.suggestedFilename()).toBe(receipt.installer);
+    const output=path.join(artifactRoot,"lite-"+width+".exe");await file.saveAs(output);
+    const bytes=fs.readFileSync(output);expect(bytes.length).toBe(receipt.size_bytes);
+    expect(crypto.createHash("sha256").update(bytes).digest("hex").toUpperCase()).toBe(receipt.sha256);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+    await context.close();
+  }
+});
+
 
 test("universal download is one product button and preserves mobile layout", async ({ browser }) => {
   test.setTimeout(45_000);

@@ -140,6 +140,20 @@ def validate_structured_commercial_facts(
             continue
 
         parsed_blocks += 1
+        lite_page=PUBLIC_ORIGIN+"/bezkoshtovna-programa-dlya-magazynu"
+        lite_app_id=lite_page+"#lite-software"
+        free_lite_offers=set()
+        if url==lite_page:
+            for app in iter_dicts(data):
+                offer=app.get("offers")
+                if ("SoftwareApplication" in object_types(app) and app.get("@id")==lite_app_id
+                    and app.get("name")=="OutPOSt Lite" and app.get("isAccessibleForFree") is True
+                    and isinstance(offer,dict) and offer.get("@id")==lite_page+"#lite-offer"
+                    and offer.get("itemOffered")=={"@id":lite_app_id}
+                    and isinstance(app.get("downloadUrl"),str)
+                    and re.fullmatch(re.escape(PUBLIC_ORIGIN)+r"/downloads/OutPOSt-Lite-Setup-v\d+\.\d+\.\d+\.exe",app["downloadUrl"])
+                    and offer.get("url")==app["downloadUrl"]):
+                    free_lite_offers.add(id(offer))
         for obj in iter_dicts(data):
             types = object_types(obj)
 
@@ -161,9 +175,10 @@ def validate_structured_commercial_facts(
                             f"{url}: structured Offer price is not numeric: {obj['price']!r}"
                         )
                     else:
-                        if structured_price != 2000:
+                        expected_price=0 if id(obj) in free_lite_offers else 2000
+                        if structured_price != expected_price:
                             errors.append(
-                                f"{url}: structured Offer price must be 2000 UAH, got {obj['price']!r}"
+                                f"{url}: structured Offer price must be {expected_price} UAH for this product, got {obj['price']!r}"
                             )
                 if has_currency and str(obj["priceCurrency"]).upper() != "UAH":
                     errors.append(
@@ -257,6 +272,9 @@ def main() -> int:
             )
 
     faq_source = (SITE / "_telegram-faq.js").read_text(encoding="utf-8")
+    for filename in ("index.html","download.html","license.html","features.html","support.html","bezkoshtovna-programa-dlya-magazynu.html"):
+        if "OutPOSt Lite" not in (SITE/filename).read_text(encoding="utf-8"):
+            errors.append(f"{filename}: missing the independent free Lite product")
     for marker in (
         'id: "license_ubd"',
         "чинного посвідчення УБД",
