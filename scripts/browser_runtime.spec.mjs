@@ -1765,7 +1765,7 @@ test("download release cards show both product marks", async ({ browser }) => {
 test("Lite download is independent and matches its approved bytes",async({browser})=>{
   test.setTimeout(45_000);
   const receipt=JSON.parse(fs.readFileSync(path.join(repoRoot,"release/evidence/lite-v1.1.0.json"),"utf8"));
-  for(const width of [390,1440]){
+  for(const width of [390,1024,1440]){
     const context=await browser.newContext({viewport:{width,height:960},acceptDownloads:true});
     const page=await context.newPage();await page.goto(origin+"/download",{waitUntil:"load"});
     const card=page.locator('[data-download-product="lite"]');
@@ -1773,6 +1773,22 @@ test("Lite download is independent and matches its approved bytes",async({browse
     await expect(card.locator('a[href$=".exe"]')).toHaveCount(1);
     await expect(page.locator('[data-download-product="outpost"] a[href$=".exe"]')).toHaveAttribute("href","/setup/OutPOSt-Setup.exe");
     await expect(page.locator('[data-download-product="accounting"] a[href$=".exe"]')).toHaveCount(1);
+    const cards=page.locator('.download-triple > [data-download-product]');
+    await expect(cards).toHaveCount(3);
+    const boxes=await cards.evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}));
+    if(width>1000){
+      expect(Math.max(...boxes.map(r=>r.y))-Math.min(...boxes.map(r=>r.y))).toBeLessThan(2);
+      expect(Math.max(...boxes.map(r=>r.width))-Math.min(...boxes.map(r=>r.width))).toBeLessThan(2);
+      expect(Math.max(...boxes.map(r=>r.height))-Math.min(...boxes.map(r=>r.height))).toBeLessThan(2);
+      expect(boxes[0].x+boxes[0].width).toBeLessThan(boxes[1].x);
+      expect(boxes[1].x+boxes[1].width).toBeLessThan(boxes[2].x);
+    }else{
+      expect(boxes[0].y+boxes[0].height).toBeLessThan(boxes[1].y);
+      expect(boxes[1].y+boxes[1].height).toBeLessThan(boxes[2].y);
+    }
+    const preview=process.env.OUTPOST_DOWNLOAD_CARDS_QA_DIRECTORY||artifactRoot;
+    fs.mkdirSync(preview,{recursive:true});
+    await page.locator('.download-triple').screenshot({path:path.join(preview,'download-cards-'+width+'.png')});
     const pending=page.waitForEvent("download");await card.locator('a[download]').click();const file=await pending;
     expect(file.suggestedFilename()).toBe(receipt.installer);
     const output=path.join(artifactRoot,"lite-"+width+".exe");await file.saveAs(output);
@@ -1807,6 +1823,7 @@ test("universal download is one product button and preserves mobile layout", asy
     const saved = path.join(artifactRoot, "universal-" + width + ".exe");
     await download.saveAs(saved);
     expect(crypto.createHash("sha256").update(fs.readFileSync(saved)).digest("hex")).toBe(expected);
+    await card.locator('.download-card-details > summary').click();
     await card.locator('[data-full-package-integrity] summary').click();
     const dimensions = await page.evaluate(() => ({ viewport: innerWidth, actual: document.documentElement.scrollWidth }));
     expect(dimensions.actual).toBeLessThanOrEqual(dimensions.viewport + 1);
