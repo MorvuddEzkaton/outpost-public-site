@@ -50,8 +50,15 @@ def installer_errors(relative: str, payload: bytes, root: Path) -> list[str]:
     # still require X.Y.Z. This exception never skips PE/size/checksum checks.
     legacy = relative == 'site/downloads/OutPOSt-Setup-v0.24.exe'
     universal = relative == 'site/setup/OutPOSt-Setup.exe'
-    if not legacy and not universal and not re.fullmatch(r'site/downloads/OutPOSt-(?:Accounting-)?Setup-v\d+\.\d+\.\d+\.exe', relative):
+    if not legacy and not universal and not re.fullmatch(r'site/downloads/OutPOSt-(?:Accounting-|Lite-)?Setup-v\d+\.\d+\.\d+\.exe', relative):
         errors.append('unexpected executable')
+    if re.fullmatch(r'site/downloads/OutPOSt-Lite-Setup-v\d+\.\d+\.\d+\.exe',relative):
+        from release_integrity import load_receipt, IntegrityError
+        version=Path(relative).name.removeprefix('OutPOSt-Lite-Setup-v').removesuffix('.exe')
+        try:
+            load_receipt(root,'lite',version)
+        except (IntegrityError,OSError,ValueError):
+            errors.append('Lite installer requires matching reviewed Windows acceptance')
     if universal:
         try:
             receipt=json.loads((root/'release/bootstrap.json').read_text(encoding='utf-8'))

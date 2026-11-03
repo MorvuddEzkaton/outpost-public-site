@@ -56,6 +56,17 @@ checked before acceptance; larger artifacts require an approved storage design.
 
 ## OutPOSt
 
+### Independent OutPOSt Lite downloads
+
+Lite has its own `lite` artifact identity, `OutPOSt-Lite-Setup-vX.Y.Z.exe` URL,
+checksum and `release/evidence/lite-vX.Y.Z.json` Windows receipt. Register each
+reviewed version append-only; the same size, PE, digest and owner-approval rules
+apply. Lite is not a full OutPOSt update: do not replace the full-product release
+metadata, signed desktop feed, universal downloader or Accounting artifacts when
+publishing Lite. Public-source checks require the Lite-specific receipt. Publishing
+the installer can precede marketing-page changes; it does not enroll Lite in the
+existing full-product Telegram release channel.
+
 Stage exactly four inputs relative to current main: new OutPOSt EXE, matching checksum,
 authored changelog update (retain every previous release), and reviewed Windows receipt.
 No scripts, workflows, Worker, other product binaries or runtime configuration may

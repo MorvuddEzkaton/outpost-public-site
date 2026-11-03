@@ -49,6 +49,18 @@ class ReleaseIntegrityTests(unittest.TestCase):
         with self.assertRaises(IntegrityError):
             self.check_receipt(dict(self.receipt, raw_report="private local path"))
 
+    def test_lite_is_independent_and_hash_bound(self):
+        lite=self.installer.parent/'OutPOSt-Lite-Setup-v1.1.0.exe'
+        lite.write_bytes(synthetic_pe())
+        receipt=synthetic_receipt(lite,'lite','1.1.0')
+        self.assertEqual(validate_receipt(receipt,lite,'lite','1.1.0'),receipt)
+        for product in ('outpost','accounting','unknown'):
+            with self.subTest(product=product),self.assertRaises(IntegrityError):
+                validate_receipt(dict(receipt,product=product),lite,product,'1.1.0')
+        lite.write_bytes(lite.read_bytes()+b'tampered')
+        with self.assertRaises(IntegrityError):
+            validate_receipt(receipt,lite,'lite','1.1.0')
+
     def test_missing_report_binding(self):
         receipt = dict(self.receipt)
         del receipt["windows_report_sha256"]

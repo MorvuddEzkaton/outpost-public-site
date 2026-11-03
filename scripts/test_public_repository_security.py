@@ -59,6 +59,18 @@ class PublicSecurityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             self.assertIn('installer exceeds Pages 25 MiB asset limit', installer_errors('site/downloads/OutPOSt-Setup-v1.2.3.exe', b'MZ' + bytes(25 * 1024 * 1024), Path(directory)))
 
+    def test_lite_requires_its_own_reviewed_receipt(self):
+        from release_test_fixtures import synthetic_pe,write_synthetic_receipt
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            name='site/downloads/OutPOSt-Lite-Setup-v1.1.0.exe'
+            exe=root/name;exe.parent.mkdir(parents=True);exe.write_bytes(synthetic_pe())
+            exe.with_suffix('.sha256.txt').write_text(hashlib.sha256(exe.read_bytes()).hexdigest().upper()+' *'+exe.name+'\n',encoding='utf-8')
+            self.assertIn('Lite installer requires matching reviewed Windows acceptance',installer_errors(name,exe.read_bytes(),root))
+            write_synthetic_receipt(root,exe,'lite','1.1.0')
+            self.assertEqual(installer_errors(name,exe.read_bytes(),root),[])
+            self.assertIn('unexpected executable',installer_errors(name.replace('Lite-','Other-'),exe.read_bytes(),root))
+
     def test_unreviewed_image_blocked(self):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / 'screenshots/demo.png'

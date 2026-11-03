@@ -19,7 +19,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = "release/artifact-registry.json"
 INITIAL_PUBLIC_SNAPSHOT = "b3fde0215700028a29b82cd6928a7517bf26d304"
-PRODUCTS = {"outpost": "OutPOSt-Setup-v", "accounting": "OutPOSt-Accounting-Setup-v"}
+PRODUCTS = {"outpost": "OutPOSt-Setup-v", "accounting": "OutPOSt-Accounting-Setup-v", "lite": "OutPOSt-Lite-Setup-v"}
 SHA = re.compile(r"[A-F0-9]{64}")
 SEMVER = re.compile(r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)")
 ROW_KEYS = {"product", "version", "installer", "checksum", "size_bytes", "sha256", "checksum_sha256"}
@@ -220,6 +220,9 @@ def main() -> int:
     args = parser.parse_args()
     try:
         rows = verify_registry(base=args.base_ref)
+        for row in rows:
+            if row["product"] == "lite":
+                load_receipt(ROOT,"lite",row["version"])
         print(f"Immutable release registry: PASS; {len(rows)} installer/checksum pairs verified")
         return 0
     except (IntegrityError, OSError) as exc:

@@ -315,6 +315,15 @@
       "sha256": "6FE63CB7BD604E134B39577A820BDD71FDA0CE6F430339C1E72EE98D9B933ABD",
       "checksum": "OutPOSt-Setup-v0.25.3.sha256.txt",
       "checksum_sha256": "72806D4AA36A4CB02ECDA8EAB08AD94272BBD406BB6FE5C4FA1A4D249BC29B90"
+    },
+    {
+      "product": "lite",
+      "version": "1.1.0",
+      "installer": "OutPOSt-Lite-Setup-v1.1.0.exe",
+      "size_bytes": 11001418,
+      "sha256": "8EADEE98612207286AF8738BD718D67ECE0F561FA08CCB3E5AD5B8156748D540",
+      "checksum": "OutPOSt-Lite-Setup-v1.1.0.sha256.txt",
+      "checksum_sha256": "316E11BE10115D09CF672DC7CA777A7BB48DBE412E8D534759EAEF2FD08115B7"
     }
   ]
 }
