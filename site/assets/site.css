@@ -1029,3 +1029,42 @@ body.design-v20 .hero-copy{width:55%!important;max-width:690px!important;positio
 @media(max-width:700px){
 body.design-v20 .hero-approved-bg,body.design-v20 .hero-approved-shade{display:none!important}
 }
+
+/* Homepage: preserve the full hero content below the navigation at every width.
+   The old fixed 432px height clipped trust badges when the paragraph grew. */
+body.design-v20 #main > .hero {
+  height: auto;
+  min-height: 470px;
+}
+body.design-v20 #main > .hero .hero-inner {
+  height: auto !important;
+  min-height: 470px;
+  align-items: flex-start !important;
+  padding-top: 108px !important;
+  padding-bottom: 38px !important;
+}
+
+/* Homepage: keep the feature rail useful but compact; details live on linked pages. */
+body.design-v20 #capabilities .cap-grid { min-height: 0; height: auto; align-items: stretch; }
+body.design-v20 #capabilities .cap {
+  min-height: 0;
+  min-width: 0;
+  padding: 14px 14px 15px;
+}
+body.design-v20 #capabilities .cap svg { width: 25px; height: 25px; margin-bottom: 7px; }
+body.design-v20 #capabilities .cap strong { font-size: 15px; line-height: 1.25; margin-bottom: 5px; }
+body.design-v20 #capabilities .cap span { font-size: 12px; line-height: 1.38; }
+body.design-v20 #capabilities .cap-cta { min-height: 0; padding: 14px 18px; }
+body.design-v20 #capabilities .cap-cta > span { font-size: 11.5px; line-height: 1.4; }
+body.design-v20 #capabilities .cap-cta a { margin-top: 8px; font-size: 12px; }
+
+@media (max-width: 700px) {
+  body.design-v20 #main > .hero { min-height: 570px; }
+  body.design-v20 #main > .hero .hero-inner {
+    min-height: 570px;
+    padding-top: 100px !important;
+    padding-bottom: 34px !important;
+  }
+  body.design-v20 #capabilities .cap { padding: 16px 13px; }
+  body.design-v20 #capabilities .cap-cta { padding: 18px 16px; }
+}

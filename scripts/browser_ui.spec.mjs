@@ -219,6 +219,39 @@ test("visual tour: all 18 screenshots open in one keyboard-accessible gallery", 
   }
 });
 
+
+test("homepage hero and feature rail never overlap or clip key copy", async ({ browser }) => {
+  for (const viewport of viewports) {
+    const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
+    const page = await context.newPage();
+    await page.goto(origin + "/", { waitUntil: "domcontentloaded" });
+    const m = await page.evaluate(() => {
+      const bounds = (selector) => document.querySelector(selector)?.getBoundingClientRect();
+      const header = bounds(".topbar");
+      const hero = bounds("#main > .hero");
+      const eyebrow = bounds("#main > .hero .eyebrow");
+      const trust = bounds("#main > .hero .hero-trust");
+      const rail = bounds("#capabilities");
+      const cards = [...document.querySelectorAll("#capabilities .cap")].map((item) => item.getBoundingClientRect());
+      return {
+        headerBottom: header?.bottom, heroBottom: hero?.bottom, eyebrowTop: eyebrow?.top,
+        trustBottom: trust?.bottom, railTop: rail?.top, railHeight: rail?.height,
+        cardsInsideRail: cards.every((card) => card.top >= rail.top - 1 && card.bottom <= rail.bottom + 1),
+        scrollWidth: document.documentElement.scrollWidth,
+      };
+    });
+    expect(m.eyebrowTop, viewport.name).toBeGreaterThanOrEqual(m.headerBottom - 2);
+    expect(m.heroBottom, viewport.name).toBeGreaterThanOrEqual(m.trustBottom - 1);
+    expect(m.railTop, viewport.name).toBeGreaterThanOrEqual(m.heroBottom - 1);
+    expect(m.cardsInsideRail, viewport.name).toBe(true);
+    expect(m.scrollWidth, viewport.name).toBeLessThanOrEqual(viewport.width + 2);
+    if (viewport.width === 1440) {
+      expect(m.railHeight, "desktop feature rail remains compact").toBeLessThanOrEqual(190);
+    }
+    await context.close();
+  }
+});
+
 for (const viewport of viewports) {
   test(`${viewport.name}: all sitemap pages keep responsive layout contracts`, async ({ browser }) => {
     test.setTimeout(180_000);
