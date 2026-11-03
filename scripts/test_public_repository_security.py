@@ -7,6 +7,53 @@ from PIL import Image
 from verify_public_repository_security import path_errors, content_errors, installer_errors, image_errors, workflow_errors
 
 class PublicSecurityTests(unittest.TestCase):
+    def test_zero_price_is_scoped_to_the_identified_lite_application(self):
+        import json,copy
+        from verify_public_license_terms import validate_structured_commercial_facts
+        page='https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu'
+        url='https://outpost.com.ua/downloads/OutPOSt-Lite-Setup-v1.1.0.exe'
+        app={'@type':'SoftwareApplication','@id':page+'#lite-software','name':'OutPOSt Lite','isAccessibleForFree':True,'downloadUrl':url,'offers':{'@type':'Offer','@id':page+'#lite-offer','price':'0','priceCurrency':'UAH','url':url,'itemOffered':{'@id':page+'#lite-software'}}}
+        def errors(value,location=page):
+            result=[];validate_structured_commercial_facts(location,'<script type="application/ld+json">'+json.dumps(value)+'</script>',result);return result
+        self.assertEqual(errors(app),[])
+        for key,value in [('name','OutPOSt'),('isAccessibleForFree',False),('downloadUrl','https://example.com/setup.exe')]:
+            bad=copy.deepcopy(app);bad[key]=value;self.assertTrue(errors(bad),key)
+        bad=copy.deepcopy(app);bad['offers']['price']='2000';self.assertTrue(errors(bad))
+        self.assertTrue(errors(app,'https://outpost.com.ua/license'))
+        self.assertTrue(errors({'@type':'Offer','price':'0','priceCurrency':'UAH'}))
+
+    def test_lite_keeps_a_distinct_canonical_product_identity(self):
+        from verify_public_seo_uniqueness import is_lite_software
+        page='https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu'
+        app={'@type':'SoftwareApplication','@id':page+'#lite-software','url':page,'name':'OutPOSt Lite','isAccessibleForFree':True,'downloadUrl':'https://outpost.com.ua/downloads/OutPOSt-Lite-Setup-v1.1.0.exe'}
+        self.assertTrue(is_lite_software(app,page))
+        self.assertFalse(is_lite_software(app,'https://outpost.com.ua/'))
+        for key,value in [('name','OutPOSt'),('@id','https://outpost.com.ua/#software'),('isAccessibleForFree',False),('downloadUrl','https://example.com/setup.exe')]:
+            self.assertFalse(is_lite_software(dict(app,**{key:value}),page),key)
+
+    def test_download_checksums_remain_product_specific_with_lite(self):
+        import re
+        from verify_accounting_release import guard_download_consistency,ROOT
+        text=(ROOT/'site/download.html').read_text(encoding='utf-8')
+        errors=[];guard_download_consistency(text,errors);self.assertEqual(errors,[])
+        if 'data-download-product="lite"' in text:
+            card=re.search(r'<section\b(?=[^>]*data-download-product="lite")[^>]*>.*?</section>',text,re.S).group(0)
+            checksum=re.search(r'\b[A-F0-9]{64}\b',card).group(0)
+            errors=[];guard_download_consistency(text.replace(checksum,'F'*64),errors);self.assertTrue(errors)
+
+    def test_only_reviewed_lite_has_an_independent_structured_version(self):
+        import json
+        from verify_release_metadata import full_release_metadata, SOFTWARE_VERSION_RE
+        page='https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu'
+        app={'@type':'SoftwareApplication','@id':page+'#lite-software','url':page,'name':'OutPOSt Lite','isAccessibleForFree':True,'softwareVersion':'1.1.0','downloadUrl':'https://outpost.com.ua/downloads/OutPOSt-Lite-Setup-v1.1.0.exe'}
+        def versions(node, filename='bezkoshtovna-programa-dlya-magazynu.html'):
+            text='<script type="application/ld+json">'+json.dumps({'@graph':[{'softwareVersion':'0.25.3'},node]})+'</script>'
+            return SOFTWARE_VERSION_RE.findall(full_release_metadata(text,filename))
+        self.assertEqual(versions(app),['0.25.3'])
+        self.assertEqual(versions(app,'license.html'),['0.25.3','1.1.0'])
+        for key,value in [('name','OutPOSt'),('@id',page+'#software'),('isAccessibleForFree',False),('downloadUrl','https://example.com/setup.exe'),('softwareVersion','9.9.9')]:
+            self.assertEqual(len(versions(dict(app,**{key:value}))),2,key)
+
     def test_mutable_action_ref_blocked(self):
         self.assertTrue(workflow_errors(b'uses: actions/checkout@v7'))
 

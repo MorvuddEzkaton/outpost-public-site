@@ -50,8 +50,14 @@ const RESERVE_FAQ = Object.freeze([
     answer: "Ні. Резервний запис із телефона не є фіскальним чеком і не замінює РРО або ПРРО. Перш ніж переносити чи проводити операцію після відновлення основної каси, звірте її стан та фіскальний статус, щоб уникнути дублювання продажу або повторної фіскалізації."
   }
 ]);
+const LITE_SUPPORT_FAQ = Object.freeze({
+  id: "lite_pin_support",
+  question: "Де налаштувати PIN та як повідомити про помилку Lite?",
+  answer: "PIN можна створити при першому запуску або в налаштуваннях Lite. У зверненні вкажіть назву OutPOSt Lite, номер версії та точний текст помилки. Актуальний інсталятор доступний на сторінці завантаження в окремому блоці OutPOSt Lite."
+});
 const faqEntities = () => [
   ...Object.values(TELEGRAM_FAQ_SECTIONS).flatMap((section) => section.items),
+  LITE_SUPPORT_FAQ,
   ...SUPPORT_ONLY_FAQ,
   ...RESERVE_FAQ,
 ].map((item) => ({
@@ -93,6 +99,7 @@ function faqSchema() {
 }
 
 const navItems = [
+  ["lite-faq", "OutPOSt Lite"],
   ["license-faq", "Ліцензія"],
   ["fiscal-faq", "ПРРО / CheckBox"],
   ["mini-faq", "MINI‑T400ME"],
@@ -119,6 +126,8 @@ function detailsHtml(items) {
 function groupHtml(id, title, items) {
   const reserveGuide = id === "reserve-faq"
     ? '<p><a href="/offline-programa-dlya-magazynu#reserve-cash">Детальний порядок роботи з резервною касою →</a></p>'
+    : id === "lite-faq"
+    ? '<p><a href="/bezkoshtovna-programa-dlya-magazynu">Можливості Lite</a> · <a href="/download#lite-download">Завантажити Lite</a></p>'
     : "";
   return `<section class="support-group" id="${id}"><h2>${escapeHtml(title)}</h2><div class="faq-compact">${detailsHtml(items)}</div>${reserveGuide}</section>`;
 }
@@ -130,7 +139,11 @@ function supportGroupsHtml() {
   if (!errorItems.length) throw new Error("Telegram FAQ program_bug item is missing");
 
   return [
-    groupHtml("license-faq", "Ліцензія та оплата", TELEGRAM_FAQ_SECTIONS.license.items),
+    groupHtml("lite-faq", "OutPOSt Lite — безкоштовна версія", [
+      ...TELEGRAM_FAQ_SECTIONS.license.items.filter((item) => item.id === "license_lite"),
+      LITE_SUPPORT_FAQ,
+    ]),
+    groupHtml("license-faq", "Ліцензія та оплата", TELEGRAM_FAQ_SECTIONS.license.items.filter((item) => item.id !== "license_lite")),
     groupHtml("fiscal-faq", "ПРРО та CheckBox", TELEGRAM_FAQ_SECTIONS.prro.items),
     groupHtml("mini-faq", "MINI‑T400ME", TELEGRAM_FAQ_SECTIONS.mini.items),
     groupHtml("accounting-faq", "Бухгалтерія", TELEGRAM_FAQ_SECTIONS.accounting.items),

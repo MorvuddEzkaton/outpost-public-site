@@ -211,6 +211,46 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest().upper()
 
 
+def full_release_metadata(text: str, page_name: str) -> str:
+    """Keep Lite's independently reviewed version out of Full release comparisons."""
+    if page_name != "bezkoshtovna-programa-dlya-magazynu.html":
+        return text
+    page = "https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu"
+
+    def visit(node):
+        if isinstance(node, list):
+            return [visit(value) for value in node]
+        if not isinstance(node, dict):
+            return node
+        version = node.get("softwareVersion", "")
+        if (node.get("@type") == "SoftwareApplication"
+                and node.get("@id") == page + "#lite-software"
+                and node.get("url") == page and node.get("name") == "OutPOSt Lite"
+                and node.get("isAccessibleForFree") is True
+                and isinstance(version, str) and re.fullmatch(VERSION_RE, version)
+                and node.get("downloadUrl") == f"https://outpost.com.ua/downloads/OutPOSt-Lite-Setup-v{version}.exe"):
+            from release_integrity import IntegrityError, load_receipt
+            try:
+                load_receipt(ROOT, "lite", version)
+            except (OSError, ValueError, IntegrityError):
+                pass  # An unreviewed product/version still fails the Full comparison.
+            else:
+                return {}
+        return {key: visit(value) for key, value in node.items()}
+
+    def replace_script(match):
+        try:
+            data = json.loads(match.group(2))
+        except json.JSONDecodeError:
+            return match.group(0)
+        return match.group(1) + json.dumps(visit(data), ensure_ascii=False) + match.group(3)
+
+    return re.sub(
+        r'(<script\b[^>]*\btype=["\']application/ld\+json["\'][^>]*>)([\s\S]*?)(</script>)',
+        replace_script, text, flags=re.IGNORECASE,
+    )
+
+
 def main() -> int:
     errors: list[str] = []
     bootstrap=None
@@ -363,18 +403,19 @@ def main() -> int:
                         f"site/{html_path.name}: visible {label} version(s) {stale!r} differ from current {current_version!r}"
                     )
 
-            for version in SOFTWARE_VERSION_RE.findall(text):
+            structured_text = full_release_metadata(text, html_path.name)
+            for version in SOFTWARE_VERSION_RE.findall(structured_text):
                 if version != current_version:
                     errors.append(
                         f"site/{html_path.name}: structured softwareVersion {version!r} differs from current {current_version!r}"
                     )
-            for version in DOWNLOAD_URL_RE.findall(text):
+            for version in DOWNLOAD_URL_RE.findall(structured_text):
                 if version != current_version:
                     errors.append(
                         f"site/{html_path.name}: structured downloadUrl version {version!r} differs from current {current_version!r}"
                     )
             if expected_structured_size is not None:
-                for version, file_size in SOFTWARE_SIZE_RE.findall(text):
+                for version, file_size in SOFTWARE_SIZE_RE.findall(structured_text):
                     if version == current_version and file_size != expected_structured_size:
                         errors.append(
                             f"site/{html_path.name}: structured fileSize {file_size!r} differs from current installer {expected_structured_size!r}"
