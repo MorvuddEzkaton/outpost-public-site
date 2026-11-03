@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "kind": "owner-reviewed-windows-release",
+  "product": "lite",
+  "version": "1.1.0",
+  "installer": "OutPOSt-Lite-Setup-v1.1.0.exe",
+  "size_bytes": 11001418,
+  "sha256": "8EADEE98612207286AF8738BD718D67ECE0F561FA08CCB3E5AD5B8156748D540",
+  "payload_manifest_sha256": "FD79BF3B70B7A9C49822658769F76349D5519039D0A0CF43F91208B12B7DB7AE",
+  "release_report_sha256": "4459C25E0F4247BE479B780B99DB70BB010314C06586A2F10B417DEE356A4464",
+  "windows_report_sha256": "AC30859AECBDAEBE0F8E8757F7D2E98C8594F57827D2D94C161CDEF6E7387AA4",
+  "windows_acceptance": "PASS",
+  "runtime": "net48",
+  "architecture": "x86",
+  "app_authenticode": "NotSigned",
+  "setup_authenticode": "NotSigned",
+  "published_date": "2026-11-03",
+  "approved_for_publication": true
+}

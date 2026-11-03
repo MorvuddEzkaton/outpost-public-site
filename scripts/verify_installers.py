@@ -14,10 +14,12 @@ PATTERN = re.compile(r"^([0-9A-Fa-f]{64})\s+\*?(.+)$")
 INSTALLER_GLOBS = (
     "OutPOSt-Setup-v*.exe",
     "OutPOSt-Accounting-Setup-v*.exe",
+    "OutPOSt-Lite-Setup-v*.exe",
 )
 CHECKSUM_GLOBS = (
     "OutPOSt-Setup-v*.sha256.txt",
     "OutPOSt-Accounting-Setup-v*.sha256.txt",
+    "OutPOSt-Lite-Setup-v*.sha256.txt",
 )
 
 
@@ -100,7 +102,8 @@ def main() -> int:
     accounting_count = len(list(DOWNLOADS.glob("OutPOSt-Accounting-Setup-v*.exe")))
     print("Installer checksum guard: PASS")
     print(f"  verified {checked} installer/checksum pair(s)")
-    print(f"  recognized {len(main_installers)} main OutPOSt installer(s) and {accounting_count} Accounting installer(s)")
+    lite_count=len(list(DOWNLOADS.glob("OutPOSt-Lite-Setup-v*.exe")))
+    print(f"  recognized {len(main_installers)} main OutPOSt, {accounting_count} Accounting and {lite_count} Lite installer(s)")
     return 0
 
 
