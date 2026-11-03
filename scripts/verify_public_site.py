@@ -58,6 +58,7 @@ SPECIAL_NON_SITEMAP_HTML = {
     "404.html",
     "demo.html",
     "google2c445dfee2b7ddee.html",
+    "polityka-konfidentsiinosti-lite.html",  # Public Store policy with noindex.
 }
 GOOGLE_VERIFICATION_FILE = "google2c445dfee2b7ddee.html"
 GOOGLE_VERIFICATION_CONTENT = "google-site-verification: google2c445dfee2b7ddee.html"
