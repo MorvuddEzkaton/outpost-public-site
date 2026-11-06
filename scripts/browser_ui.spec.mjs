@@ -559,7 +559,7 @@ test("Lite landing offers the free product first and preserves the full UBD bene
     const hero=page.locator("#lite");
     await expect(hero.locator("h1")).toContainText("OutPOSt Lite");
     await expect(hero).toContainText("Без реєстрації та ліцензійного ключа");
-    await expect(hero.locator('a[download]')).toHaveAttribute("href","/downloads/OutPOSt-Lite-Setup-v1.1.0.exe");
+    await expect(hero.locator('a[download]')).toHaveAttribute("href","/downloads/OutPOSt-Lite-Setup-v1.1.1.exe");
     await expect(page.locator(".lite-grid article")).toHaveCount(6);
     await expect(page.locator("#ubd")).toContainText("чинного посвідчення УБД");
     await expect(page.locator("#ubd")).toContainText("2 роки");
