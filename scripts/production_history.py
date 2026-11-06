@@ -97,7 +97,8 @@ class HistoryReads:
                      re.fullmatch(r'/actions/workflows/' + re.escape(WORKFLOW) + r'/runs\?per_page=100&page=[1-9][0-9]*', suffix) or
                      re.fullmatch(r'/actions/runs/[1-9][0-9]*/artifacts\?per_page=100', suffix) or
                      re.fullmatch(r'/actions/runs/[1-9][0-9]*/attempts/1/jobs\?per_page=100', suffix) or
-                     suffix in ('/actions/runs/39975297833', '/actions/runs/39966734014'),
+                     suffix in ('/actions/runs/39975297833', '/actions/runs/39966734014',
+                                '/actions/runs/41984985324', '/actions/runs/41984985324/attempts/1'),
                      'unapproved_history_read')
         return self._json('https://api.github.com/repos/' + gate.REPOSITORY + suffix,
                           {'Authorization': 'Bearer ' + self.github_token,
@@ -492,6 +493,23 @@ ADOPTED_FAILED_RUN_50 = {
     'readonly_diagnostic_head_sha': '1fd31e0d9b6c794fb65753b5f8f66a57471a0655',
 }
 
+# Run #91 uploaded once, then failed live verification before rollback intent.
+# A manual, fail-closed diagnostic on that exact source passed all 20 checks.
+ADOPTED_FAILED_RUN_91 = {
+    'run_number': 91,
+    'id': 41983595581,
+    'head_sha': '16288aaf3138031b096fad5a66990cece1c67afb',
+    'deployment_id': 'ca595921-4268-4da7-9823-e633d5468db7',
+    'intent_id': 13394639645,
+    'intent_digest': 'sha256:d5d4563c51556001cccfa45fc7370240330839a2c0f8906c36eb594bdb76a730',
+    'result_id': 13395766194,
+    'result_digest': 'sha256:d626879c2d9ada244a7688051a90936a05aa75bdef29330f843646388e1a165a',
+    'readonly_diagnostic_run': 41984985324,
+    'readonly_diagnostic_head_sha': '16288aaf3138031b096fad5a66990cece1c67afb',
+    'readonly_diagnostic_event': 'workflow_dispatch',
+    'require_original_journals': True,
+}
+
 RECOVERY_MARKER = 'release/production-history-reconciliation.json'
 
 
@@ -620,8 +638,8 @@ def verified_late_adopted_run(client, run, env, validator, pin=None):
     """Adopt one deployed but originally live_failed run after later 20/20 audit.
 
     The original failed journal and original CI outcome remain unchanged.
-    Only two explicitly pinned incidents (#45 and #50), with checked Cloudflare
-    canonical SHA (publisher preflight), immutable journals, original job step
+    Only explicitly pinned incidents, with a checked Cloudflare canonical
+    source (publisher preflight), immutable journals, original job step
     boundaries and independent read-only audits may bridge failed uploads.
     This MUST NOT be used for arbitrary failed/unknown runs.
     """
@@ -636,7 +654,7 @@ def verified_late_adopted_run(client, run, env, validator, pin=None):
     audits = [
         (pin['readonly_diagnostic_run'],
          '.github/workflows/live-contract-diagnostics.yml',
-         pin['readonly_diagnostic_head_sha'], 'pull_request',
+         pin['readonly_diagnostic_head_sha'], pin.get('readonly_diagnostic_event', 'pull_request'),
          pin.get('readonly_diagnostic_attempt', 1)),
     ]
     if 'independent_provenance_run' in pin:
@@ -656,6 +674,9 @@ def verified_late_adopted_run(client, run, env, validator, pin=None):
                      metadata.get('repository', {}).get('id') == REPOSITORY_ID and
                      metadata.get('head_repository', {}).get('id') == REPOSITORY_ID,
                      'late_adoption_external_audit_missing')
+        if event == 'workflow_dispatch':
+            gate.require(metadata.get('head_branch') == 'main' and sha == pin['head_sha'],
+                         'late_adoption_external_audit_missing')
 
     jobs = client.skipped_publication_jobs(run)
     gate.require(isinstance(jobs, list) and len(jobs) == 3 and
@@ -709,6 +730,7 @@ def verified_late_adopted_run(client, run, env, validator, pin=None):
                      result['events'][5].get('deployment_id') == pin['deployment_id'],
                      'late_adoption_original_failed_state_mismatch')
     else:
+        gate.require(not pin.get('require_original_journals'), 'late_adoption_journal_missing')
         # Reviewed digests remain immutable in Git history if GitHub expires
         # the original ZIP after 90 days. Step proof + current Cloudflare
         # exact-source verification are still mandatory. Never assert that
@@ -743,17 +765,16 @@ def assert_clear(client, env, validator, records=(), recovery=False):
     else:
         frontier = None
         last_live_sha = None
+    pinned = {pin['run_number']: pin for pin in (ADOPTED_FAILED_RUN, ADOPTED_FAILED_RUN_50,
+                                                 ADOPTED_FAILED_RUN_91)} if recovery else {}
     for run in ordered:
         if run['run_number'] >= current['run_number'] or run['id'] in archived:
             continue
         if recovery and run['run_number'] <= frontier['run_number']:
             continue  # Superseded earlier attempts remain in immutable GitHub history.
-        if recovery and run['run_number'] in (
-                ADOPTED_FAILED_RUN['run_number'], ADOPTED_FAILED_RUN_50['run_number']):
-            # Only the two explicitly pinned incidents can bridge an original
-            # live_failed result. Source SHA must still match Cloudflare canonical.
-            pin = (ADOPTED_FAILED_RUN if run['run_number'] == ADOPTED_FAILED_RUN['run_number']
-                   else ADOPTED_FAILED_RUN_50)
+        pin = pinned.get(run['run_number'])
+        if pin is not None:
+            # The original journal remains failed. Preflight checks the live baseline.
             last_live_sha = verified_late_adopted_run(client, run, env, validator, pin=pin)
             continue
         proof = read_resolved_record(client, run, env, validator)
