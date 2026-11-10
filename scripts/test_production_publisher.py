@@ -185,6 +185,17 @@ class PublisherTests(unittest.TestCase):
         with patch.object(gate, 'local_source', return_value=({}, '0' * 64)), self.assertRaises(gate.GateError):
             publisher.preflight(self.env, self.root, self.client)
 
+    def test_recovered_run_91_requires_exact_canonical_deployment(self):
+        pin = history.ADOPTED_FAILED_RUN_91
+        base = self.client.project['canonical_deployment']
+        base['deployment_trigger']['metadata']['commit_hash'] = pin['head_sha']
+        with patch.object(publisher, 'history_clear', return_value=pin['head_sha']):
+            with self.assertRaisesRegex(gate.GateError, 'recovery_production_baseline_not_proven'):
+                publisher.preflight(self.env, self.root, self.client)
+            base['id'] = pin['deployment_id']
+            self.client.items = [deepcopy(base)]
+            publisher.preflight(self.env, self.root, self.client)
+
     def test_legacy_hash_is_historical_evidence_only_not_operational(self):
         for previous in [publisher.LEGACY_CONFIG_HASH, publisher.CONFIRMED_MODE_CONFIG_HASH]:
             old = deepcopy(self.journal.data); old['configuration_sha256'] = previous

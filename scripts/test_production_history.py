@@ -205,6 +205,28 @@ class HistoryTests(unittest.TestCase):
                 self.prior['head_sha'])
         self.assertIn('/actions/runs/789/attempts/1', requests)
 
+    def test_late_adoption_run_91_requires_manual_main_audit_and_both_archives(self):
+        pin, audit, jobs = self.late_adoption_proof()
+        pin.pop('independent_provenance_run')
+        pin.update(readonly_diagnostic_head_sha=pin['head_sha'], readonly_diagnostic_event='workflow_dispatch',
+                   require_original_journals=True)
+        path = '/actions/runs/' + str(pin['readonly_diagnostic_run'])
+        manual = {**audit(path), 'event': 'workflow_dispatch', 'head_branch': 'main'}
+        with patch.object(self.client, 'skipped_publication_jobs', return_value=jobs), \
+             patch.object(self.client, 'history_json', return_value=manual, create=True) as metadata:
+            self.assertEqual(history.verified_late_adopted_run(
+                self.client, self.prior, self.env, publisher.validate_historical_journal, pin), pin['head_sha'])
+            for change in ({'event': 'pull_request'}, {'head_branch': 'topic'}, {'head_sha': 'f' * 40}):
+                metadata.return_value = {**manual, **change}
+                with self.subTest(change=change), self.assertRaisesRegex(gate.GateError, 'late_adoption_external_audit_missing'):
+                    history.verified_late_adopted_run(
+                        self.client, self.prior, self.env, publisher.validate_historical_journal, pin)
+            metadata.return_value = manual
+            with patch.object(self.client, 'publication_artifacts', return_value=[]), \
+                 self.assertRaisesRegex(gate.GateError, 'late_adoption_journal_missing'):
+                history.verified_late_adopted_run(
+                    self.client, self.prior, self.env, publisher.validate_historical_journal, pin)
+
     def test_second_pinned_failed_upload_requires_exact_new_audit_and_journal(self):
         pin, audit, jobs = self.late_adoption_proof()
         pin.pop('independent_provenance_run')
