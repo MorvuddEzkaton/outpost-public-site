@@ -467,11 +467,24 @@ def main() -> int:
                     f"{url}: homepage SoftwareApplication.inLanguage must be 'uk'; "
                     f"got {software.get('inLanguage')!r}"
                 )
-            if len(og_images) == 1 and software.get("image") != og_images[0]:
-                errors.append(
-                    f"{url}: homepage SoftwareApplication.image must match og:image exactly; "
-                    f"og:image={og_images[0]!r}, SoftwareApplication.image={software.get('image')!r}"
-                )
+            if len(og_images) == 1:
+                preview = og_images[0]
+                if re.fullmatch(r"https://outpost\.com\.ua/assets/outpost-og-[0-9]{8}\.jpg", preview):
+                    screenshot = f"{ORIGIN}/assets/screenshots/02410/sales.png"
+                    if software.get("image") != screenshot:
+                        errors.append(f"{url}: the shared SoftwareApplication must retain its product screenshot")
+                    for key, values in {
+                        "og:image:secure_url": [preview],
+                        "og:image:type": ["image/jpeg"],
+                        "og:image:width": ["1200"],
+                        "og:image:height": ["630"],
+                        "twitter:image": [preview],
+                        "twitter:image:alt": image_alts,
+                    }.items():
+                        if parser.meta.get(key, []) != values:
+                            errors.append(f"{url}: {key} must match the homepage social preview")
+                elif software.get("image") != preview:
+                    errors.append(f"{url}: homepage SoftwareApplication.image must match og:image exactly")
 
         if not is_home:
             for web_site in web_sites:
@@ -703,7 +716,7 @@ def main() -> int:
     print("  non-home sitemap pages have WebPage + BreadcrumbList schema linked by @id")
     print("  non-home WebPage nodes link to canonical #website and #software entities")
     print("  embedded WebSite/SoftwareApplication nodes exactly match canonical homepage entities")
-    print("  canonical SoftwareApplication.image matches the verified Open Graph image")
+    print("  homepage social preview and canonical SoftwareApplication image are validated")
     print("  FAQPage schema exactly mirrors visible <details> questions/answers, order-independent")
     print("  visible breadcrumb trails exactly mirror JSON-LD BreadcrumbList names, positions and URLs")
     print("  JSON-LD WebPage nodes mirror canonical/title/meta description and use inLanguage=uk")
