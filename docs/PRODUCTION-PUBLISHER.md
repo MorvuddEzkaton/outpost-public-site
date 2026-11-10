@@ -246,6 +246,12 @@ it does not consume credentials or contact any service.
   runner require inspection. Never press rerun/re-upload to "see if it works".
   Compare the saved intent, current deployment, complete inventory, config and main.
   Recovery authorization and any necessary reconciliation are separate actions.
+- Run #91 uploaded exactly one Cloudflare deployment, then recorded `live_failed`
+  before any rollback intent. A subsequent manual diagnostic on the same main
+  source passed all 20 live checks. The owner-reviewed reconciliation requires
+  both original archives, that diagnostic and the exact canonical Cloudflare
+  deployment. Run #91 retains its original failure. The next release still
+  requires its own approval, upload and live verification. [Publisher run #91](https://github.com/MorvuddEzkaton/outpost-public-site/actions/runs/41983595581) and [read-only diagnostic](https://github.com/MorvuddEzkaton/outpost-public-site/actions/runs/41984985324).
 - Intent/result artifacts have seven-day retention. Capture and separately review
   resolved evidence before expiry. Preserve unresolved evidence privately for
   investigation, never append it as resolved; do not delete unresolved history. The journal is not

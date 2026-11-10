@@ -318,6 +318,9 @@ def preflight(env, root, client, notification_mode=True, rollback_own_deployment
                      source_metadata(base).get('branch') == 'main' and
                      source_metadata(base).get('commit_dirty') is False,
                      'recovery_production_baseline_not_proven')
+        if recovered_source == history.ADOPTED_FAILED_RUN_91['head_sha']:
+            gate.require(base['id'] == history.ADOPTED_FAILED_RUN_91['deployment_id'],
+                         'recovery_production_baseline_not_proven')
     return sha, config, config_hash, review, project, items
 
 def prepare(env, root, file, client):
