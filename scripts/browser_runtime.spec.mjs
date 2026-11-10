@@ -1764,7 +1764,9 @@ test("download release cards show both product marks", async ({ browser }) => {
 
 test("Lite download is independent and matches its approved bytes",async({browser})=>{
   test.setTimeout(45_000);
-  const receipt=JSON.parse(fs.readFileSync(path.join(repoRoot,"release/evidence/lite-v1.1.0.json"),"utf8"));
+  const registry=JSON.parse(fs.readFileSync(path.join(repoRoot,"release/artifact-registry.json"),"utf8"));
+  const approved=registry.artifacts.findLast(entry=>entry.product==="lite");
+  const receipt=JSON.parse(fs.readFileSync(path.join(repoRoot,`release/evidence/lite-v${approved.version}.json`),"utf8"));
   for(const width of [390,1024,1440]){
     const context=await browser.newContext({viewport:{width,height:960},acceptDownloads:true});
     const page=await context.newPage();await page.goto(origin+"/download",{waitUntil:"load"});
