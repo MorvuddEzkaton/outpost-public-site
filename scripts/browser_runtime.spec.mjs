@@ -1800,7 +1800,7 @@ test("Lite download is independent and matches its approved bytes",async({browse
 });
 
 
-test("universal download is one product button and preserves mobile layout", async ({ browser }) => {
+test("OutPOSt offers the universal installer and Microsoft Store on desktop and mobile", async ({ browser }) => {
   test.setTimeout(45_000);
   const setup = path.join(siteRoot, "setup", "OutPOSt-Setup.exe");
   test.skip(!fs.existsSync(setup), "Universal setup has not been introduced in this fixture");
@@ -1813,7 +1813,10 @@ test("universal download is one product button and preserves mobile layout", asy
     const binaries = card.locator('a[href$=".exe"]');
     await expect(binaries).toHaveCount(1);
     await expect(binaries).toHaveAttribute("href", "/setup/OutPOSt-Setup.exe");
-    await expect(card.locator('a.btn')).toHaveCount(1);
+    await expect(card.locator('a.btn')).toHaveCount(2);
+    const store = card.getByRole("link", {name: "Завантажити OutPOSt Retail з Microsoft Store"});
+    await expect(store).toHaveAttribute("href", "https://apps.microsoft.com/detail/9N3ZC6Z3PDWZ?hl=uk-ua&gl=UA");
+    await expect(page.locator("#outpost-install-options")).toContainText("Windows Update");
     await expect(card.locator('a[href="/setup/OutPOSt-Setup.sha256.txt"]')).toBeVisible();
     await expect(page.locator('[data-download-product="accounting"] a[href$=".exe"]')).toHaveCount(1);
     const pending = page.waitForEvent("download");
