@@ -569,10 +569,19 @@ def main():
     print(json.dumps({'state': journal.data['state'], 'source_sha': journal.data['source_sha'], 'release_announced': False}))
     return 0
 
+def safe_failure_code(error):
+    if isinstance(error, gate.GateError):
+        value = str(error)
+        diagnostic = r'readonly_http_(?:github_actions|github_environment|github_provenance|cloudflare_pages|site_health|other)_(?:[1-5][0-9]{2}|0)'
+        if re.fullmatch(r'[a-z_]+', value) or re.fullmatch(diagnostic, value):
+            return value
+    return 'publisher_failed_inspect_state'
+
+
 if __name__ == '__main__':
     try:
         raise SystemExit(main())
     except Exception as error:
-        code = str(error) if isinstance(error, gate.GateError) and re.fullmatch(r'[a-z_]+', str(error)) else 'publisher_failed_inspect_state'
+        code = safe_failure_code(error)
         print('Publisher: BLOCKED — ' + code)
         raise SystemExit(1)
