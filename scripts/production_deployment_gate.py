@@ -17,6 +17,7 @@ import subprocess
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = 'MorvuddEzkaton/outpost-public-site'
@@ -164,14 +165,30 @@ class ReadOnlyClients:
 
     @staticmethod
     def _json(url, headers):
+        # Only a fixed service label and numeric HTTP status may enter logs.
+        # Never include URLs, account IDs, headers, response bodies or exception text.
+        parsed = urlsplit(url)
+        service = 'other'
+        if parsed.hostname == 'api.github.com':
+            service = ('github_actions' if '/actions/' in parsed.path else
+                       'github_environment' if '/environments/' in parsed.path else 'github_provenance')
+        elif parsed.hostname == 'api.cloudflare.com':
+            service = 'cloudflare_pages'
+        elif parsed.hostname == 'outpost.com.ua' and parsed.path == '/api/telegram/health':
+            service = 'site_health'
         try:
             with build_opener(NoRedirect).open(Request(url, headers=headers, method='GET'), timeout=20) as response:
                 require(response.status == 200, 'readonly_http_not_success')
                 body = response.read(2_000_001)
                 require(len(body) <= 2_000_000, 'readonly_response_too_large')
                 return json.loads(body)
-        except (HTTPError, URLError, TimeoutError, ValueError, OSError):
-            raise GateError('readonly_request_failed') from None
+        except HTTPError as error:
+            status = error.code if type(error.code) is int and 100 <= error.code <= 599 else 0
+            raise GateError(f'readonly_http_{service}_{status}') from None
+        except ValueError:
+            raise GateError(f'readonly_invalid_json_{service}') from None
+        except (URLError, TimeoutError, OSError):
+            raise GateError(f'readonly_transport_{service}') from None
 
     def github(self, suffix):
         require(suffix in ('/git/ref/heads/main', '/environments/production', '/environments/production/deployment-branch-policies') or
