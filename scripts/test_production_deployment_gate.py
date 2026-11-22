@@ -314,4 +314,32 @@ class GateTests(unittest.TestCase):
         with patch.object(gate,'ReadOnlyClients',side_effect=AssertionError('No credentials/network allowed')):
             with self.assertRaises(gate.GateError):gate.verify_current({**environment(),'GITHUB_REPOSITORY':'attacker/fork'})
 
+class ReadOnlyFailureDiagnostics(unittest.TestCase):
+    def test_http_failure_logs_only_service_and_status(self):
+        from urllib.error import HTTPError
+        cases = {
+            'https://api.cloudflare.com/client/v4/accounts/private-id/pages/projects/outpost-web': 'cloudflare_pages',
+            'https://api.github.com/repos/owner/repo/actions/runs': 'github_actions',
+            'https://api.github.com/repos/owner/repo/environments/production': 'github_environment',
+            'https://api.github.com/repos/owner/repo/git/ref/heads/main': 'github_provenance',
+            'https://outpost.com.ua/api/telegram/health': 'site_health',
+            'https://api.cloudflare.com.untrusted.example/private': 'other',
+        }
+        for url, service in cases.items():
+            with self.subTest(service=service), patch.object(gate, 'build_opener') as opener:
+                opener.return_value.open.side_effect = HTTPError(url, 401, 'PRIVATE RESPONSE', {'Authorization': 'PRIVATE HEADER'}, None)
+                with self.assertRaises(gate.GateError) as result:
+                    gate.ReadOnlyClients._json(url, {'Authorization': 'PRIVATE TOKEN'})
+                self.assertEqual(str(result.exception), 'readonly_http_' + service + '_401')
+                opener.return_value.open.assert_called_once()
+
+    def test_transport_failure_remains_blocked_without_exception_details(self):
+        from urllib.error import URLError
+        with patch.object(gate, 'build_opener') as opener:
+            opener.return_value.open.side_effect = URLError('PRIVATE CONNECTION DETAILS')
+            with self.assertRaises(gate.GateError) as result:
+                gate.ReadOnlyClients._json('https://api.github.com/repos/owner/repo/actions/runs', {})
+            self.assertEqual(str(result.exception), 'readonly_transport_github_actions')
+            opener.return_value.open.assert_called_once()
+
 if __name__ == '__main__': unittest.main()
