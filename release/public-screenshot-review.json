@@ -461,6 +461,46 @@
       "file": "site/assets/screenshots/02426/writeoff/06-skasovane-spysannia-ta-reiestr.webp",
       "sha256": "83eb2362e90ccae62f9df499577153e1119f84a63246376d963a2a62abdf65f7",
       "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/prro-v0261/cashier-workspace.webp",
+      "sha256": "c2c9b921c61f5075998c6261a69c68554364407e17c8ea0461a5f8b61045915a",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/prro-v0261/receipt-history.webp",
+      "sha256": "cf2417e3ff0f9a5ca278dfb55a9ff0aeb290cf0901caaa9d88d414381da7c599",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/prro-v0261/setup-step-1.webp",
+      "sha256": "a1e9f093cd553b5a70f1a1491fdb0776cc40249d1e18940f71390090a1cb6c2c",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/prro-v0261/setup-step-2.webp",
+      "sha256": "937e4730254d043550afac37e2e440b7b2bf21c30396a1800d49d573a8b9aa19",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/prro-v0261/setup-step-3.webp",
+      "sha256": "8853cd6727722a9a12ae48636a23edd5016a29daebaab5f2c01e85cf9f3740f5",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/prro-v0261/setup-step-4.webp",
+      "sha256": "63c9eae3fc6ba509ddc5db4781bfc2ee8e4c4eb3a8dded9d0554715c60e5d970",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/prro-v0261/setup-step-5.webp",
+      "sha256": "7a5c6d3460b662c6e570a86f41681651d8c4a3614b0992b1e1a49657023151b5",
+      "status": "reviewed-public-demo"
+    },
+    {
+      "file": "site/assets/screenshots/prro-v0261/setup-step-6.webp",
+      "sha256": "644f0aa33c9b4f7e2ac28b4ffc0ea02a7c4a9f8ab31b3082b640468bf59cbf49",
+      "status": "reviewed-public-demo"
     }
   ]
 }

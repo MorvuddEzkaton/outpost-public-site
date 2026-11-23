@@ -490,7 +490,6 @@ test("shared real screenshot carousels have equal-sized stages and same-page lig
     {path:"/avtomatyzatsiya-rozdribnoi-torgivli",groups:[6]},
     {path:"/programa-dlya-kasy-windows",groups:[6]},
     {path:"/mini-t400",groups:[3]},
-    {path:"/prro",groups:[2]},
     {path:"/prro-checkbox",groups:[2]},
     {path:"/eakcyz",groups:[2]},
     {path:"/tsinnyky-ta-etyketky",groups:[3]},
@@ -588,12 +587,75 @@ test("fiscal screenshots stay assigned to the correct provider", async ({page}) 
   await page.goto(origin + "/prro", {waitUntil:"load"});
   await expect(page.locator(".feature-tour img[src='/assets/screenshots/02410/checkbox/02-control-center.webp']")).toHaveCount(0);
   await expect(page.locator(".feature-tour img[src='/assets/screenshots/02410/prro/01-control-center.webp']")).toHaveCount(0);
-  await expect(page.locator(".feature-tour img[src='/assets/screenshots/02410/prro/02-routing.webp']")).toHaveCount(1);
-  await expect(page.locator(".feature-tour img[src='/assets/screenshots/02410/prro/03-cashier-preflight.webp']")).toHaveCount(1);
+  await expect(page.locator(".pg-steps img")).toHaveCount(6);
+  await expect(page.locator(".pg-hero img[src='/assets/screenshots/prro-v0261/cashier-workspace.webp']")).toHaveCount(1);
+  await expect(page.locator(".pg-history img[src='/assets/screenshots/prro-v0261/receipt-history.webp']")).toHaveCount(1);
 
   await page.goto(origin + "/features", {waitUntil:"load"});
   await expect(page.locator(".feature-tour img[src='/assets/screenshots/02410/prro/02-routing.webp']")).toHaveCount(1);
   await expect(page.locator(".feature-tour img[src='/assets/screenshots/02410/prro/01-control-center.webp']")).toHaveCount(0);
+});
+
+test("download product cards align their facts, actions and details", async ({page}) => {
+  for (const width of [1024,1280,1536]) {
+    await page.setViewportSize({width,height:1000});
+    await page.goto(origin + "/download", {waitUntil:"load"});
+    const cards = page.locator(".download-triple > .download-card-new");
+    await expect(cards).toHaveCount(3);
+    const positions = await cards.evaluateAll(nodes => nodes.map(card => {
+      const box = el => { const r = el.getBoundingClientRect(); return {top:r.top,height:r.height}; };
+      return {facts:box(card.querySelector(".download-facts")), cells:[...card.querySelectorAll(".download-facts > div")].map(box),
+        primary:box(card.querySelector(".download-card-actions > .btn-primary")), details:box(card.querySelector(".download-card-details > summary"))};
+    }));
+    for (const other of positions.slice(1)) {
+      for (const item of ["facts","primary","details"]) expect(Math.abs(other[item].top-positions[0][item].top)).toBeLessThan(1);
+      for (let i=0;i<4;i++) {
+        expect(Math.abs(other.cells[i].top-positions[0].cells[i].top)).toBeLessThan(1);
+        expect(Math.abs(other.cells[i].height-positions[0].cells[i].height)).toBeLessThan(1);
+      }
+    }
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(origin + "/download", {waitUntil:"load"});
+  const bounds = await page.locator(".download-triple > .download-card-new").evaluateAll(nodes => nodes.map(n => {
+    const r=n.getBoundingClientRect();return {top:r.top,bottom:r.bottom,width:r.width};
+  }));
+  expect(bounds[1].top).toBeGreaterThan(bounds[0].bottom);
+  expect(bounds[2].top).toBeGreaterThan(bounds[1].bottom);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
+});
+
+test("PRRO guide exposes every setup step and accessible full-size screenshots", async ({page}) => {
+  for (const width of [1280,390]) {
+    await page.setViewportSize({width,height:900});
+    await page.goto(origin + "/prro", {waitUntil:"load"});
+    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(page.locator(".pg-step")).toHaveCount(6);
+    for (let step=1;step<=6;step++) await expect(page.locator("#step-"+step)).toBeVisible();
+    await expect(page.locator("main")).not.toContainText("фінальні польові перевірки перед об’єднанням");
+    await expect(page.locator("#status")).toContainText("Автономна фіскалізація");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width+1);
+    const shot = page.locator("#step-3 .pg-image-link");
+    await shot.click();
+    const dialog = page.locator(".pg-lightbox");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator("img")).toHaveJSProperty("naturalWidth",1204);
+    await expect(dialog.getByRole("button",{name:"Закрити",exact:true})).toBeFocused();
+    await dialog.getByRole("button",{name:"Масштаб 100%",exact:true}).click();
+    await expect(dialog).toHaveAttribute("data-zoomed","true");
+    expect(await dialog.locator("img").evaluate(image=>image.getBoundingClientRect().width)).toBeGreaterThanOrEqual(1204);
+    await dialog.getByRole("button",{name:"Умістити",exact:true}).click();
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(shot).toBeFocused();
+  }
+  const faq = await page.locator(".pg-faq summary").evaluateAll(nodes => nodes.map(node =>
+    [...node.childNodes].filter(child => child.nodeType === Node.TEXT_NODE).map(child => child.textContent).join("").trim()));
+  const structured = await page.locator('script[type="application/ld+json"]').evaluateAll(nodes => {
+    const data=nodes.flatMap(n=>JSON.parse(n.textContent)["@graph"]||[]);
+    return data.find(n=>n["@type"]==="FAQPage").mainEntity.map(n=>n.name);
+  });
+  expect(structured).toEqual(faq);
 });
 
 test("goods accounting page explains local multiwarehouse transfers without cloud overclaim", async ({page}) => {
