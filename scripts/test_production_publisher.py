@@ -756,5 +756,15 @@ class PagesInventoryTests(unittest.TestCase):
         self.assertEqual(read.call_count, 1)
 
 
+class SafeFailureCodeTests(unittest.TestCase):
+    def test_numeric_status_is_allowed_only_in_the_exact_diagnostic_shape(self):
+        import production_publisher as publisher
+        import production_deployment_gate as gate
+        for code in ('readonly_http_cloudflare_pages_401', 'readonly_http_github_actions_403', 'readonly_http_site_health_503', 'readonly_http_other_0', 'readonly_transport_github_actions'):
+            self.assertEqual(publisher.safe_failure_code(gate.GateError(code)), code)
+        for code in ('PRIVATE TOKEN 123', 'https://private.example/path', 'readonly_http_private_account_401', 'readonly_http_cloudflare_pages_401_private', 'readonly_http_cloudflare_pages_999'):
+            self.assertEqual(publisher.safe_failure_code(gate.GateError(code)), 'publisher_failed_inspect_state')
+        self.assertEqual(publisher.safe_failure_code(ValueError('readonly_http_cloudflare_pages_401')), 'publisher_failed_inspect_state')
+
 if __name__ == '__main__':
     unittest.main()
