@@ -635,6 +635,7 @@ test("PRRO guide exposes every setup step and accessible full-size screenshots",
     await expect(page.locator("main")).not.toContainText("фінальні польові перевірки перед об’єднанням");
     await expect(page.locator("#status")).toContainText("Автономна фіскалізація");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width+1);
+    await expect(page.locator(".pg-lightbox img")).toHaveCount(0);
     const shot = page.locator("#step-3 .pg-image-link");
     await shot.click();
     const dialog = page.locator(".pg-lightbox");

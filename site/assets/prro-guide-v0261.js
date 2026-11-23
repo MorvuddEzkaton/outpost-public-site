@@ -13,7 +13,7 @@
   const buttons = document.createElement("div"); buttons.className = "pg-lightbox-buttons";
   const stage = document.createElement("div"); stage.className = "pg-lightbox-stage";
   const image = document.createElement("img");
-  buttons.append(zoom, close); top.append(caption, buttons); stage.append(image); dialog.append(top, stage); document.body.append(dialog);
+  buttons.append(zoom, close); top.append(caption, buttons); dialog.append(top, stage); document.body.append(dialog);
   let opener;
   function setZoom(value) {
     dialog.dataset.zoomed = String(value); zoom.setAttribute("aria-pressed", String(value));
@@ -33,7 +33,7 @@
     link.addEventListener("click", event => {
       if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       const preview = link.querySelector("img"); if (!preview) return;
-      event.preventDefault(); opener = link; image.src = link.href; image.alt = preview.alt;
+      event.preventDefault(); opener = link; image.src = link.href; image.alt = preview.alt; stage.append(image);
       caption.textContent = preview.alt; setZoom(false); dialog.showModal(); close.focus();
     });
   }
