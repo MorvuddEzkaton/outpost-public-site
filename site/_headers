@@ -26,3 +26,8 @@
 
 /assets/outpost-demo-products-v1.js
   Cache-Control: no-cache, max-age=0, must-revalidate
+
+# Static executable packages and SHA-256 sidecars are downloadable artifacts, not search landing pages.
+# Keep files publicly fetchable so links and hash verification remain intact.
+/downloads/*
+  X-Robots-Tag: noindex
