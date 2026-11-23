@@ -9,6 +9,7 @@ manual review is default, with an explicit repository-variable-controlled auto m
 from __future__ import annotations
 import argparse
 import hashlib
+from http.client import IncompleteRead
 import json
 import os
 from pathlib import Path
@@ -187,7 +188,10 @@ class ReadOnlyClients:
             raise GateError(f'readonly_http_{service}_{status}') from None
         except ValueError:
             raise GateError(f'readonly_invalid_json_{service}') from None
-        except (URLError, TimeoutError, OSError):
+        except (URLError, TimeoutError, OSError, IncompleteRead):
+            # An interrupted response.read() raises HTTPException, not OSError.
+            # Classify as transport-only so the protected caller may retry its
+            # entire read-only proof; never silently accept partial metadata.
             raise GateError(f'readonly_transport_{service}') from None
 
     def github(self, suffix):

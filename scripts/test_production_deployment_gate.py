@@ -342,4 +342,21 @@ class ReadOnlyFailureDiagnostics(unittest.TestCase):
             self.assertEqual(str(result.exception), 'readonly_transport_github_actions')
             opener.return_value.open.assert_called_once()
 
+    def test_truncated_http_response_is_transport_failure_without_partial_json(self):
+        from http.client import IncompleteRead
+        class TruncatedResponse:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, *_args):
+                raise IncompleteRead(b'PRIVATE PARTIAL RESPONSE', 80)
+        with patch.object(gate, 'build_opener') as opener:
+            opener.return_value.open.return_value = TruncatedResponse()
+            with self.assertRaises(gate.GateError) as result:
+                gate.ReadOnlyClients._json('https://api.cloudflare.com/client/v4/accounts/someid/pages/projects/outpost-web', {})
+            self.assertEqual(str(result.exception), 'readonly_transport_cloudflare_pages')
+            opener.return_value.open.assert_called_once()
+
 if __name__ == '__main__': unittest.main()
