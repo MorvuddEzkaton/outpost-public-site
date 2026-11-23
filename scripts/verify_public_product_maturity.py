@@ -22,9 +22,9 @@ PAGE_CONTRACTS: dict[str, dict[str, object]] = {
     "/": {
         "file": "index.html",
         "required": (
-            "власний робочий Native-контур",
-            "Native ПРРО — власний робочий контур OutPOSt",
-            "фінальні польові перевірки перед об’єднанням",
+            "Власний ПРРО ДПС, CheckBox і РРО MINI‑T400ME",
+            "Власний ПРРО ДПС уже входить до повної Windows-програми OutPOSt",
+            "власний онлайн-ПРРО ДПС",
             "Доступна окрема OutPOSt Бухгалтерія без додаткової ліцензії на модуль.",
         ),
         "forbidden": (
@@ -60,8 +60,8 @@ PAGE_CONTRACTS: dict[str, dict[str, object]] = {
             "ПРРО CheckBox — модуль за потреби",
             "опціональна автофіскалізація",
             "Підключайте CheckBox лише тоді, коли він потрібен",
-            '<span class="status-ok">Робочий контур</span>',
-            "Native ПРРО — власний робочий контур OutPOSt",
+            '<span class="status-ok">Доступний онлайн</span>',
+            "Власний ПРРО ДПС уже інтегровано у повний OutPOSt",
         ),
         "forbidden": (),
         "forbidden_regex": (r"TEST[-‑ ]?прийман",),
@@ -71,7 +71,7 @@ PAGE_CONTRACTS: dict[str, dict[str, object]] = {
         "required": (
             "Бухгалтерія входить до основного пакета OutPOSt без окремої ліцензії та встановлюється окремим Windows-інсталятором.",
             "Доступний Windows-інсталятор пройшов Windows RC 406/406",
-            '<span class="status-ok">Робочий контур</span>',
+            '<span class="status-ok">Доступний онлайн</span>',
             "Native ПРРО — поточний статус",
             f'<span>Для завантаження</span><strong>Бухгалтерія v{ACCOUNTING_VERSION}</strong><small>Windows · x86 · .NET 4.8</small>',
             '<span>Пакет</span><strong>Без окремої ліцензії</strong><small>у складі OutPOSt</small>',
@@ -90,8 +90,8 @@ PAGE_CONTRACTS: dict[str, dict[str, object]] = {
     "/programa-dlya-nevelykogo-magazynu": {
         "file": "programa-dlya-nevelykogo-magazynu.html",
         "required": (
-            "Власний Native-контур OutPOSt уже реалізований",
-            "фінальні польові перевірки перед об’єднанням",
+            "Власний онлайн-ПРРО ДПС уже включений до повної Windows-версії OutPOSt",
+            "Підтримка наразі обмежена гривнею",
         ),
         "forbidden": (
             "після завершення фінального приймання, Native ПРРО",
@@ -101,8 +101,8 @@ PAGE_CONTRACTS: dict[str, dict[str, object]] = {
     "/programa-dlya-fop": {
         "file": "programa-dlya-fop.html",
         "required": (
-            "Вбудований робочий контур OutPOSt",
-            "фінальні польові перевірки перед об’єднанням",
+            "Вбудований онлайн-ПРРО ДПС у повній Windows-версії OutPOSt",
+            "Поточний сценарій — гривня",
             "OutPOSt Бухгалтерія входить до основного пакета без окремої ліцензії на модуль",
         ),
         "forbidden": (
@@ -114,8 +114,8 @@ PAGE_CONTRACTS: dict[str, dict[str, object]] = {
     "/programa-dlya-kasy-windows": {
         "file": "programa-dlya-kasy-windows.html",
         "required": (
-            "Власний робочий контур OutPOSt",
-            "фінальні польові перевірки перед об’єднанням",
+            "Власний онлайн-ПРРО ДПС у повному OutPOSt",
+            "Працює онлайн для непідакцизних товарів",
         ),
         "forbidden": (),
         "forbidden_regex": (r"TEST[-‑ ]?прийман",),
@@ -123,8 +123,8 @@ PAGE_CONTRACTS: dict[str, dict[str, object]] = {
     "/avtomatyzatsiya-rozdribnoi-torgivli": {
         "file": "avtomatyzatsiya-rozdribnoi-torgivli.html",
         "required": (
-            "Власний робочий контур OutPOSt",
-            "фінальні польові перевірки перед об’єднанням",
+            "Вбудований онлайн-ПРРО ДПС у повній Windows-версії OutPOSt",
+            "Поточна підтримка — гривня",
         ),
         "forbidden": (),
         "forbidden_regex": (r"TEST[-‑ ]?прийман",),
@@ -132,8 +132,8 @@ PAGE_CONTRACTS: dict[str, dict[str, object]] = {
     "/avtomatyzatsiya-magazynu": {
         "file": "avtomatyzatsiya-magazynu.html",
         "required": (
-            "Native ПРРО — робочий інтегрований контур",
-            "фінальні польові перевірки перед об’єднанням",
+            "Власний онлайн-ПРРО ДПС уже входить до повної Windows-версії",
+            "майстер із шести кроків",
             "еАкциз/XTrace — необов’язковий read-only Sandbox-контур",
             "production та write-операції залишаються заблокованими",
         ),
@@ -355,7 +355,7 @@ def main() -> int:
 
     print("Public product maturity guard: PASS")
     print(f"  key public pages checked: {checked}")
-    print("  Native ПРРО is a working contour in final field validation before desktop merge")
+    print("  Own DPS PRRO is available in desktop for online UAH non-excisable goods/services")
     print("  CheckBox remains an optional working integration path")
     print("  Accounting is available as an unsigned verified Windows installer")
     print("  runtime-injected Accounting copy matches the same included-package and unsigned-installer policy")
