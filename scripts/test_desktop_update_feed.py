@@ -58,4 +58,21 @@ class SignedFeedTests(unittest.TestCase):
     def test_feed_cannot_be_indexed(self):
         text=security_headers.HEADERS_FILE.read_text(encoding='utf-8').replace('X-Robots-Tag: noindex, nofollow','X-Robots-Tag: index, follow')
         self.assertTrue(security_headers.narrow_cache_route_errors(text))
+    def test_downloads_noindex_route_is_exact_and_fail_closed(self):
+        text=security_headers.HEADERS_FILE.read_text(encoding='utf-8')
+        routes,_=security_headers.parse_headers(text)
+        self.assertIn('/downloads/*',routes)
+        self.assertEqual(security_headers.header_route_errors(routes),[])
+        self.assertEqual(security_headers.narrow_cache_route_errors(text),[])
+        self.assertTrue(security_headers.header_route_errors([r.replace('/downloads/*','/downloads/assets/*') for r in routes]))
+        self.assertTrue(security_headers.header_route_errors([r for r in routes if r!='/downloads/*']))
+        indexed=text.replace('/downloads/*\\n  X-Robots-Tag: noindex\\n', '/downloads/*\\n  X-Robots-Tag: index, follow\\n')
+        self.assertNotEqual(indexed,text)
+        self.assertTrue(security_headers.narrow_cache_route_errors(indexed))
+        override=text.replace('/downloads/*\\n  X-Robots-Tag: noindex\\n','/downloads/*\\n  X-Robots-Tag: noindex\\n  Content-Security-Policy: default-src *\\n')
+        self.assertNotEqual(override,text)
+        self.assertTrue(security_headers.narrow_cache_route_errors(override))
+        cache_override=text.replace('/downloads/*\\n  X-Robots-Tag: noindex\\n','/downloads/*\\n  X-Robots-Tag: noindex\\n  Cache-Control: public, max-age=31536000\\n')
+        self.assertTrue(security_headers.narrow_cache_route_errors(cache_override))
+
 if __name__=='__main__':unittest.main()
