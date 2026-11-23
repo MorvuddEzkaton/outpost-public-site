@@ -378,6 +378,85 @@ class PublisherTests(unittest.TestCase):
         publisher.rollback(self.env, self.root, self.journal, self.client)
         self.assertEqual(self.journal.data['state'], 'rolled_back')
 
+    def test_transient_provenance_transport_rechecks_full_guard_without_upload(self):
+        self.execute()
+        seen = []
+        def flaky_proof(*_args, **_kwargs):
+            seen.append(1)
+            if len(seen) == 2:
+                raise gate.GateError('readonly_transport_cloudflare_pages')
+            return {}
+        with patch.object(gate, 'verify_current', side_effect=flaky_proof), \
+                patch.object(publisher.time, 'sleep') as pause:
+            publisher.verify_live(self.env, self.root, self.journal, self.client, lambda *_: True)
+        self.assertEqual(self.journal.data['state'], 'live_pass')
+        self.assertEqual(pause.call_count, 1)
+        self.assertEqual(len(self.client.items), 2, 'no repeated upload or mutation')
+        self.assertEqual(self.client.rollback_calls, [])
+
+    def test_readonly_http_503_is_retryable_but_403_and_semantic_drift_are_not(self):
+        self.assertTrue(publisher.transient_live_read(gate.GateError('readonly_http_cloudflare_pages_503')))
+        self.assertTrue(publisher.transient_live_read(gate.GateError('readonly_http_github_actions_429')))
+        self.assertTrue(publisher.transient_live_read(gate.GateError('readonly_transport_github_provenance')))
+        self.assertFalse(publisher.transient_live_read(gate.GateError('readonly_http_cloudflare_pages_403')))
+        self.assertFalse(publisher.transient_live_read(gate.GateError('canonical_changed_during_live')))
+        self.assertFalse(publisher.transient_live_read(gate.GateError('main_advanced_or_mismatched')))
+        self.assertFalse(publisher.transient_live_read(ValueError('readonly_transport_cloudflare_pages')))
+        for code in ('readonly_http_cloudflare_pages_403', 'canonical_changed_during_live',
+                     'main_advanced_or_mismatched', 'readonly_invalid_json_cloudflare_pages'):
+            seen = []
+            def permanent():
+                seen.append(1)
+                raise gate.GateError(code)
+            with self.subTest(code=code), patch.object(publisher.time, 'sleep') as pause:
+                with self.assertRaises(gate.GateError):
+                    publisher.retry_live_readonly(permanent)
+                self.assertEqual(len(seen), 1)
+                pause.assert_not_called()
+
+    def test_persistent_provenance_transport_fails_closed_then_rollback(self):
+        self.execute()
+        with patch.object(gate, 'verify_current', side_effect=gate.GateError('readonly_transport_cloudflare_pages')) as read, \
+                patch.object(publisher.time, 'sleep') as pause:
+            with self.assertRaisesRegex(gate.GateError, 'live_verification_failed_or_unknown'):
+                publisher.verify_live(self.env, self.root, self.journal, self.client, lambda *_: True)
+            self.assertEqual(read.call_count, 2)
+            self.assertEqual(pause.call_count, 1)
+        self.assertEqual(self.journal.data['state'], 'live_failed')
+        self.assertEqual(len(self.client.items), 2)
+        self.assertEqual(self.client.rollback_calls, [])
+        publisher.rollback(self.env, self.root, self.journal, self.client)
+        self.assertEqual(self.journal.data['state'], 'rolled_back')
+        self.assertEqual(self.client.rollback_calls, [OLD])
+
+    def test_live_phase_reports_allowlisted_code_only_and_preserves_strict_journal(self):
+        self.execute()
+        with patch.object(gate, 'verify_current', side_effect=gate.GateError('readonly_http_github_provenance_403')), \
+                patch('builtins.print') as output:
+            with self.assertRaises(gate.GateError):
+                publisher.verify_live(self.env, self.root, self.journal, self.client, lambda *_: True)
+        printed = ' '.join(' '.join(map(str, call.args)) for call in output.call_args_list)
+        self.assertIn('phase=initial_provenance', printed)
+        self.assertIn('code=readonly_http_github_provenance_403', printed)
+        self.assertIn('verifier=none', printed)
+        self.assertNotIn('https://', printed)
+        self.assertNotIn('Bearer ', printed)
+        self.assertEqual(self.journal.data['state'], 'live_failed')
+        self.assertEqual(self.journal.data, json.loads(self.file.read_text()))
+        self.assertEqual(self.client.rollback_calls, [])
+
+    def test_unknown_transport_exception_cannot_leak_private_message(self):
+        self.execute()
+        with patch.object(gate, 'verify_current', side_effect=ValueError('SECRET PRIVATE URL https://internal.invalid')), \
+                patch('builtins.print') as output:
+            with self.assertRaises(gate.GateError):
+                publisher.verify_live(self.env, self.root, self.journal, self.client, lambda *_: True)
+        printed = ' '.join(' '.join(map(str, call.args)) for call in output.call_args_list)
+        self.assertIn('code=publisher_failed_inspect_state', printed)
+        self.assertNotIn('SECRET', printed)
+        self.assertNotIn('internal.invalid', printed)
+        self.assertEqual(self.journal.data['state'], 'live_failed')
+
     def test_transient_readonly_live_failure_retries_once_without_upload_replay(self):
         self.execute()
         calls = []
