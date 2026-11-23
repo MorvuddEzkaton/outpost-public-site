@@ -477,36 +477,85 @@ def run_live(root, command):
     print(f'Live verifier: PASS — {command}', flush=True)
     return True
 
+# A network read can fail even when Pages has already accepted the exact SHA.
+# Recheck the ENTIRE protected read-only action; never retry writes or accept stale
+# proofs. Structural, authorization, source, config and canonical mismatches do
+# not match this allowlist and MUST fail closed without a retry.
+TRANSIENT_LIVE_READ_RE = re.compile(
+    r'readonly_(?:transport_(?:github_actions|github_environment|github_provenance|cloudflare_pages|site_health|other)'
+    r'|http_(?:github_actions|github_environment|github_provenance|cloudflare_pages|site_health|other)'
+    r'_(?:408|425|429|500|502|503|504|520|521|522|523|524))'
+)
+
+
+def transient_live_read(error):
+    return isinstance(error, gate.GateError) and TRANSIENT_LIVE_READ_RE.fullmatch(str(error)) is not None
+
+
+def retry_live_readonly(action):
+    """One bounded retry of a credentialed READ only; never a Pages upload."""
+    for attempt in range(2):
+        try:
+            return action()
+        except gate.GateError as error:
+            if attempt or not transient_live_read(error):
+                raise
+            print('Live provenance: one read-only metadata retry — ' + safe_failure_code(error), flush=True)
+            time.sleep(2)
+
+
 def verify_live(env, root, journal, client, runner=run_live):
     data = validate_journal(journal.data, env)
     gate.require(data['state'] == 'deployment_success', 'live_verification_not_ready')
     own = deployment_id(data)
     journal.event('live_intent')
+    phase, command = 'history', 'none'
     try:
-        history_clear(client, env, root)
-        gate.verify_current(env, root, client)
-        gate.require(resolve(data, client.pages(), client.inventory()) == own, 'canonical_changed_before_live')
+        retry_live_readonly(lambda: history_clear(client, env, root))
+        phase = 'initial_provenance'
+        retry_live_readonly(lambda: gate.verify_current(env, root, client))
+        phase = 'initial_identity'
+        retry_live_readonly(lambda: gate.require(
+            resolve(data, client.pages(), client.inventory()) == own, 'canonical_changed_before_live'))
         for command in LIVE_COMMANDS:
-            # No canonical GET if mode/source/deployment changed between validators.
-            gate.verify_current(env, root, client)
-            gate.require(resolve(data, client.pages(), client.inventory()) == own, 'canonical_changed_during_live')
-            # A single transient public-GET failure must not force a rollback
-            # after an otherwise verified upload. Retry ONLY this same
-            # credential-free verifier; never repeat the Cloudflare upload.
+            # Revalidate the entire trusted provenance and exact deployment
+            # BEFORE every public GET. We never cache a previous good proof.
+            phase = 'before_verifier_provenance'
+            retry_live_readonly(lambda: gate.verify_current(env, root, client))
+            phase = 'before_verifier_identity'
+            retry_live_readonly(lambda: gate.require(
+                resolve(data, client.pages(), client.inventory()) == own, 'canonical_changed_during_live'))
+            phase = 'public_verifier'
+            # Public verifier retries are independent of metadata reads and
+            # must preserve their original credential-free environment.
             if not runner(root, command):
-                gate.verify_current(env, root, client)
-                gate.require(resolve(data, client.pages(), client.inventory()) == own,
-                             'canonical_changed_before_live_retry')
+                phase = 'before_public_retry_provenance'
+                retry_live_readonly(lambda: gate.verify_current(env, root, client))
+                phase = 'before_public_retry_identity'
+                retry_live_readonly(lambda: gate.require(
+                    resolve(data, client.pages(), client.inventory()) == own,
+                    'canonical_changed_before_live_retry'))
                 print('Live verifier: one read-only retry — ' + command, flush=True)
                 if runner is run_live:
                     time.sleep(3)
-                gate.verify_current(env, root, client)
-                gate.require(resolve(data, client.pages(), client.inventory()) == own,
-                             'canonical_changed_during_live_retry')
+                phase = 'during_public_retry_provenance'
+                retry_live_readonly(lambda: gate.verify_current(env, root, client))
+                phase = 'during_public_retry_identity'
+                retry_live_readonly(lambda: gate.require(
+                    resolve(data, client.pages(), client.inventory()) == own,
+                    'canonical_changed_during_live_retry'))
+                phase = 'public_verifier_retry'
                 gate.require(runner(root, command), 'critical_live_verification_failed')
-        gate.verify_current(env, root, client)
+        phase = 'final_provenance'
+        retry_live_readonly(lambda: gate.verify_current(env, root, client))
         journal.event('live_pass', deployment_id=own)
-    except Exception:
+    except Exception as error:
+        # Only static phase names, reviewed verifier basenames and allowlisted
+        # reason codes go to public logs. Never print URLs, exception text,
+        # response bodies, account IDs, tokens or Cloudflare metadata.
+        safe_command = command if command in LIVE_COMMANDS else 'none'
+        print('Live provenance: FAIL phase=' + phase + ' verifier=' + safe_command +
+              ' code=' + safe_failure_code(error), flush=True)
         journal.event('live_failed', deployment_id=own)
         raise gate.GateError('live_verification_failed_or_unknown') from None
 
