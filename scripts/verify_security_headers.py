@@ -77,7 +77,7 @@ def parse_headers(text: str) -> tuple[list[str], dict[str, str]]:
 
 
 def header_route_errors(routes: list[str]) -> list[str]:
-    """Shared source/live contract: global security plus exact machine/demo cache routes."""
+    """Shared source/live contract: exact global, cache and downloads-only SEO rules."""
     # The single signed-feed route does not override browser security. All
     # existing demo rules stay exact; additional wildcard scopes remain forbidden.
     allowed_demo_cache_routes = {
@@ -87,20 +87,23 @@ def header_route_errors(routes: list[str]) -> list[str]:
         "/assets/outpost-demo-returns-v1.js",
         "/assets/outpost-demo-products-v1.js",
     }
+    # One additional *explicit* SEO-only rule may mark versioned binary/checksum
+    # artifacts noindex. No other wildcard, cache or browser-security override is allowed.
     allowed_cache_routes=allowed_demo_cache_routes|{"/updates/desktop/stable.json"}
+    allowed_routes=allowed_cache_routes|{"/downloads/*"}
     if not routes or routes[0] != "/*" or routes.count("/*") != 1 or (
-        len(routes) != 1 + len(allowed_cache_routes)
-        or set(routes[1:]) != allowed_cache_routes
+        len(routes) != 1 + len(allowed_routes)
+        or set(routes[1:]) != allowed_routes
     ):
         return [
             "site/_headers: expected one global /* CSP, exactly five demo cache "
-            f"rules and the single signed update feed rule; got {routes!r}"
+            f"rules, one signed update feed rule and one downloads-only noindex rule; got {routes!r}"
         ]
     return []
 
 
 def narrow_cache_route_errors(text: str) -> list[str]:
-    """A narrow cache rule cannot override CSP, permissions, or global security."""
+    """Narrow rules cannot override CSP, permissions, or global security."""
     blocks=[]
     for raw in text.splitlines():
         line=raw.strip()
@@ -111,8 +114,14 @@ def narrow_cache_route_errors(text: str) -> list[str]:
     errors=[]
     for route,headers in blocks:
         if route=='/*':continue
-        expected={'Cache-Control':'no-cache, max-age=0, must-revalidate'}
-        if route=='/updates/desktop/stable.json':expected['X-Robots-Tag']='noindex, nofollow'
+        # The downloadable artifacts rule changes only SEO indexability; it must
+        # never set cache directives, CSP, permissions or any other security header.
+        if route=='/downloads/*':
+            expected={'X-Robots-Tag':'noindex'}
+        else:
+            expected={'Cache-Control':'no-cache, max-age=0, must-revalidate'}
+            if route=='/updates/desktop/stable.json':
+                expected['X-Robots-Tag']='noindex, nofollow'
         if dict(headers)!=expected or len(headers)!=len(expected):
             errors.append(f'site/_headers: narrow rule {route!r} must contain exactly {expected!r}')
     return errors
