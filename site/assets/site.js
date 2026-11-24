@@ -114,7 +114,7 @@
         <div class="outpost-question-success" hidden>
           <div class="outpost-question-success-icon" aria-hidden="true">✓</div>
           <h2>Повідомлення надіслано</h2>
-          <p>Дя�;уємо. Ми отримали ваше повідомлення і відповімо на вказану електронну адресу.</p>
+          <p>Дякуємо. Ми отримали ваше повідомлення і відповімо на вказану електронну адресу.</p>
           <button class="outpost-question-done" type="button">Закрити</button>
         </div>
       </div>`;
