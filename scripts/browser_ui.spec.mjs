@@ -1850,3 +1850,41 @@ test("procurement lazy screenshot preserves native image access without JavaScri
     await expect(page).toHaveURL(origin+path);
   } finally {await context.close();}
 });
+
+
+test("priority landings preserve Windows download and expose contextual browser preview", async ({browser}) => {
+  test.setTimeout(60_000);
+  for (const width of [320,390,1440]) {
+    const context = await browser.newContext({viewport:{width,height:900}});
+    try {
+      const page = await context.newPage();
+      for (const route of ["/avtomatyzatsiya-zakupivel-i-skladu","/programa-dlya-nevelykogo-magazynu"]) {
+        await page.goto(origin+route,{waitUntil:"domcontentloaded"});
+        const hero=page.locator(".scenario-hero-copy");
+        await expect(hero.locator('.scenario-actions a.btn-primary')).toHaveAttribute("href","/download");
+        await expect(hero.locator('.scenario-actions a[href="/features"]')).toBeVisible();
+        const entry=hero.locator(".scenario-demo-entry");
+        await expect(entry).toContainText("тестових даних");
+        await expect(entry).toContainText("спрощена версія");
+        await expect(entry).toContainText("Windows-ПК");
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+        await entry.getByRole("link",{name:"Спробуйте онлайн-демо"}).click();
+        await expect(page).toHaveURL(origin+"/demo");
+        await expect(page.locator(".demo-stability-notice")).toContainText("не відтворює всі можливості");
+        await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content",/noindex/);
+        await page.locator('.demo-webbar a[href="/download"]').click();
+        await expect(page).toHaveURL(origin+"/download");
+      }
+    } finally {await context.close();}
+  }
+  const noJs=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});
+  try {
+    const page=await noJs.newPage();
+    for (const route of ["/avtomatyzatsiya-zakupivel-i-skladu","/programa-dlya-nevelykogo-magazynu"]) {
+      await page.goto(origin+route,{waitUntil:"domcontentloaded"});
+      await page.locator('.scenario-demo-entry a[href="/demo"]').click();
+      await expect(page).toHaveURL(origin+"/demo");
+      await expect(page.locator(".demo-stability-notice")).toBeVisible();
+    }
+  } finally {await noJs.close();}
+});
