@@ -11,7 +11,6 @@ import json
 from pathlib import Path
 import re
 import sys
-import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
