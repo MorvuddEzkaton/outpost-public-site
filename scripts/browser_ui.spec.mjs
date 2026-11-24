@@ -1722,3 +1722,50 @@ test("legacy CSS candidate rules preserve interface and modules rendered styles"
     await context.close();
   }
 });
+
+
+test("generated scoped CSS exactly matches browser-pruned CSSOM and reports compressed cost", async ({browser}) => {
+  const {buildScopedCss,expectedScopedCss}=await import("./generate_scoped_css.mjs");
+  const {gzipSync,brotliCompressSync}=await import("node:zlib");
+  const {createHash}=await import("node:crypto");
+  const original=fs.readFileSync(path.join(siteRoot,"assets/site.css"),"utf8");
+  const generated=expectedScopedCss(original);
+  expect(generated).toEqual(expectedScopedCss(original));
+  expect(generated.css).toContain(createHash("sha256").update(original,"utf8").digest("hex"));
+  expect(generated.removed).toBeGreaterThan(0);
+  // Mixed selector groups must never be removed; preserve unknown at-rules and quoted braces.
+  const fixture='.design-v16 .old{color:red} .design-v17 .old,.current{color:blue} @media(max-width:600px){body.veteran-v16 .old{color:green}.current::before{content:"}";}}';
+  expect(buildScopedCss(fixture)).toEqual({css:' .design-v17 .old,.current{color:blue} @media(max-width:600px){.current::before{content:"}";}}',removed:2});
+  expect(()=>buildScopedCss(".design-v16{color:red")).toThrow();
+  const context=await browser.newContext({viewport:{width:390,height:900}});
+  const page=await context.newPage();
+  await page.goto(origin+"/interfeis",{waitUntil:"load"});
+  const parsed=await page.evaluate(css=>{
+    const shared=[...document.styleSheets].find(s=>s.href && new URL(s.href).pathname==="/assets/site.css");
+    if(!shared)throw Error("shared stylesheet missing");
+    const generatedSheet=new CSSStyleSheet();
+    generatedSheet.replaceSync(css);
+    const legacy=/^(?:body)?\.(?:design-v16|veteran-v16|design-v17)(?=[\s.:[>#~+]|$)/;
+    let removed=0;
+    function prune(container){
+      for(let i=container.cssRules.length-1;i>=0;i--){
+        const rule=container.cssRules[i];
+        if(rule.type===CSSRule.MEDIA_RULE)prune(rule);
+        else if(rule.type===CSSRule.STYLE_RULE && rule.selectorText.split(",").every(s=>legacy.test(s.trim()))){
+          container.deleteRule(i);
+          removed++;
+        }
+      }
+    }
+    prune(shared);
+    const expected=[...shared.cssRules].map(r=>r.cssText);
+    const actual=[...generatedSheet.cssRules].map(r=>r.cssText);
+    return {removed,equal:JSON.stringify(expected)===JSON.stringify(actual),expectedRules:expected.length,actualRules:actual.length};
+  },generated.css);
+  await context.close();
+  expect(parsed.removed).toBe(generated.removed);
+  expect(parsed.equal).toBe(true);
+  fs.writeFileSync(path.join(artifactRoot,"scoped-css-prototype.css"),generated.css,"utf8");
+  const sizes=value=>({raw:Buffer.byteLength(value),gzip:gzipSync(value).length,brotli:brotliCompressSync(value).length});
+  console.log("SCOPED_CSS_GENERATION "+JSON.stringify({removed:generated.removed,original:sizes(original),generated:sizes(generated.css),...parsed}));
+});
