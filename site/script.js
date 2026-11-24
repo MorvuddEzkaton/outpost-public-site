@@ -210,8 +210,8 @@
       link.rel = "noopener";
       link.className = "telegram-contact";
       link.dataset.telegramContact = "1";
-      link.setAttribute("aria-label", "Написати в Telegram — підтримка OutPOSt");
-      link.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M21.7 3.4 18.5 19c-.2 1.1-.9 1.4-1.8.9l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.1 12.8 1.3 11.3c-1-.3-1.1-1 .2-1.5L20.2 2.6c.9-.3 1.7.2 1.5.8Z"/></svg><span>Написати в Telegram</span>`;
+      link.setAttribute("aria-label", document.documentElement.lang === "en" ? "Contact OutPOSt support on Telegram" : "Написати в Telegram — підтримка OutPOSt");
+      link.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M21.7 3.4 18.5 19c-.2 1.1-.9 1.4-1.8.9l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.1 12.8 1.3 11.3c-1-.3-1.1-1 .2-1.5L20.2 2.6c.9-.3 1.7.2 1.5.8Z"/></svg><span>${document.documentElement.lang === "en" ? "Contact on Telegram" : "Написати в Telegram"}</span>`;
       document.body.appendChild(link);
     }
 
