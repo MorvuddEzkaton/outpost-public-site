@@ -1722,3 +1722,66 @@ test("legacy CSS candidate rules preserve interface and modules rendered styles"
     await context.close();
   }
 });
+
+
+// Read-only A/B diagnostic: never modify public HTML until the evidence supports it.
+test("procurement first screenshot eager versus lazy resource diagnostic", async ({browser}) => {
+  test.setTimeout(90000);
+  const route = "/avtomatyzatsiya-zakupivel-i-skladu";
+  const imagePath = "/assets/screenshots/02418/purchasing/01-plan-popovnennia.webp";
+  const source = fs.readFileSync(path.join(siteRoot,route.slice(1)+".html"),"utf8");
+  const original = '<img src="'+imagePath+'"';
+  const tags = [...source.matchAll(/<img\b[^>]*>/g)].map(m=>m[0]).filter(t=>t.startsWith(original));
+  expect(tags).toHaveLength(1);
+  expect(tags[0]).toContain('loading="eager"');
+  const lazyTag = tags[0].replace('loading="eager"','loading="lazy"');
+  const report = [];
+  for (const viewport of [{width:390,height:844},{width:1440,height:900}]) {
+    for (const mode of ["eager","lazy"]) {
+      const context = await browser.newContext({viewport,reducedMotion:"reduce"});
+      try {
+        const page = await context.newPage();
+        const requests = [];
+        page.on("request",r=>{
+          if(r.resourceType()==="image" && new URL(r.url()).pathname===imagePath) requests.push(r.url());
+        });
+        // Both arms use identical route interception (Playwright disables cache);
+        // only one loading attribute differs. No network throttling or field CWV claims.
+        await page.route(origin+route,async r=>{
+          await r.fulfill({status:200,contentType:"text/html; charset=utf-8",
+            body:mode==="lazy"?source.replace(tags[0],lazyTag):source});
+        });
+        await page.goto(origin+route,{waitUntil:"load"});
+        const image = page.locator('img[src="'+imagePath+'"]');
+        await expect(image).toHaveCount(1);
+        const before = await image.evaluate(el=>{
+          const box=el.getBoundingClientRect();
+          return {top:Math.round(box.top),height:Math.round(box.height),viewport:innerHeight,
+            complete:el.complete,naturalWidth:el.naturalWidth,
+            resource:performance.getEntriesByName(el.src).map(r=>({startMs:Math.round(r.startTime),
+              responseEndMs:Math.round(r.responseEnd),transferBytes:r.transferSize,
+              encodedBytes:r.encodedBodySize}))};
+        });
+        const requestedBeforeScroll=requests.length;
+        await image.scrollIntoViewIfNeeded();
+        await expect.poll(()=>image.evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);
+        await image.evaluate(el=>el.decode());
+        await expect(image).toBeVisible();
+        const after = await image.evaluate(el=>({naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight,
+          resource:performance.getEntriesByName(el.src).map(r=>({startMs:Math.round(r.startTime),
+            responseEndMs:Math.round(r.responseEnd),transferBytes:r.transferSize,
+            encodedBytes:r.encodedBodySize}))}));
+        const sample={viewport,mode,before,requestedBeforeScroll,after,totalRequests:requests.length};
+        report.push(sample);
+        console.log("PROCUREMENT_IMAGE_AB "+JSON.stringify(sample));
+      } finally {await context.close();}
+    }
+  }
+  expect(report).toHaveLength(4);
+  for (const width of [390,1440]) {
+    const pair=report.filter(r=>r.viewport.width===width);
+    expect(pair[0].after.naturalWidth).toBe(pair[1].after.naturalWidth);
+    expect(pair[0].after.naturalHeight).toBe(pair[1].after.naturalHeight);
+  }
+  await fs.promises.writeFile(path.join(artifactRoot,"procurement-image-ab.json"),JSON.stringify(report,null,2));
+});
