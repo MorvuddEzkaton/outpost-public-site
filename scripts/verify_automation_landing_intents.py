@@ -241,6 +241,27 @@ def main() -> int:
                 if fragment not in procurement.ids:
                     errors.append(f"{procurement_route}: missing section ID {fragment}")
 
+    # Keep the practical cost explanation tied to the canonical license terms.
+    if hub:
+        raw = (SITE / PAGES["/avtomatyzatsiya-magazynu"]["file"]).read_text(encoding="utf-8")
+        matches = re.findall(r'<section\b[^>]*\bid="store-automation-cost"[^>]*>(.*?)</section>', raw, flags=re.S)
+        if len(matches) != 1:
+            errors.append("hub: exactly one store-automation-cost section required")
+        else:
+            cost = PageParser()
+            cost.feed(matches[0])
+            cost.close()
+            for phrase in ("2 000 грн", "4 000 грн", "без щомісячної підписки",
+                           "два роки", "зовнішні послуги", "без фіскалізації"):
+                if phrase not in cost.visible_text:
+                    errors.append(f"hub cost section: missing {phrase!r}")
+            for target in ("/license", "/support", "/bezkoshtovna-programa-dlya-magazynu"):
+                if target not in cost.link_targets:
+                    errors.append(f"hub cost section: missing {target}")
+            license_page = parse(SITE / "license.html")
+            if "2 000 грн" not in license_page.visible_text:
+                errors.append("hub cost example must be reviewed against current license price")
+
     unique_errors = list(dict.fromkeys(errors))
     if unique_errors:
         print(f"Automation landing intent guard: FAIL ({len(unique_errors)} issue(s))")
