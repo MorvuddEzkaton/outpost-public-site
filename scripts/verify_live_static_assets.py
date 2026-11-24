@@ -11,6 +11,7 @@ Protected/backend routes and downloadable installer artifacts are excluded.
 from __future__ import annotations
 
 from html.parser import HTMLParser
+from http.client import IncompleteRead
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
@@ -233,8 +234,12 @@ def probe_once(url: str) -> tuple[int, dict[str, str]]:
             return response.status, {key.lower(): value for key, value in response.headers.items()}
     except HTTPError as exc:
         return exc.code, {key.lower(): value for key, value in exc.headers.items()}
-    except URLError as exc:
-        raise RuntimeError(str(exc)) from exc
+    except (URLError, IncompleteRead, ConnectionError, TimeoutError) as exc:
+        # RemoteDisconnected and connection resets can escape urllib directly,
+        # rather than being wrapped as URLError. Route them into the existing
+        # bounded per-asset retry loop; never treat a failed GET as HTTP 200.
+        reason = exc.reason if isinstance(exc, URLError) else exc
+        raise RuntimeError(type(reason).__name__) from None
 
 
 def verify_asset(url: str, attempts: int, delay_seconds: int) -> tuple[str | None, str]:
