@@ -1934,7 +1934,7 @@ test("English Lite language links, download and responsive layout work without J
       await expect(download).toBeVisible();
       await expect(download).toHaveAttribute("href", "/download#lite-download");
       await expect(page.locator('link[rel="alternate"][hreflang="uk"]')).toHaveAttribute("href", "https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu");
-      const langLink = page.locator("header").getByRole("link", { name: "Українська" });
+      const langLink = page.locator("main").getByRole("link", { name: "Українська", exact: true });
       await expect(langLink).toBeVisible();
       // DOM geometry is measured through the test runner, not site runtime code.
       const widthInfo = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
