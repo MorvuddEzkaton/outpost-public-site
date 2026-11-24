@@ -1568,3 +1568,34 @@ test("public Ukrainian controls preserve readable text on mobile", async ({page}
   await dialog.getByRole("button",{name:"Скасувати"}).click();
   await expect(dialog).toBeHidden();
 });
+
+
+test("mobile payload diagnostic produces cold local Chromium resource measurements", async () => {
+  test.setTimeout(180000);
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const { stdout } = await promisify(execFile)(process.execPath,
+    [path.join(repoRoot, "scripts/audit_mobile_payload.mjs")],
+    {cwd:repoRoot,timeout:150000,maxBuffer:4*1024*1024});
+  const report = JSON.parse(stdout);
+  expect(report.mode).toBe("local-static");
+  expect(report.results).toHaveLength(12);
+  for (const sample of report.results) {
+    expect(sample.error, sample.route).toBeUndefined();
+    expect(sample.byType.document.decodedBodyBytes).toBeGreaterThan(0);
+    expect(sample.byType.css.decodedBodyBytes).toBeGreaterThan(0);
+    expect(sample.byType.js.decodedBodyBytes).toBeGreaterThan(0);
+    expect(sample.horizontalOverflow).toBeLessThanOrEqual(2);
+    const transferBytes = Object.values(sample.byType).reduce((n,r)=>n+r.transferBytes,0);
+    console.log("MOBILE_PAYLOAD_SAMPLE "+JSON.stringify({
+      route:sample.route,width:sample.viewport.width,transferBytes,
+      byType:sample.byType,loadMs:sample.loadMs,overflow:sample.horizontalOverflow
+    }));
+  }
+  const mobile = report.results.find(r=>r.route==="/" && r.viewport.width===390);
+  const desktop = report.results.find(r=>r.route==="/" && r.viewport.width===1440);
+  const panorama = "/assets/hero-approved-panorama-v1.webp";
+  expect(mobile.resources.some(r=>r.path===panorama)).toBe(false);
+  expect(desktop.resources.some(r=>r.path===panorama)).toBe(true);
+  await fs.promises.writeFile(path.join(artifactRoot,"mobile-payload-local.json"),JSON.stringify(report,null,2));
+});
