@@ -1608,3 +1608,32 @@ test("mobile payload diagnostic produces cold local Chromium resource measuremen
   expect(desktop.resources.some(r=>r.path===panorama)).toBe(true);
   await fs.promises.writeFile(path.join(artifactRoot,"mobile-payload-local.json"),JSON.stringify(report,null,2));
 });
+
+
+test("CSS coverage diagnostic reports initial-render usage without changing styles", async () => {
+  test.setTimeout(180000);
+  const {execFile} = await import("node:child_process");
+  const {promisify} = await import("node:util");
+  const {stdout} = await promisify(execFile)(process.execPath,
+    [path.join(repoRoot,"scripts/audit_mobile_payload.mjs"),"--css-coverage"],
+    {cwd:repoRoot,timeout:150000,maxBuffer:4*1024*1024});
+  const report = JSON.parse(stdout);
+  expect(report.cssCoverageEnabled).toBe(true);
+  expect(report.results).toHaveLength(12);
+  for (const sample of report.results) {
+    expect(sample.error, sample.route).toBeUndefined();
+    const shared = sample.cssCoverage.find(r=>r.path==="/assets/site.css");
+    expect(shared, sample.route).toBeDefined();
+    expect(shared.usedBytes).toBeGreaterThan(0);
+    expect(shared.usedBytes).toBeLessThanOrEqual(shared.totalBytes);
+    for (const sheet of sample.cssCoverage) {
+      expect(sheet.usedBytes).toBeGreaterThanOrEqual(0);
+      expect(sheet.usedBytes).toBeLessThanOrEqual(sheet.totalBytes);
+    }
+    console.log("CSS_COVERAGE_SAMPLE "+JSON.stringify({
+      route:sample.route,width:sample.viewport.width,sheets:sample.cssCoverage
+    }));
+  }
+  await fs.promises.writeFile(path.join(artifactRoot,"css-coverage-local.json"),
+    JSON.stringify(report,null,2));
+});
