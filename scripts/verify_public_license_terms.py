@@ -143,7 +143,7 @@ def validate_structured_commercial_facts(
         lite_page=PUBLIC_ORIGIN+"/bezkoshtovna-programa-dlya-magazynu"
         lite_app_id=lite_page+"#lite-software"
         free_lite_offers=set()
-        if url==lite_page:
+        if url in {lite_page, PUBLIC_ORIGIN + "/en/lite"}:
             for app in iter_dicts(data):
                 offer=app.get("offers")
                 if ("SoftwareApplication" in object_types(app) and app.get("@id")==lite_app_id
@@ -231,12 +231,16 @@ def main() -> int:
         if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in STALE_PRICE_PATTERNS):
             errors.append(f"{url}: stale 1000-UAH public price marker detected")
 
-        has_price = any(marker in text for marker in CURRENT_PRICE_MARKERS)
+        english_lite = url == PUBLIC_ORIGIN + "/en/lite"
+        price_markers = CURRENT_PRICE_MARKERS + (("UAH 2,000", "UAH 2000", "2,000 UAH", "2000 UAH") if english_lite else ())
+        support_markers = SUPPORT_MARKERS + (("two years", "2 years") if english_lite else ())
+        pc_patterns = ONE_PC_PATTERNS + ((r"\b(?:per|one)\s+(?:working\s+)?pc\b",) if english_lite else ())
+        has_price = any(marker in text for marker in price_markers)
         if has_price:
             price_pages += 1
-            if not any(marker in text for marker in SUPPORT_MARKERS):
+            if not any(marker in text for marker in support_markers):
                 errors.append(f"{url}: publishes 2000-UAH price without 2-year support context")
-            if not any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in ONE_PC_PATTERNS):
+            if not any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in pc_patterns):
                 errors.append(f"{url}: publishes 2000-UAH price without one-PC license scope")
 
         if UNSCOPED_SEO_PRICE in text:

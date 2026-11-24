@@ -106,10 +106,10 @@ def loads_public_question_runtime(page: PageParser) -> bool:
 
 def main() -> int:
     pages: dict[str, PageParser] = {}
-    for path in sorted(SITE.glob("*.html")):
+    for path in sorted([*SITE.glob("*.html"), *(SITE / "en").rglob("*.html")]):
         parser = PageParser()
         parser.feed(path.read_text(encoding="utf-8"))
-        pages[path.name] = parser
+        pages[path.relative_to(SITE).as_posix()] = parser
 
     shared_script = SITE / "script.js"
     top_fallback_ready = shared_script.is_file() and TOP_FALLBACK_MARKER in shared_script.read_text(encoding="utf-8")
