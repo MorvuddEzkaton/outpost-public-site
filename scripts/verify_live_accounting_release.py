@@ -114,7 +114,7 @@ def verify_primary_accounting_navigation() -> int:
         text = payload.decode("utf-8", errors="replace")
         if f'src="{SCRIPT_SRC}"' not in text:
             raise VerifyError(f"{pathname}: live page does not load cache-busted Accounting-safe runtime {SCRIPT_SRC}")
-        english_nav_id = {"/en/lite": "english-lite-nav", "/en": "english-home-nav"}.get(pathname)
+        english_nav_id = {"/en/lite": "english-lite-nav", "/en": "english-home-nav", "/en/download": "english-download-nav"}.get(pathname)
         english_page = english_nav_id is not None
         # Reviewed English pages have responsive primary headers with the same direct product links.
         nav_pattern = re.compile(r'<nav\b(?=[^>]*\bid="' + re.escape(english_nav_id) + r'")(?=[^>]*\bdata-nav\b)[^>]*>.*?</nav>', re.DOTALL) if english_page else NAV_RE
