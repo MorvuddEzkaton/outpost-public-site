@@ -60,6 +60,13 @@ def check_locale(url: str, sitemap_urls: set[str], html_languages: list[str],
                       f"expected {expected!r}, got {alternates!r}")
     return lang
 
+def breadcrumb_home(url: str, sitemap_urls: set[str]) -> str:
+    """Use the actual localized homepage only after its reviewed route is active."""
+    if url != HOME_EN and urlparse(url).path.startswith("/en/") and HOME_EN in sitemap_urls:
+        return HOME_EN
+    return HOME_UK
+
+
 def is_lite_software(node: dict, page_url: str) -> bool:
     page=LITE_UK
     return (page_url in {LITE_UK, LITE_EN} and node.get("@type")=="SoftwareApplication"
@@ -476,7 +483,8 @@ def main() -> int:
                 elif node.get("@type") == "FAQPage":
                     faq_pages.append(node)
 
-        is_home = url == f"{ORIGIN}/"
+        is_home = url == HOME_UK
+        is_english_home = url == HOME_EN
         if is_home:
             if len(web_pages) > 1:
                 errors.append(f"{url}: expected at most one JSON-LD WebPage node, got {len(web_pages)}")
@@ -492,7 +500,12 @@ def main() -> int:
         else:
             if len(web_pages) != 1:
                 errors.append(f"{url}: expected exactly one JSON-LD WebPage node, got {len(web_pages)}")
-            if len(breadcrumbs) != 1:
+            if is_english_home:
+                if breadcrumbs:
+                    errors.append(f"{url}: English homepage must not expose BreadcrumbList schema")
+                if visible_breadcrumb.trail_count:
+                    errors.append(f"{url}: English homepage must not expose a visible breadcrumb trail")
+            elif len(breadcrumbs) != 1:
                 errors.append(f"{url}: expected exactly one JSON-LD BreadcrumbList node, got {len(breadcrumbs)}")
 
         if is_home and len(web_sites) == 1:
@@ -624,7 +637,10 @@ def main() -> int:
                 actual_breadcrumb_ref = (
                     breadcrumb_ref.get("@id") if isinstance(breadcrumb_ref, dict) else None
                 )
-                if actual_breadcrumb_ref != expected_breadcrumb_id:
+                if is_english_home:
+                    if "breadcrumb" in web_page:
+                        errors.append(f"{url}: English homepage WebPage must not reference a breadcrumb")
+                elif actual_breadcrumb_ref != expected_breadcrumb_id:
                     errors.append(
                         f"{url}: JSON-LD WebPage.breadcrumb must reference "
                         f"{expected_breadcrumb_id!r}; got {actual_breadcrumb_ref!r}"
@@ -739,9 +755,10 @@ def main() -> int:
 
                 first = items[0] if isinstance(items[0], dict) else {}
                 last = items[-1] if isinstance(items[-1], dict) else {}
-                if first.get("position") != 1 or first.get("item") != f"{ORIGIN}/":
+                expected_home = breadcrumb_home(url, sitemap_urls)
+                if first.get("position") != 1 or first.get("item") != expected_home:
                     errors.append(
-                        f"{url}: BreadcrumbList first item must be position 1 and point to homepage"
+                        f"{url}: BreadcrumbList first item must be position 1 and point to {expected_home}"
                     )
                 if last.get("position") != len(items) or last.get("item") != url:
                     errors.append(
@@ -821,6 +838,15 @@ def test_locale_contract() -> None:
     verify(HOME_EN, both, ["en"], home_pair + [("en", HOME_EN)], False)
     verify(HOME_EN, both - {LITE_EN}, ["en"], home_pair, True)
     print("  locale contract: 23 synthetic cases passed")
+    for url, urls, expected in (
+        (LITE_EN, active, HOME_UK),
+        (LITE_EN, both, HOME_EN),
+        (LITE_UK, both, HOME_UK),
+        (HOME_EN, both, HOME_UK),
+    ):
+        if breadcrumb_home(url, urls) != expected:
+            raise AssertionError(f"localized breadcrumb home regression: {url}, {urls}")
+    print("  localized breadcrumb routing: 4 synthetic cases passed")
 
 
 if __name__ == "__main__":
