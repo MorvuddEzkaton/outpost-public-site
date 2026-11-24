@@ -909,6 +909,36 @@ test("online demo is clearly separated from the full desktop product", async ({p
   }
 });
 
+test("mobile acquisition journey connects homepage, browser demo, Windows editions and Lite", async ({page}) => {
+  test.setTimeout(60_000);
+  for (const width of [320,390]) {
+    await page.setViewportSize({width,height:844});
+    await page.goto(origin + "/", {waitUntil:"domcontentloaded"});
+    await page.locator('.hero-buttons a[href="/demo"]').click();
+    await expect(page).toHaveURL(origin + "/demo");
+    const windows = page.locator('.demo-webbar a[href="/download"]');
+    await expect(windows).toBeVisible();
+    await expect(page.locator(".demo-stability-notice")).toContainText("не відтворює всі можливості");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await windows.click();
+    await expect(page).toHaveURL(origin + "/download");
+    const preview = page.locator('.service-hero-copy a[href="/demo"]');
+    await expect(preview).toBeVisible();
+    await expect(page.locator(".service-hero-copy")).toContainText("Для повної роботи потрібен Windows-ПК.");
+    await preview.click();
+    await expect(page).toHaveURL(origin + "/demo");
+    await page.locator('.demo-webbar a[href="/download"]').click();
+    const editions = page.locator(".download-triple > .download-card-new");
+    await expect(editions).toHaveCount(3);
+    const lite = page.locator('[data-download-product="lite"]');
+    await expect(lite.locator('a[download]')).toHaveAttribute("href", "/downloads/OutPOSt-Lite-Setup-v1.1.1.exe");
+    await lite.locator('a[href="/bezkoshtovna-programa-dlya-magazynu"]').click();
+    await expect(page).toHaveURL(origin + "/bezkoshtovna-programa-dlya-magazynu");
+    await expect(page.locator("#lite-start")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  }
+});
+
 test("modern demo keeps every section usable across desktop, tablet and narrow phones", async ({page}) => {
   test.setTimeout(90_000);
   const errors = [];
