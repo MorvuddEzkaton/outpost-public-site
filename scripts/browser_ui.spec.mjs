@@ -803,7 +803,7 @@ test("store automation page reflects current director and batch capabilities", a
     await expect(grocery).toContainText("6 упаковок молока");
     await expect(grocery).toContainText("увімкніть контроль для товару та складу");
     await expect(grocery).toContainText("Локальний облік продажу не замінює фіскальний чек");
-    for(const href of ["/avtomatyzatsiya-zakupivel-i-skladu","/oblik-tovariv-u-magazyni","/prro","/programa-dlya-nevelykogo-magazynu","/demo"]) {
+    for(const href of ["/avtomatyzatsiya-zakupivel-i-skladu#procurement-workflow","/oblik-tovariv-u-magazyni","/prro","/programa-dlya-nevelykogo-magazynu","/demo"]) {
       await expect(grocery.locator('a[href="'+href+'"]')).toBeVisible();
     }
     await expect(page.locator("main")).toContainText("Управлінська зарплатня");
