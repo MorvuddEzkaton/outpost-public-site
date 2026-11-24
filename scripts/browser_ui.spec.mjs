@@ -1780,8 +1780,8 @@ test("procurement first screenshot eager versus lazy resource diagnostic", async
   const original = '<img src="'+imagePath+'"';
   const tags = [...source.matchAll(/<img\b[^>]*>/g)].map(m=>m[0]).filter(t=>t.startsWith(original));
   expect(tags).toHaveLength(1);
-  expect(tags[0]).toContain('loading="eager"');
-  const lazyTag = tags[0].replace('loading="eager"','loading="lazy"');
+  expect(tags[0]).toContain('loading="lazy"');
+  const eagerTag = tags[0].replace('loading="lazy"','loading="eager"');
   const report = [];
   for (const viewport of [{width:390,height:844},{width:1440,height:900}]) {
     for (const mode of ["eager","lazy"]) {
@@ -1796,7 +1796,7 @@ test("procurement first screenshot eager versus lazy resource diagnostic", async
         // only one loading attribute differs. No network throttling or field CWV claims.
         await page.route(origin+route,async r=>{
           await r.fulfill({status:200,contentType:"text/html; charset=utf-8",
-            body:mode==="lazy"?source.replace(tags[0],lazyTag):source});
+            body:mode==="eager"?source.replace(tags[0],eagerTag):source});
         });
         await page.goto(origin+route,{waitUntil:"load"});
         const image = page.locator('img[src="'+imagePath+'"]');
@@ -1831,4 +1831,22 @@ test("procurement first screenshot eager versus lazy resource diagnostic", async
     expect(pair[0].after.naturalHeight).toBe(pair[1].after.naturalHeight);
   }
   await fs.promises.writeFile(path.join(artifactRoot,"procurement-image-ab.json"),JSON.stringify(report,null,2));
+});
+
+
+test("procurement lazy screenshot preserves native image access without JavaScript", async ({browser}) => {
+  const context = await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
+  try {
+    const page = await context.newPage();
+    await page.goto(origin+"/avtomatyzatsiya-zakupivel-i-skladu",{waitUntil:"load"});
+    const path = "/assets/screenshots/02418/purchasing/01-plan-popovnennia.webp";
+    const image = page.locator('img[src="'+path+'"]');
+    await expect(image).toHaveAttribute("loading","lazy");
+    await expect(image.locator("..")).toHaveAttribute("href",path);
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(()=>image.evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);
+    await expect(image).toBeVisible();
+    await image.click();
+    await expect(page).toHaveURL(origin+path);
+  } finally {await context.close();}
 });
