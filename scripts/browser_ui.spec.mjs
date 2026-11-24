@@ -1853,12 +1853,12 @@ test("procurement lazy screenshot preserves native image access without JavaScri
 
 
 test("priority landings preserve Windows download and expose contextual browser preview", async ({browser}) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   for (const width of [320,390,1440]) {
     const context = await browser.newContext({viewport:{width,height:900}});
     try {
       const page = await context.newPage();
-      for (const route of ["/avtomatyzatsiya-zakupivel-i-skladu","/programa-dlya-nevelykogo-magazynu"]) {
+      for (const route of ["/avtomatyzatsiya-zakupivel-i-skladu","/programa-dlya-nevelykogo-magazynu","/avtomatyzatsiya-rozdribnoi-torgivli","/oblik-tovariv-u-magazyni"]) {
         await page.goto(origin+route,{waitUntil:"domcontentloaded"});
         const hero=page.locator(".scenario-hero-copy");
         await expect(hero.locator('.scenario-actions a.btn-primary')).toHaveAttribute("href","/download");
@@ -1867,6 +1867,11 @@ test("priority landings preserve Windows download and expose contextual browser 
         await expect(entry).toContainText("тестових даних");
         await expect(entry).toContainText("спрощена версія");
         await expect(entry).toContainText("Windows-ПК");
+        if(route==="/avtomatyzatsiya-rozdribnoi-torgivli") {
+          await expect(entry).toContainText("«Продаж»");
+          await expect(entry).toContainText("без реальної фіскалізації");
+        }
+        if(route==="/oblik-tovariv-u-magazyni") await expect(entry).toContainText("«Товари / Склад»");
         expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
         await entry.getByRole("link",{name:"Спробуйте онлайн-демо"}).click();
         await expect(page).toHaveURL(origin+"/demo");
@@ -1880,7 +1885,7 @@ test("priority landings preserve Windows download and expose contextual browser 
   const noJs=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});
   try {
     const page=await noJs.newPage();
-    for (const route of ["/avtomatyzatsiya-zakupivel-i-skladu","/programa-dlya-nevelykogo-magazynu"]) {
+    for (const route of ["/avtomatyzatsiya-zakupivel-i-skladu","/programa-dlya-nevelykogo-magazynu","/avtomatyzatsiya-rozdribnoi-torgivli","/oblik-tovariv-u-magazyni"]) {
       await page.goto(origin+route,{waitUntil:"domcontentloaded"});
       await page.locator('.scenario-demo-entry a[href="/demo"]').click();
       await expect(page).toHaveURL(origin+"/demo");
