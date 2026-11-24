@@ -165,9 +165,7 @@ def validate_structured_commercial_facts(
                     errors.append(
                         f"{url}: structured Offer must publish price and priceCurrency together"
                     )
-                if url == PUBLIC_ORIGIN + "/en" and not has_price:
-            errors.append(f"{url}: English homepage must state the current full-edition price")
-        if has_price:
+                if has_price:
                     try:
                         structured_price = float(
                             str(obj["price"]).replace(" ", "").replace(",", ".")
@@ -238,6 +236,8 @@ def main() -> int:
         support_markers = SUPPORT_MARKERS + (("two years", "2 years") if english_page else ())
         pc_patterns = ONE_PC_PATTERNS + ((r"\b(?:per|one)\s+(?:working\s+)?pc\b",) if english_page else ())
         has_price = any(marker in text for marker in price_markers)
+        if url == PUBLIC_ORIGIN + "/en" and not has_price:
+            errors.append(f"{url}: English homepage must state the current full-edition price")
         if has_price:
             price_pages += 1
             if not any(marker in text for marker in support_markers):
