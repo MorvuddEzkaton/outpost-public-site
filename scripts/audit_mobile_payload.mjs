@@ -78,9 +78,9 @@ try {
           const byType = {};
           for (const r of resources) {
             const kind = r.path.endsWith(".css")?"css":
-              /\\.(m?js)$/.test(r.path)?"js":
-              /\\.(png|jpe?g|webp|svg|ico|avif|gif)$/.test(r.path)?"image":
-              /\\.woff2?$/.test(r.path)?"font":r.initiator;
+              /\.(m?js)$/.test(r.path)?"js":
+              /\.(png|jpe?g|webp|svg|ico|avif|gif)$/.test(r.path)?"image":
+              /\.woff2?$/.test(r.path)?"font":r.initiator;
             const sum = byType[kind] ??= {requests:0,transferBytes:0,encodedBodyBytes:0,decodedBodyBytes:0};
             sum.requests++;
             for (const k of ["transferBytes","encodedBodyBytes","decodedBodyBytes"]) sum[k]+=r[k];
