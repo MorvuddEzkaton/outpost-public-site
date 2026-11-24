@@ -194,11 +194,13 @@ test("visual tour: all 18 screenshots open in one keyboard-accessible gallery", 
     expect(pageOverflow).toBeLessThanOrEqual(1);
     const links = page.locator("a[data-tour-gallery]");
     await expect(links).toHaveCount(18);
+    await expect(page.locator("[data-tour-thumbs] button")).toHaveCount(0);
     expect(await links.evaluateAll(elements => elements.every(e => !e.hasAttribute("target")))).toBe(true);
     const first = links.first();
     await first.click();
     const lightbox = page.locator("[data-tour-lightbox]");
     await expect(lightbox).toBeVisible();
+    await expect(page.locator("[data-tour-thumbs] button")).toHaveCount(18);
     await expect(page.locator("[data-tour-count]")).toHaveText("Скріншот 1 із 18");
     await page.getByRole("button", { name: "Наступний скріншот" }).click();
     await expect(page.locator("[data-tour-count]")).toHaveText("Скріншот 2 із 18");
@@ -1591,6 +1593,13 @@ test("mobile payload diagnostic produces cold local Chromium resource measuremen
       route:sample.route,width:sample.viewport.width,transferBytes,
       byType:sample.byType,loadMs:sample.loadMs,overflow:sample.horizontalOverflow
     }));
+  }
+  const interfaceMobile = report.results.find(r=>r.route==="/interfeis" && r.viewport.width===390);
+  const interfaceDesktop = report.results.find(r=>r.route==="/interfeis" && r.viewport.width===1440);
+  for (const sample of [interfaceMobile,interfaceDesktop]) {
+    const image = sample.byType.image ?? {requests:0,transferBytes:0};
+    expect(image.requests).toBeLessThan(19);
+    expect(image.transferBytes).toBeLessThan(632128);
   }
   const mobile = report.results.find(r=>r.route==="/" && r.viewport.width===390);
   const desktop = report.results.find(r=>r.route==="/" && r.viewport.width===1440);
