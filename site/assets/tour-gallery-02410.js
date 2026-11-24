@@ -47,21 +47,25 @@
     }
   }
 
-  for (const [index, record] of records.entries()) {
-    const thumb = document.createElement("button");
-    thumb.type = "button";
-    thumb.className = "tour-lightbox-thumb";
-    thumb.setAttribute("aria-label", "Показати " + (index + 1) + ": " + record.alt);
-    const preview = document.createElement("img");
-    preview.src = record.url;
-    preview.alt = "";
-    preview.loading = "lazy";
-    preview.width = 108;
-    preview.height = 68;
-    thumb.append(preview);
-    thumb.addEventListener("click", () => show(index));
-    thumbnails.append(thumb);
-    thumbButtons.push(thumb);
+  function ensureThumbnails() {
+    if (thumbButtons.length) return;
+    for (const [index, record] of records.entries()) {
+      const thumb = document.createElement("button");
+      thumb.type = "button";
+      thumb.className = "tour-lightbox-thumb";
+      thumb.setAttribute("aria-label", "Показати " + (index + 1) + ": " + record.alt);
+      const preview = document.createElement("img");
+      preview.alt = "";
+      preview.loading = "lazy";
+      preview.decoding = "async";
+      preview.src = record.url;
+      preview.width = 108;
+      preview.height = 68;
+      thumb.append(preview);
+      thumb.addEventListener("click", () => show(index));
+      thumbnails.append(thumb);
+      thumbButtons.push(thumb);
+    }
   }
 
   links.forEach((link, index) => link.addEventListener("click", event => {
@@ -70,6 +74,7 @@
     event.preventDefault();
     lastOpener = link;
     dialog.showModal();
+    ensureThumbnails();
     show(index);
     close.focus();
     document.documentElement.classList.add("tour-dialog-open");
