@@ -29,9 +29,15 @@ class HeadAudit(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.canonicals: list[str] = []
         self.robots: list[str] = []
+        self.languages: list[str] = []
+        self.alternates: list[tuple[str, str]] = []
 
     def handle_starttag(self, tag: str, attrs) -> None:
         data = {key.lower(): (value or "") for key, value in attrs}
+        if tag.lower() == "html":
+            self.languages.append(data.get("lang", ""))
+        if tag.lower() == "link" and "alternate" in data.get("rel", "").lower().split() and "hreflang" in data:
+            self.alternates.append((data["hreflang"], data.get("href", "")))
         if tag.lower() == "link" and "canonical" in data.get("rel", "").lower().split():
             href = data.get("href", "").strip()
             if href:
@@ -100,6 +106,7 @@ def verify_once(nonce: str) -> tuple[list[str], list[str]]:
     except Exception as exc:
         return [f"local sitemap: {exc}"], verified
 
+    from verify_public_seo_uniqueness import check_locale
     for url in urls:
         try:
             status, _, x_robots, html = fetch_public(url, nonce)
@@ -109,6 +116,7 @@ def verify_once(nonce: str) -> tuple[list[str], list[str]]:
 
         parser = HeadAudit()
         parser.feed(html)
+        check_locale(url, set(urls), parser.languages, parser.alternates, errors)
 
         if status != 200:
             errors.append(f"{url}: HTTP {status}")

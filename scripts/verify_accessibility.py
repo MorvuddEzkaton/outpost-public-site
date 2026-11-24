@@ -187,8 +187,9 @@ def validate_page(path: Path) -> list[str]:
     except Exception as exc:
         return [f"site/{path.name}: HTML parser error: {exc}"]
 
-    if parser.html_lang != "uk":
-        errors.append(f"site/{path.name}: <html lang> must be 'uk', got {parser.html_lang!r}")
+    expected_lang = "en" if path == SITE / "en/lite.html" else "uk"
+    if parser.html_lang != expected_lang:
+        errors.append(f"site/{path.name}: <html lang> must be {expected_lang!r}, got {parser.html_lang!r}")
 
     if parser.main_count != 1:
         errors.append(f"site/{path.name}: expected exactly one <main>, got {parser.main_count}")
@@ -231,10 +232,11 @@ def validate_page(path: Path) -> list[str]:
             errors.append(
                 f"site/{path.name}:{line}: breadcrumb trail must use <nav>, got <{tag}>"
             )
-        if aria_label != "Навігаційний ланцюжок":
+        expected_label = "Breadcrumb" if expected_lang == "en" else "Навігаційний ланцюжок"
+        if aria_label != expected_label:
             errors.append(
                 f"site/{path.name}:{line}: breadcrumb nav must use "
-                "aria-label='Навігаційний ланцюжок'"
+                f"aria-label={expected_label!r}"
             )
         if current_count != 1:
             errors.append(
@@ -259,7 +261,7 @@ def validate_page(path: Path) -> list[str]:
 
 
 def main() -> int:
-    all_html = sorted(SITE.glob("*.html"))
+    all_html = sorted([*SITE.glob("*.html"), *(SITE / "en").rglob("*.html")])
     pages = [path for path in all_html if not VERIFICATION_HTML_RE.fullmatch(path.name)]
     errors: list[str] = []
     for path in pages:

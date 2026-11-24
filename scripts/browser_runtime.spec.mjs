@@ -1918,3 +1918,33 @@ test("FOP landing distinguishes Lite, full retail and separate accounting", asyn
     } finally {await context.close();}
   }
 });
+
+
+test("English Lite language links, download and responsive layout work without JavaScript", async ({ browser }) => {
+  test.setTimeout(90_000);
+  for (const width of [320, 390, 1440]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+    try {
+      const page = await context.newPage();
+      const res = await page.goto(origin + "/en/lite", { waitUntil: "load" });
+      expect(res?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Free POS and inventory software for small shops");
+      const download = page.getByRole("link", { name: "Download OutPOSt Lite for Windows", exact: true });
+      await expect(download).toBeVisible();
+      await expect(download).toHaveAttribute("href", "/download#lite-download");
+      await expect(page.locator('link[rel="alternate"][hreflang="uk"]')).toHaveAttribute("href", "https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu");
+      const langLink = page.locator("main").getByRole("link", { name: "Українська", exact: true });
+      await expect(langLink).toBeVisible();
+      // DOM geometry is measured through the test runner, not site runtime code.
+      const widthInfo = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
+      expect(widthInfo.content).toBeLessThanOrEqual(widthInfo.viewport + 1);
+      await langLink.click();
+      await expect(page).toHaveURL(origin + "/bezkoshtovna-programa-dlya-magazynu");
+      await expect(page.locator("html")).toHaveAttribute("lang", "uk");
+      await expect(page.getByRole("link", { name: "English version", exact: true })).toHaveAttribute("href", "/en/lite");
+    } finally {
+      await context.close();
+    }
+  }
+});
