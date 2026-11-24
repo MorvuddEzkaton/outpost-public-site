@@ -1836,3 +1836,27 @@ test("OutPOSt offers the universal installer and Microsoft Store on desktop and 
     await context.close();
   }
 });
+
+
+test("download page keeps Lite anchor and excludes unused product stylesheet", async ({browser}) => {
+  for (const width of [390,1440]) {
+    const context = await browser.newContext({viewport:{width,height:900}});
+    const page = await context.newPage();
+    const cssRequests = [];
+    page.on("request", request => {
+      if (request.resourceType()==="stylesheet") cssRequests.push(new URL(request.url()).pathname);
+    });
+    await page.goto(origin+"/download#lite-download",{waitUntil:"load"});
+    const lite = page.locator("#lite-download");
+    await expect(lite).toBeVisible();
+    await expect(lite).toHaveCSS("scroll-margin-top","100px");
+    expect(cssRequests).not.toContain("/assets/lite-product-v1.css");
+    expect(cssRequests).toContain("/assets/download-cards-v1.css");
+    await expect(page.locator("[data-download-product]")).toHaveCount(3);
+    await expect(lite.locator('a[href$=".exe"]')).toHaveCount(1);
+    const dimensions = await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
+    expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width+1);
+    console.log("DOWNLOAD_SCOPED_CSS "+JSON.stringify({width,cssRequests,anchorMargin:"100px"}));
+    await context.close();
+  }
+});
