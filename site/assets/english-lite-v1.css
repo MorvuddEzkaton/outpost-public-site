@@ -1,0 +1,16 @@
+/* English Lite: native navigation remains visible without JavaScript. */
+.english-lite-header,.english-lite-footer{background:#102638;color:#f3f7fb}
+.english-lite-header{padding:18px 0;border-bottom:1px solid #47627a}
+.english-lite-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.english-lite-header nav,.english-lite-footer nav{display:flex;gap:8px 20px;flex-wrap:wrap;align-items:center}
+.english-lite-header a,.english-lite-footer a{color:#e3f2ff;text-decoration:underline;text-underline-offset:4px;overflow-wrap:anywhere}
+.english-lite-header nav a,.english-lite-footer nav a{display:inline-flex;align-items:center;min-height:44px}
+.english-lite-header .brand{color:#fff;text-decoration:none}
+.english-lite-header .brand-pos{color:#80d0ff}
+.english-lite-header a:focus-visible,.english-lite-footer a:focus-visible{outline:3px solid #83cfff;outline-offset:4px}
+.english-lite-footer{padding:32px 0;line-height:1.6}
+.english-lite-footer p{color:#e3f2ff}
+.english-lite .lite-section ol{padding-inline-start:24px;line-height:1.7}
+.english-lite .scenario-hero .lite-action.secondary{color:#e3f2ff;border-color:#a7bdd5}
+.english-lite .scenario-hero .lite-action.secondary:hover{color:#102638;background:#e4eef9}
+@media(max-width:600px){.english-lite-nav{align-items:flex-start;flex-direction:column}.english-lite-header nav,.english-lite-footer nav{gap:4px 16px}.english-lite-footer{padding:24px 0}}
