@@ -560,6 +560,13 @@ test("Lite landing offers the free product first and preserves the full UBD bene
     await expect(hero).toContainText("Без реєстрації та ліцензійного ключа");
     await expect(hero.locator('a[download]')).toHaveAttribute("href","/downloads/OutPOSt-Lite-Setup-v1.1.1.exe");
     await expect(page.locator(".lite-grid article")).toHaveCount(6);
+    const start=page.locator("#lite-start");
+    await expect(start.locator("ol > li")).toHaveCount(3);
+    await expect(start).toContainText("Lite не формує фіскальні чеки");
+    await expect(start.locator('a[href="/prro"]')).toBeVisible();
+    await expect(start.locator('a[href="/oblik-tovariv-u-magazyni"]')).toBeVisible();
+    await expect(start.locator('a[href="#lite"]')).toBeVisible();
+    await start.screenshot({path:path.join(output,"lite-first-start-"+width+".png")});
     await expect(page.locator("#ubd")).toContainText("чинного посвідчення УБД");
     await expect(page.locator("#ubd")).toContainText("2 роки");
     await expect(page.locator(".feature-tour img")).toHaveCount(4);
