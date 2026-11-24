@@ -231,7 +231,7 @@ def main() -> int:
         if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in STALE_PRICE_PATTERNS):
             errors.append(f"{url}: stale 1000-UAH public price marker detected")
 
-        english_page = url in {PUBLIC_ORIGIN + "/en/lite", PUBLIC_ORIGIN + "/en"}
+        english_page = url in {PUBLIC_ORIGIN + "/en/lite", PUBLIC_ORIGIN + "/en", PUBLIC_ORIGIN + "/en/download"}
         price_markers = CURRENT_PRICE_MARKERS + (("UAH 2,000", "UAH 2000", "2,000 UAH", "2000 UAH") if english_page else ())
         support_markers = SUPPORT_MARKERS + (("two years", "2 years") if english_page else ())
         pc_patterns = ONE_PC_PATTERNS + ((r"\b(?:per|one)\s+(?:working\s+)?pc\b",) if english_page else ())
