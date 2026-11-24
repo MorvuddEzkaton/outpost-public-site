@@ -1885,3 +1885,36 @@ test("home and priority landing pages use a single shared CSS cache key", async 
     }
   }
 });
+
+
+test("FOP landing distinguishes Lite, full retail and separate accounting", async ({browser}) => {
+  for (const width of [320,390,1440]) {
+    const context = await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
+    try {
+      const page = await context.newPage();
+      const response=await page.goto(origin+"/programa-dlya-fop",{waitUntil:"load"});
+      expect(response?.ok()).toBe(true);
+      const block=page.locator("#fop-product-choice");
+      await expect(block.locator("article")).toHaveCount(3);
+      const lite=block.locator("article").nth(0);
+      await expect(lite).toContainText("Безкоштовно");
+      await expect(lite).toContainText("Без реєстрації, друку, фіскалізації та онлайн-модулів");
+      const retail=block.locator("article").nth(1);
+      await expect(retail).toContainText("7 днів пробного доступу після активації");
+      await expect(retail).toContainText("2 000 грн за 1 ПК");
+      await expect(retail).toContainText("2 роки підтримки");
+      await expect(retail).toContainText("тестових даних");
+      const accounting=block.locator("article").nth(2);
+      await expect(accounting).toContainText("Встановлюється окремо");
+      await expect(accounting).toContainText("Не замінює касу");
+      await expect(accounting).toContainText("не заявляється як готовий універсальний сервіс подання податкової звітності");
+      await expect(page.locator(".scenario-actions a.btn-primary")).toHaveAttribute("href","/download");
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      for (const [href,dest] of [["/bezkoshtovna-programa-dlya-magazynu","/bezkoshtovna-programa-dlya-magazynu"],["/demo","/demo"],["/buhgalteriya#accounting-download","/buhgalteriya#accounting-download"]]) {
+        await page.goto(origin+"/programa-dlya-fop",{waitUntil:"domcontentloaded"});
+        await page.locator('#fop-product-choice a[href="'+href+'"]').click();
+        await expect(page).toHaveURL(origin+dest);
+      }
+    } finally {await context.close();}
+  }
+});
