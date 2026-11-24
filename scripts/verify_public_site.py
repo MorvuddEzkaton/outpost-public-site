@@ -60,6 +60,7 @@ SPECIAL_NON_SITEMAP_HTML = {
     "demo.html",
     "google2c445dfee2b7ddee.html",
     "polityka-konfidentsiinosti-lite.html",  # Public Store policy with noindex.
+    "en/lite-privacy.html",  # English translation; public, deliberately outside sitemap.
 }
 GOOGLE_VERIFICATION_FILE = "google2c445dfee2b7ddee.html"
 GOOGLE_VERIFICATION_CONTENT = "google-site-verification: google2c445dfee2b7ddee.html"
@@ -606,7 +607,7 @@ def check_html_sitemap_coverage(errors: list[str]) -> None:
     for filename in missing_special:
         errors.append(f"site/{filename}: expected special non-sitemap HTML file is missing")
 
-    for filename in ("404.html", "demo.html"):
+    for filename in ("404.html", "demo.html", "polityka-konfidentsiinosti-lite.html", "en/lite-privacy.html"):
         path = SITE / filename
         if not path.is_file():
             continue
