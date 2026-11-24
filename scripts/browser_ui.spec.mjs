@@ -1541,3 +1541,30 @@ test("feature cards deep-link to the existing inventory and loyalty screenshot t
     await expect(page.locator(item.anchor + " img[src^='/assets/screenshots/']")).toHaveCount(item.count);
   }
 });
+
+
+test("public Ukrainian controls preserve readable text on mobile", async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(origin + "/download", {waitUntil:"load"});
+  const details = page.locator('[data-download-product="lite"] details.download-card-details');
+  const summary = details.locator("summary");
+  const label = summary.locator(".disclosure-label");
+  await expect(label).toHaveText("Розгорнути");
+  await summary.click();
+  await expect(label).toHaveText("Згорнути");
+  await summary.click();
+  await expect(label).toHaveText("Розгорнути");
+  await expect(page.locator("[data-telegram-contact]")).toHaveAttribute("aria-label","Написати в Telegram — підтримка OutPOSt");
+
+  const trigger = page.locator("[data-outpost-footer-question]");
+  await trigger.click();
+  const dialog = page.locator("#outpost-public-question-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading",{name:"Написати в OutPOSt"})).toBeVisible();
+  await expect(dialog.getByRole("textbox",{name:"Ім’я"})).toBeVisible();
+  await expect(dialog.getByRole("textbox",{name:"Тема"})).toBeVisible();
+  await expect(dialog.getByRole("textbox",{name:"Повідомлення"})).toBeVisible();
+  await expect(dialog.getByRole("button",{name:"Надіслати"})).toBeVisible();
+  await dialog.getByRole("button",{name:"Скасувати"}).click();
+  await expect(dialog).toBeHidden();
+});
