@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const site = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../site");
 const live = process.argv.includes("--live");
+const cssCoverage = process.argv.includes("--css-coverage");
 const pages = ["/","/features","/modules","/download","/offline-programa-dlya-magazynu","/interfeis"];
 const viewports = [{width:390,height:844},{width:1440,height:900}];
 const types = new Map(Object.entries({
@@ -61,6 +62,7 @@ try {
             await requestRoute.abort();
           } else await requestRoute.continue();
         });
+        if (cssCoverage) await page.coverage.startCSSCoverage({resetOnNavigation:false});
         const response = await page.goto(origin+route,{waitUntil:"networkidle",timeout:30000});
         if (!response?.ok()) throw new Error("HTTP "+response?.status());
         await page.evaluate(async () => {await document.fonts.ready;});
@@ -88,14 +90,26 @@ try {
           return {byType,resources,loadMs:Math.round(nav.loadEventEnd),
             horizontalOverflow:document.documentElement.scrollWidth-innerWidth};
         });
-        results.push({route,viewport,...metrics,blocked});
+        const coverage = cssCoverage ? (await page.coverage.stopCSSCoverage()).filter(entry => {
+          const url = new URL(entry.url, origin);
+          return url.origin === origin && url.pathname.endsWith(".css");
+        }).map(entry => {
+          const ranges = entry.ranges;
+          const totalBytes = Buffer.byteLength(entry.text, "utf8");
+          const usedBytes = ranges.reduce((sum, range) =>
+            sum + Buffer.byteLength(entry.text.slice(range.start, range.end), "utf8"), 0);
+          return {path:new URL(entry.url,origin).pathname,totalBytes,usedBytes,
+            unusedBytes:Math.max(0,totalBytes-usedBytes)};
+        }) : undefined;
+        results.push({route,viewport,...metrics,blocked,...(coverage ? {cssCoverage:coverage} : {})});
       } catch (error) {
         results.push({route,viewport,error:String(error),blocked});
       } finally {await context.close();}
     }
   }
   console.log(JSON.stringify({mode:live?"public-live":"local-static",browser:browser.version(),
-    caveat:"Fresh browser contexts, no scrolling, external/API/installer requests blocked; resource timings include cache/encoding effects. No simulated slow network, no Lighthouse or field CWV scores.",results},null,2));
+    cssCoverageEnabled:cssCoverage,
+    caveat:"Fresh browser contexts, no scrolling, external/API/installer requests blocked; resource timings include cache/encoding effects. CSS coverage is initial-render only, not proof unused styles can be deleted. No simulated slow network, no Lighthouse or field CWV scores.",results},null,2));
   if (results.some(r=>r.error)) process.exitCode=1;
 } finally {
   if (browser) await browser.close();
