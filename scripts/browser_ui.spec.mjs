@@ -1608,3 +1608,88 @@ test("mobile payload diagnostic produces cold local Chromium resource measuremen
   expect(desktop.resources.some(r=>r.path===panorama)).toBe(true);
   await fs.promises.writeFile(path.join(artifactRoot,"mobile-payload-local.json"),JSON.stringify(report,null,2));
 });
+
+
+// A deliberately conservative experiment; the production stylesheet remains untouched.
+// Compare the actual cascade after removing exclusively legacy-class-scoped rules.
+test("legacy CSS candidate rules preserve interface and modules rendered styles", async ({browser}) => {
+  test.setTimeout(180000);
+  for (const width of [390,1440]) {
+    const context = await browser.newContext({viewport:{width,height:900},reducedMotion:"reduce"});
+    const page = await context.newPage();
+    for (const route of ["/interfeis","/modules"]) {
+      const scenarios = ["initial","navigation",route==="/interfeis"?"gallery":"disclosure"];
+      for (const scenario of scenarios) {
+        await page.goto(origin+route,{waitUntil:"load"});
+        if (scenario==="navigation") {
+          if (width===390) {
+            await page.locator("[data-nav-toggle]").click();
+            await expect(page.locator("[data-nav-toggle]")).toHaveAttribute("aria-expanded","true");
+          } else {
+            await page.locator("[data-nav-more]").hover();
+            await expect(page.locator(".nav-more-menu")).toBeVisible();
+          }
+        } else if (scenario==="gallery") {
+          await page.locator("a[data-tour-gallery]").first().click();
+          await expect(page.locator("[data-tour-lightbox]")).toBeVisible();
+          await expect(page.locator("[data-tour-thumbs] button")).toHaveCount(18);
+        } else if (scenario==="disclosure") {
+          const disclosure = page.locator("main details > summary").first();
+          if (await disclosure.count()) {
+            if (!(await disclosure.evaluate(e=>e.parentElement.open))) await disclosure.click();
+            await expect(disclosure.locator("..")).toHaveAttribute("open","");
+          } else {
+            // Modules may use only static cards; exercise the bottom of the page.
+            await page.locator("footer").scrollIntoViewIfNeeded();
+          }
+        }
+        await page.evaluate(()=>document.fonts.ready);
+        const result = await page.evaluate(() => {
+          const sheet = [...document.styleSheets].find(s=>s.href && new URL(s.href).pathname==="/assets/site.css");
+          if (!sheet) throw Error("shared stylesheet missing");
+          const legacy = /^(?:body)?\.(?:design-v16|veteran-v16|design-v17)(?=[\s.:[>#~+]|$)/;
+          if(document.querySelector(".design-v16,.veteran-v16,.design-v17"))
+            throw Error("legacy class is present in live DOM");
+          const elements = [...document.querySelectorAll("body,body *")];
+          // Compare every computed CSS property of every element and generated pseudo-element.
+          const snap = () => elements.map(el=>{
+            const styles = [null,"::before","::after"].map(pseudo=>{
+              const c = getComputedStyle(el,pseudo);
+              return Array.from(c,k=>c.getPropertyValue(k));
+            });
+            const r=el.getBoundingClientRect();
+            return {styles,rect:[r.x,r.y,r.width,r.height]};
+          });
+          const before = snap();
+          let removed=0,cssomBytes=0;
+          function prune(container) {
+            for(let i=container.cssRules.length-1;i>=0;i--){
+              const rule=container.cssRules[i];
+              if(rule.type===CSSRule.MEDIA_RULE) prune(rule);
+              else if(rule.type===CSSRule.STYLE_RULE && rule.selectorText.split(",").every(s=>legacy.test(s.trim()))){
+                cssomBytes+=new TextEncoder().encode(rule.cssText).length;
+                container.deleteRule(i);
+                removed++;
+              }
+            }
+          }
+          prune(sheet);
+          const after=snap();
+          const mismatches=[];
+          for(let i=0;i<elements.length;i++){
+            if(JSON.stringify(before[i])!==JSON.stringify(after[i])){
+              mismatches.push({tag:elements[i].tagName,id:elements[i].id,className:elements[i].getAttribute("class")});
+              if(mismatches.length>=10)break;
+            }
+          }
+          return {removed,cssomBytes,elements:elements.length,mismatches,overflow:document.documentElement.scrollWidth-innerWidth};
+        });
+        expect(result.removed).toBeGreaterThan(0);
+        expect(result.mismatches,route+" "+width+" "+scenario).toEqual([]);
+        expect(result.overflow).toBeLessThanOrEqual(2);
+        console.log("LEGACY_CSS_PARITY "+JSON.stringify({route,width,scenario,...result}));
+      }
+    }
+    await context.close();
+  }
+});
