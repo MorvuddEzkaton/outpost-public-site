@@ -60,6 +60,8 @@ class PageParser(HTMLParser):
         self.h1_chunks: list[str] = []
         self.text_chunks: list[str] = []
         self.links: set[str] = set()
+        self.link_targets: set[str] = set()
+        self.ids: set[str] = set()
         self.description: str | None = None
         self.canonical: str | None = None
         self.robots: str | None = None
@@ -75,6 +77,8 @@ class PageParser(HTMLParser):
             return
         if self._skip_depth:
             return
+        if attr.get("id"):
+            self.ids.add(attr["id"])
         if tag == "title":
             self._in_title = True
         elif tag == "h1":
@@ -83,6 +87,7 @@ class PageParser(HTMLParser):
             href = attr.get("href")
             if href and href.startswith("/"):
                 self.links.add(href.split("#", 1)[0].split("?", 1)[0])
+                self.link_targets.add(href)
         elif tag == "meta":
             name = (attr.get("name") or "").lower()
             if name == "description":
@@ -214,6 +219,27 @@ def main() -> int:
             errors.append(
                 "/avtomatyzatsiya-zakupivel-i-skladu: title must preserve procurement/warehouse intent"
             )
+
+    # Contextual links must resolve to real, stable public section IDs.
+    procurement_route = "/avtomatyzatsiya-zakupivel-i-skladu"
+    deep_links = {
+        "modules.html": ("replenishment-plan", "multiwarehouse-tour-heading", "procurement-workflow"),
+        "features.html": ("procurement-workflow",),
+        "avtomatyzatsiya-magazynu.html": ("procurement-workflow",),
+    }
+    if procurement:
+        for filename, fragments in deep_links.items():
+            source = SITE / filename
+            if not source.is_file():
+                errors.append(f"{filename}: missing contextual link source")
+                continue
+            parser = parse(source)
+            for fragment in fragments:
+                target = f"{procurement_route}#{fragment}"
+                if target not in parser.link_targets:
+                    errors.append(f"{filename}: missing contextual link {target}")
+                if fragment not in procurement.ids:
+                    errors.append(f"{procurement_route}: missing section ID {fragment}")
 
     unique_errors = list(dict.fromkeys(errors))
     if unique_errors:
