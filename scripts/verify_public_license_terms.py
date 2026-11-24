@@ -165,7 +165,9 @@ def validate_structured_commercial_facts(
                     errors.append(
                         f"{url}: structured Offer must publish price and priceCurrency together"
                     )
-                if has_price:
+                if url == PUBLIC_ORIGIN + "/en" and not has_price:
+            errors.append(f"{url}: English homepage must state the current full-edition price")
+        if has_price:
                     try:
                         structured_price = float(
                             str(obj["price"]).replace(" ", "").replace(",", ".")
@@ -231,10 +233,10 @@ def main() -> int:
         if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in STALE_PRICE_PATTERNS):
             errors.append(f"{url}: stale 1000-UAH public price marker detected")
 
-        english_lite = url == PUBLIC_ORIGIN + "/en/lite"
-        price_markers = CURRENT_PRICE_MARKERS + (("UAH 2,000", "UAH 2000", "2,000 UAH", "2000 UAH") if english_lite else ())
-        support_markers = SUPPORT_MARKERS + (("two years", "2 years") if english_lite else ())
-        pc_patterns = ONE_PC_PATTERNS + ((r"\b(?:per|one)\s+(?:working\s+)?pc\b",) if english_lite else ())
+        english_page = url in {PUBLIC_ORIGIN + "/en/lite", PUBLIC_ORIGIN + "/en"}
+        price_markers = CURRENT_PRICE_MARKERS + (("UAH 2,000", "UAH 2000", "2,000 UAH", "2000 UAH") if english_page else ())
+        support_markers = SUPPORT_MARKERS + (("two years", "2 years") if english_page else ())
+        pc_patterns = ONE_PC_PATTERNS + ((r"\b(?:per|one)\s+(?:working\s+)?pc\b",) if english_page else ())
         has_price = any(marker in text for marker in price_markers)
         if has_price:
             price_pages += 1
