@@ -13,6 +13,7 @@ download analytics, so this verification must not inflate the download counter.
 from __future__ import annotations
 
 from pathlib import Path
+from http.client import IncompleteRead
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -83,22 +84,36 @@ def request_bytes(url: str, *, range_request: bool = False, timeout: int = 30) -
         "Accept-Encoding": "identity",
     }
     if range_request:
-        # Full representation via a range request. The Worker excludes range/resume
-        # requests from the aggregate installer download counter.
+        # Every retry uses the SAME full Range request; no fallback to a normal
+        # GET for an installer and no increment of the download counter.
         headers["Range"] = "bytes=0-"
 
-    request = Request(url, headers=headers, method="GET")
-    try:
-        with urlopen(request, timeout=timeout) as response:
-            if response.geturl()!=url: raise VerifyError('public download changed its canonical URL')
-            status = int(getattr(response, "status", response.getcode()))
-            response_headers = {key.lower(): value for key, value in response.headers.items()}
-            return status, response_headers, response.read()
-    except HTTPError as exc:
-        body = exc.read() if hasattr(exc, "read") else b""
-        raise VerifyError(f"HTTP {exc.code} for {url}; body={body[:160]!r}") from exc
-    except (URLError, TimeoutError, OSError) as exc:
-        raise VerifyError(f"request failed for {url}: {exc}") from exc
+    for attempt in range(1, 4):
+        request = Request(url, headers=headers, method="GET")
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                if response.geturl() != url:
+                    raise VerifyError('public download changed its canonical URL')
+                status = int(getattr(response, "status", response.getcode()))
+                response_headers = {key.lower(): value for key, value in response.headers.items()}
+                # A truncated read is never reused or appended to a later read.
+                # The caller still validates status, complete length and hash.
+                return status, response_headers, response.read()
+        except HTTPError as exc:
+            # Do not read or print the error body, which may itself be truncated.
+            # HTTP contract failures are not transport retries.
+            raise VerifyError(f"HTTP {exc.code} for {url}") from None
+        except (URLError, IncompleteRead, ConnectionError, TimeoutError) as exc:
+            reason = exc.reason if isinstance(exc, URLError) else exc
+            if not isinstance(reason, (IncompleteRead, ConnectionError, TimeoutError)):
+                raise VerifyError(f"request failed for {url}: {type(reason).__name__}") from None
+            if attempt == 3:
+                raise VerifyError(f"transport failed for {url} after 3 attempts: {type(reason).__name__}") from None
+            print(f"Read-only GET retry {attempt}/2: {url} ({type(reason).__name__})", flush=True)
+            time.sleep(attempt)
+        except OSError as exc:
+            raise VerifyError(f"request failed for {url}: {type(exc).__name__}") from None
+    raise VerifyError("unreachable request retry state")
 
 
 def cache_busted(path: str, attempt: int) -> str:
@@ -157,8 +172,9 @@ def verify_installer(exe_name: str, expected_size: int, expected_sha: str) -> No
         )
 
     content_range = headers.get("content-range", "")
-    if content_range and f"/{expected_size}" not in content_range:
-        raise VerifyError(f"live installer Content-Range total does not match {expected_size}: {content_range!r}")
+    expected_range = f"bytes 0-{expected_size - 1}/{expected_size}"
+    if content_range != expected_range:
+        raise VerifyError(f"live installer Content-Range mismatch: expected {expected_range!r}, got {content_range!r}")
 
     actual_size = len(payload)
     if actual_size != expected_size:
