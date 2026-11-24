@@ -14,6 +14,7 @@ from collections import Counter, defaultdict
 from datetime import date
 from html.parser import HTMLParser
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 import json
 import re
@@ -360,17 +361,26 @@ def check_required_files(errors: list[str]) -> None:
             errors.append(f"missing required file: site/{relative}")
 
 
+def public_html_paths(site: Path) -> list[Path]:
+    """Root pages and the explicit public English namespace only."""
+    return sorted([*site.glob("*.html"), *(site / "en").rglob("*.html")])
+
+
 def check_html_pages(errors: list[str]) -> int:
-    html_pages = sorted(SITE.glob("*.html"))
+    html_pages = public_html_paths(SITE)
     canonical_owners: dict[str, list[str]] = defaultdict(list)
 
     for path in html_pages:
-        name = path.name
+        name = path.relative_to(SITE).as_posix()
         text = read_text(path)
         parser = LinkCollector()
         parser.feed(text)
 
         expected = REQUIRED_CANONICALS.get(name)
+        if name.startswith("en/"):
+            expected = f"{PUBLIC_ORIGIN}/{name[:-5]}"
+            if path.name == "index.html":
+                errors.append(f"site/{name}: use explicit extensionless file routes (for example en.html or en/lite.html), not nested index.html")
         if expected is not None and parser.canonicals != [expected]:
             errors.append(
                 f"site/{name}: canonical mismatch; expected exactly {expected!r}, got {parser.canonicals!r}"
@@ -584,11 +594,11 @@ def check_html_sitemap_coverage(errors: list[str]) -> None:
         target = "index.html" if route == "/" else route.strip("/") + ".html"
         sitemap_html.add(target)
 
-    actual_html = {path.name for path in SITE.glob("*.html")}
+    actual_html = {path.relative_to(SITE).as_posix() for path in public_html_paths(SITE)}
     unexpected = sorted(actual_html - sitemap_html - SPECIAL_NON_SITEMAP_HTML)
     for filename in unexpected:
         errors.append(
-            f"site/{filename}: root HTML page is outside sitemap and special-page allowlist; "
+            f"site/{filename}: public HTML page is outside sitemap and special-page allowlist; "
             "add it to the canonical sitemap or explicitly classify it"
         )
 
@@ -789,8 +799,24 @@ def check_demo_runtime_cache(errors: list[str]) -> None:
         errors.append("site/demo.html: demo module cache key must be month-20261018")
 
 
+def check_public_html_inventory_contract(errors: list[str]) -> None:
+    # Isolated fixture: no real English pages or private files are created.
+    with TemporaryDirectory() as directory:
+        fixture = Path(directory)
+        paths = ("index.html", "en/lite.html", "en/guides/example.html", "admin/private.html", "assets/template.html")
+        for relative in paths:
+            path = fixture / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch()
+        actual = {path.relative_to(fixture).as_posix() for path in public_html_paths(fixture)}
+        if actual != {"index.html", "en/lite.html", "en/guides/example.html"}:
+            errors.append(f"public HTML inventory fixture mismatch: {sorted(actual)!r}")
+
+
 def main() -> int:
     errors: list[str] = []
+
+    check_public_html_inventory_contract(errors)
 
     check_required_files(errors)
     html_count = check_html_pages(errors)
@@ -819,7 +845,7 @@ def main() -> int:
     print("  all sitemap pages have exact canonical, indexable robots and shared script.js exactly once")
     print("  all sitemap pages retain description + Open Graph URL/image/title/description + Twitter large-card metadata")
     print("  sitemap-page JSON-LD parses cleanly and FAQ Question.name values are unique per page")
-    print("  every root HTML file is either in sitemap or an explicitly guarded special page")
+    print("  every root and English HTML file is either in sitemap or an explicitly guarded special page")
     print("  404/demo remain noindex and the Google verification file content is pinned")
     print("  all sitemap pages expose /demo through shared navigation/footer")
     print("  protected cabinet/public-question boundary markers present")
