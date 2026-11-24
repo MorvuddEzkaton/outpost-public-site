@@ -19,3 +19,6 @@
 .download-card-details .hash-panel{padding:14px}
 @supports(grid-template-rows:subgrid){.download-triple{grid-template-rows:repeat(7,auto)}.download-triple .download-card-new{grid-row:span 7;grid-template-rows:subgrid}}
 @media(max-width:1000px){.download-triple{grid-template-columns:minmax(0,1fr);grid-template-rows:none;gap:20px;max-width:640px;margin-inline:auto}.download-triple .release-title-row{min-height:64px}.download-triple .tag{min-height:0}.download-triple .download-card-new{display:flex;flex-direction:column;grid-row:auto;padding:22px}.download-triple .download-summary{flex:none}.download-triple .download-facts>div{min-height:64px}.download-card-actions{grid-template-rows:none}.download-card-actions>.text-link{grid-row:auto}}
+
+/* Preserve the Lite deep-link offset without importing the full product-page stylesheet. */
+.lite-anchor{scroll-margin-top:100px}
