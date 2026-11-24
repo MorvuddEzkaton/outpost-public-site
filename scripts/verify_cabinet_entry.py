@@ -85,8 +85,9 @@ def main() -> int:
         if wrong:
             rendered = ", ".join(repr(href) for href, _ in wrong)
             errors.append(f"{url}: non-canonical Cabinet link(s): {rendered}")
-        if exact and not any("кабінет" in text.lower() for _, text in exact):
-            errors.append(f"{url}: canonical Cabinet link has no visible 'Кабінет' label")
+        label = "customer cabinet" if url == PUBLIC_ORIGIN + "/en/lite" else "кабінет"
+        if exact and not any(label in text.lower() for _, text in exact):
+            errors.append(f"{url}: canonical Cabinet link has no visible {label!r} label")
 
     if errors:
         print(f"Cabinet entry guard: FAIL ({len(errors)} issue(s))", file=sys.stderr)
