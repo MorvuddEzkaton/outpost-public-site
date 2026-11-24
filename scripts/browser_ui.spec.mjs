@@ -797,6 +797,15 @@ test("store automation page reflects current director and batch capabilities", a
     await page.setViewportSize({width,height:900});
     await page.goto(origin + "/avtomatyzatsiya-magazynu", {waitUntil:"load"});
     await expect(page.locator("main")).toContainText("Кабінет директора працює локально");
+    const grocery = page.locator("#grocery-store-workflow");
+    await expect(grocery.getByRole("heading",{name:"Автоматизація продуктового магазину: від приймання до закриття зміни"})).toBeVisible();
+    await expect(grocery.locator("article.scenario-card")).toHaveCount(3);
+    await expect(grocery).toContainText("6 упаковок молока");
+    await expect(grocery).toContainText("увімкніть контроль для товару та складу");
+    await expect(grocery).toContainText("Локальний облік продажу не замінює фіскальний чек");
+    for(const href of ["/avtomatyzatsiya-zakupivel-i-skladu","/oblik-tovariv-u-magazyni","/prro","/programa-dlya-nevelykogo-magazynu","/demo"]) {
+      await expect(grocery.locator('a[href="'+href+'"]')).toBeVisible();
+    }
     await expect(page.locator("main")).toContainText("Управлінська зарплатня");
     await expect(page.locator("main")).toContainText("8 модульних напрямків");
     await expect(page.locator("main")).toContainText("Замовлення постачальникам.");
