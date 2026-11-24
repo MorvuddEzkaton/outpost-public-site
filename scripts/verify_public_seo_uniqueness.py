@@ -24,10 +24,13 @@ HOME_UK = ORIGIN + "/"
 HOME_EN = ORIGIN + "/en"
 DOWNLOAD_UK = ORIGIN + "/download"
 DOWNLOAD_EN = ORIGIN + "/en/download"
+SUPPORT_UK = ORIGIN + "/support"
+SUPPORT_EN = ORIGIN + "/en/support"
 LOCALE_PAIRS = (
     {"uk": LITE_UK, "en": LITE_EN},
     {"uk": HOME_UK, "en": HOME_EN},
     {"uk": DOWNLOAD_UK, "en": DOWNLOAD_EN},
+    {"uk": SUPPORT_UK, "en": SUPPORT_EN},
 )
 OG_LOCALES = {"uk": "uk_UA", "en": "en_US"}
 
@@ -848,7 +851,15 @@ def test_locale_contract() -> None:
     verify(DOWNLOAD_EN, downloads, ["en"], download_pair, True)
     verify(DOWNLOAD_EN, downloads, ["en"], home_pair, False)
     verify(DOWNLOAD_EN, downloads - {DOWNLOAD_UK}, ["en"], download_pair, False)
-    print("  locale contract: 29 synthetic cases passed")
+    support = downloads | {SUPPORT_UK, SUPPORT_EN}
+    support_pair = sorted([("uk", SUPPORT_UK), ("en", SUPPORT_EN)])
+    verify(SUPPORT_UK, downloads | {SUPPORT_UK}, ["uk"], [], True)
+    verify(SUPPORT_EN, downloads | {SUPPORT_UK}, ["en"], [], False)
+    verify(SUPPORT_UK, support, ["uk"], support_pair, True)
+    verify(SUPPORT_EN, support, ["en"], support_pair, True)
+    verify(SUPPORT_EN, support, ["en"], download_pair, False)
+    verify(SUPPORT_EN, support - {SUPPORT_UK}, ["en"], support_pair, False)
+    print("  locale contract: 35 synthetic cases passed")
     for url, urls, expected in (
         (LITE_EN, active, HOME_UK),
         (LITE_EN, both, HOME_EN),
