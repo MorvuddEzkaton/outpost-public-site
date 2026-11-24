@@ -17,10 +17,46 @@ ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 SITEMAP = SITE / "sitemap.xml"
 ORIGIN = "https://outpost.com.ua"
+LITE_UK = ORIGIN + "/bezkoshtovna-programa-dlya-magazynu"
+LITE_EN = ORIGIN + "/en/lite"
+# Only this reviewed pair is reserved for the first localization rollout.
+# It is inactive until the English URL actually enters the sitemap.
+LOCALE_PAIRS = ({ "uk": LITE_UK, "en": LITE_EN },)
+OG_LOCALES = {"uk": "uk_UA", "en": "en_US"}
+
+
+def locale_contract(url: str, sitemap_urls: set[str]) -> tuple[str, list[tuple[str, str]]]:
+    for pair in LOCALE_PAIRS:
+        if url not in pair.values():
+            continue
+        lang = next(lang for lang, target in pair.items() if target == url)
+        if pair["en"] not in sitemap_urls:
+            return lang, []
+        if not set(pair.values()).issubset(sitemap_urls):
+            raise ValueError("localized URL is missing its Ukrainian equivalent in sitemap")
+        return lang, sorted(pair.items())
+    if urlparse(url).path.rstrip("/") == "/en" or urlparse(url).path.startswith("/en/"):
+        raise ValueError("English URL is outside the reviewed locale-pair registry")
+    return "uk", []
+
+
+def check_locale(url: str, sitemap_urls: set[str], html_languages: list[str],
+                 alternates: list[tuple[str, str]], errors: list[str]) -> str:
+    try:
+        lang, expected = locale_contract(url, sitemap_urls)
+    except ValueError as exc:
+        errors.append(f"{url}: {exc}")
+        return "uk"
+    if html_languages != [lang]:
+        errors.append(f"{url}: expected exactly one html lang={lang!r}, got {html_languages!r}")
+    if sorted(alternates) != expected:
+        errors.append(f"{url}: hreflang must match the complete reviewed reciprocal pair; "
+                      f"expected {expected!r}, got {alternates!r}")
+    return lang
 
 def is_lite_software(node: dict, page_url: str) -> bool:
-    page=ORIGIN+"/bezkoshtovna-programa-dlya-magazynu"
-    return (page_url==page and node.get("@type")=="SoftwareApplication"
+    page=LITE_UK
+    return (page_url in {LITE_UK, LITE_EN} and node.get("@type")=="SoftwareApplication"
             and node.get("@id")==page+"#lite-software" and node.get("url")==page
             and node.get("name")=="OutPOSt Lite" and node.get("isAccessibleForFree") is True
             and re.fullmatch(re.escape(ORIGIN)+r"/downloads/OutPOSt-Lite-Setup-v\d+\.\d+\.\d+\.exe",str(node.get("downloadUrl",""))) is not None)
@@ -34,6 +70,8 @@ class SeoParser(HTMLParser):
         self.description_values: list[str] = []
         self.meta: dict[str, list[str]] = defaultdict(list)
         self.canonicals: list[str] = []
+        self.html_languages: list[str] = []
+        self.alternates: list[tuple[str, str]] = []
         self.json_ld_scripts: list[str] = []
         self.details_items: list[tuple[str, str]] = []
         self._json_ld_current: list[str] | None = None
@@ -62,7 +100,9 @@ class SeoParser(HTMLParser):
         if self._skip_depth:
             return
 
-        if tag == "title":
+        if tag == "html":
+            self.html_languages.append((data.get("lang") or "").strip())
+        elif tag == "title":
             self._in_title = True
         elif tag == "h1":
             self._h1_depth += 1
@@ -88,6 +128,9 @@ class SeoParser(HTMLParser):
             rel = (data.get("rel") or "").strip().lower().split()
             if "canonical" in rel:
                 self.canonicals.append((data.get("href") or "").strip())
+            if data.get("hreflang") is not None:
+                self.alternates.append(((data.get("hreflang") or "").strip(),
+                                        (data.get("href") or "").strip() if "alternate" in rel else ""))
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
@@ -253,6 +296,7 @@ def guard_unique(
 def main() -> int:
     errors: list[str] = []
     routes = sitemap_routes(errors)
+    sitemap_urls = {url for url, _ in routes}
 
     canonical_website: dict | None = None
     canonical_software: dict | None = None
@@ -283,6 +327,7 @@ def main() -> int:
         if len(home_software) == 1:
             canonical_software = home_software[0]
 
+    lite_nodes: dict[str, dict] = {}
     titles: list[tuple[str, str]] = []
     descriptions: list[tuple[str, str]] = []
     h1s: list[tuple[str, str]] = []
@@ -296,6 +341,8 @@ def main() -> int:
         parser = SeoParser()
         parser.feed(text)
         parser.close()
+
+        lang = check_locale(url, sitemap_urls, parser.html_languages, parser.alternates, errors)
 
         visible_breadcrumb = VisibleBreadcrumbParser()
         visible_breadcrumb.feed(text)
@@ -358,8 +405,8 @@ def main() -> int:
             )
         if parser.meta.get("og:type", []) != ["website"]:
             errors.append(f"{url}: og:type must be exactly 'website'")
-        if parser.meta.get("og:locale", []) != ["uk_UA"]:
-            errors.append(f"{url}: og:locale must be exactly 'uk_UA'")
+        if parser.meta.get("og:locale", []) != [OG_LOCALES[lang]]:
+            errors.append(f"{url}: og:locale must be exactly {OG_LOCALES[lang]!r}")
         if parser.meta.get("og:site_name", []) != ["OutPOSt"]:
             errors.append(f"{url}: og:site_name must be exactly 'OutPOSt'")
 
@@ -499,6 +546,7 @@ def main() -> int:
                     )
             for software in software_apps:
                 if is_lite_software(software,url):
+                    lite_nodes[url] = software
                     continue
                 if software.get("@id") != f"{ORIGIN}/#software" or software.get("url") != f"{ORIGIN}/":
                     errors.append(
@@ -513,9 +561,9 @@ def main() -> int:
 
         if len(web_pages) == 1:
             web_page = web_pages[0]
-            if web_page.get("inLanguage") != "uk":
+            if web_page.get("inLanguage") != lang:
                 errors.append(
-                    f"{url}: JSON-LD WebPage.inLanguage must be 'uk'; "
+                    f"{url}: JSON-LD WebPage.inLanguage must be {lang!r}; "
                     f"got {web_page.get('inLanguage')!r}"
                 )
             if web_page.get("url") != url:
@@ -553,8 +601,8 @@ def main() -> int:
                     )
 
                 expected_software_id = f"{ORIGIN}/#software"
-                if url==ORIGIN+"/bezkoshtovna-programa-dlya-magazynu":
-                    expected_software_id=url+"#lite-software"
+                if url in {LITE_UK, LITE_EN}:
+                    expected_software_id=LITE_UK+"#lite-software"
                     if sum(is_lite_software(software,url) for software in software_apps)!=1:
                         errors.append(f"{url}: expected one identified free Lite software entity")
                 about = web_page.get("about")
@@ -694,6 +742,10 @@ def main() -> int:
                         f"{url}: BreadcrumbList last item must point to the canonical current page"
                     )
 
+    if LITE_EN in sitemap_urls:
+        if LITE_UK not in lite_nodes or LITE_EN not in lite_nodes or lite_nodes[LITE_UK] != lite_nodes[LITE_EN]:
+            errors.append("English Lite SoftwareApplication must exactly reuse the Ukrainian Lite product entity")
+
     guard_unique("title", titles, errors)
     guard_unique("meta description", descriptions, errors)
     guard_unique("H1", h1s, errors)
@@ -719,9 +771,37 @@ def main() -> int:
     print("  homepage social preview and canonical SoftwareApplication image are validated")
     print("  FAQPage schema exactly mirrors visible <details> questions/answers, order-independent")
     print("  visible breadcrumb trails exactly mirror JSON-LD BreadcrumbList names, positions and URLs")
-    print("  JSON-LD WebPage nodes mirror canonical/title/meta description and use inLanguage=uk")
+    print("  JSON-LD WebPage nodes mirror canonical/title/meta description and use the reviewed page language")
     return 0
 
 
+def test_locale_contract() -> None:
+    uk_only = {ORIGIN + "/", LITE_UK}
+    active = uk_only | {LITE_EN}
+    def verify(url, urls, langs, alternates, valid):
+        errors: list[str] = []
+        check_locale(url, urls, langs, alternates, errors)
+        if bool(errors) == valid:
+            raise AssertionError(f"locale regression: {url}, {langs}, {alternates}, {errors}")
+    pair = sorted([("uk", LITE_UK), ("en", LITE_EN)])
+    verify(LITE_UK, uk_only, ["uk"], [], True)
+    verify(LITE_UK, uk_only, ["uk"], pair, False)
+    verify(LITE_UK, active, ["uk"], pair, True)
+    verify(LITE_EN, active, ["en"], pair, True)
+    verify(LITE_EN, active, ["uk"], pair, False)
+    verify(LITE_EN, active, ["en"], [("en", LITE_EN)], False)
+    verify(LITE_EN, active, ["en"], pair + [("en", LITE_EN)], False)
+    verify(LITE_EN, active - {LITE_UK}, ["en"], pair, False)
+    verify(ORIGIN + "/en/unknown", active, ["en"], [], False)
+    verify(ORIGIN + "/", active, ["uk"], pair, False)
+    parser = SeoParser()
+    parser.feed('<html lang="en"><link rel="alternate" hreflang="en" href="' + LITE_EN +
+                '"><link rel="alternate" hreflang="uk" href="' + LITE_UK + '">')
+    parser.close()
+    verify(LITE_EN, active, parser.html_languages, parser.alternates, True)
+    print("  locale contract: 11 synthetic cases passed")
+
+
 if __name__ == "__main__":
+    test_locale_contract()
     sys.exit(main())

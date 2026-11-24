@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import re
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 
@@ -54,7 +55,7 @@ def sitemap_pages() -> list[tuple[str, Path]]:
             html_path = SITE / "index.html"
         else:
             slug = path.strip("/")
-            if not slug or "/" in slug:
+            if not re.fullmatch(r"(?:[a-z0-9-]+|en/[a-z0-9-]+)", slug) or path != "/" + slug:
                 raise GuardError(f"unsupported sitemap path shape: {loc}")
             html_path = SITE / f"{slug}.html"
 
