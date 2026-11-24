@@ -19,9 +19,13 @@ SITEMAP = SITE / "sitemap.xml"
 ORIGIN = "https://outpost.com.ua"
 LITE_UK = ORIGIN + "/bezkoshtovna-programa-dlya-magazynu"
 LITE_EN = ORIGIN + "/en/lite"
-# Only this reviewed pair is reserved for the first localization rollout.
-# It is inactive until the English URL actually enters the sitemap.
-LOCALE_PAIRS = ({ "uk": LITE_UK, "en": LITE_EN },)
+# Reviewed pairs activate independently only when their English URL enters the sitemap.
+HOME_UK = ORIGIN + "/"
+HOME_EN = ORIGIN + "/en"
+LOCALE_PAIRS = (
+    {"uk": LITE_UK, "en": LITE_EN},
+    {"uk": HOME_UK, "en": HOME_EN},
+)
 OG_LOCALES = {"uk": "uk_UA", "en": "en_US"}
 
 
@@ -31,6 +35,8 @@ def locale_contract(url: str, sitemap_urls: set[str]) -> tuple[str, list[tuple[s
             continue
         lang = next(lang for lang, target in pair.items() if target == url)
         if pair["en"] not in sitemap_urls:
+            if lang == "en":
+                raise ValueError("English URL is not active in sitemap")
             return lang, []
         if not set(pair.values()).issubset(sitemap_urls):
             raise ValueError("localized URL is missing its Ukrainian equivalent in sitemap")
@@ -799,7 +805,22 @@ def test_locale_contract() -> None:
                 '"><link rel="alternate" hreflang="uk" href="' + LITE_UK + '">')
     parser.close()
     verify(LITE_EN, active, parser.html_languages, parser.alternates, True)
-    print("  locale contract: 11 synthetic cases passed")
+    home_pair = sorted([("uk", HOME_UK), ("en", HOME_EN)])
+    both = active | {HOME_EN}
+    # Each translation pair must activate independently, with no cross-pair links.
+    verify(HOME_UK, uk_only, ["uk"], [], True)
+    verify(HOME_UK, active, ["uk"], home_pair, False)
+    verify(HOME_EN, active, ["en"], [], False)
+    verify(HOME_UK, both, ["uk"], home_pair, True)
+    verify(HOME_EN, both, ["en"], home_pair, True)
+    verify(LITE_EN, both, ["en"], pair, True)
+    verify(HOME_EN, both, ["en"], pair, False)
+    verify(HOME_EN, both, ["en"], home_pair + pair, False)
+    verify(HOME_EN, both - {HOME_UK}, ["en"], home_pair, False)
+    verify(HOME_UK, both, ["en"], home_pair, False)
+    verify(HOME_EN, both, ["en"], home_pair + [("en", HOME_EN)], False)
+    verify(HOME_EN, both - {LITE_EN}, ["en"], home_pair, True)
+    print("  locale contract: 23 synthetic cases passed")
 
 
 if __name__ == "__main__":
