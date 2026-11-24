@@ -1860,3 +1860,28 @@ test("download page keeps Lite anchor and excludes unused product stylesheet", a
     await context.close();
   }
 });
+
+
+// Compare exact URL keys, not just the underlying pathname; the local test
+// server deliberately uses no-store and cannot measure production cache hits.
+test("home and priority landing pages use a single shared CSS cache key", async ({browser}) => {
+  for (const width of [390,1440]) {
+    const context = await browser.newContext({viewport:{width,height:900}});
+    try {
+      const page = await context.newPage();
+      for (const route of ["/","/features","/modules","/download","/interfeis",
+        "/avtomatyzatsiya-magazynu","/avtomatyzatsiya-zakupivel-i-skladu",
+        "/avtomatyzatsiya-rozdribnoi-torgivli","/bezkoshtovna-programa-dlya-magazynu",
+        "/offline-programa-dlya-magazynu","/license","/support"]) {
+        const response = await page.goto(origin+route,{waitUntil:"load"});
+        expect(response?.ok(),route).toBe(true);
+        const urls = await page.evaluate(() => [...document.styleSheets]
+          .filter(s=>s.href && new URL(s.href).pathname==="/assets/site.css")
+          .map(s=>s.href));
+        expect(urls,route).toEqual([origin+"/assets/site.css"]);
+      }
+    } finally {
+      await context.close();
+    }
+  }
+});
