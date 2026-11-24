@@ -560,6 +560,13 @@ test("Lite landing offers the free product first and preserves the full UBD bene
     await expect(hero).toContainText("Без реєстрації та ліцензійного ключа");
     await expect(hero.locator('a[download]')).toHaveAttribute("href","/downloads/OutPOSt-Lite-Setup-v1.1.1.exe");
     await expect(page.locator(".lite-grid article")).toHaveCount(6);
+    const start=page.locator("#lite-start");
+    await expect(start.locator("ol > li")).toHaveCount(3);
+    await expect(start).toContainText("Lite не формує фіскальні чеки");
+    await expect(start.locator('a[href="/prro"]')).toBeVisible();
+    await expect(start.locator('a[href="/oblik-tovariv-u-magazyni"]')).toBeVisible();
+    await expect(start.locator('a[href="#lite"]')).toBeVisible();
+    await start.screenshot({path:path.join(output,"lite-first-start-"+width+".png")});
     await expect(page.locator("#ubd")).toContainText("чинного посвідчення УБД");
     await expect(page.locator("#ubd")).toContainText("2 роки");
     await expect(page.locator(".feature-tour img")).toHaveCount(4);
@@ -899,6 +906,36 @@ test("online demo is clearly separated from the full desktop product", async ({p
     await expect(page.locator(".about-panel")).toContainText("окрема настільна програма");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
+  }
+});
+
+test("mobile acquisition journey connects homepage, browser demo, Windows editions and Lite", async ({page}) => {
+  test.setTimeout(60_000);
+  for (const width of [320,390]) {
+    await page.setViewportSize({width,height:844});
+    await page.goto(origin + "/", {waitUntil:"domcontentloaded"});
+    await page.locator('.hero-buttons a[href="/demo"]').click();
+    await expect(page).toHaveURL(origin + "/demo");
+    const windows = page.locator('.demo-webbar a[href="/download"]');
+    await expect(windows).toBeVisible();
+    await expect(page.locator(".demo-stability-notice")).toContainText("не відтворює всі можливості");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await windows.click();
+    await expect(page).toHaveURL(origin + "/download");
+    const preview = page.locator('.service-hero-copy a[href="/demo"]');
+    await expect(preview).toBeVisible();
+    await expect(page.locator(".service-hero-copy")).toContainText("Для повної роботи потрібен Windows-ПК.");
+    await preview.click();
+    await expect(page).toHaveURL(origin + "/demo");
+    await page.locator('.demo-webbar a[href="/download"]').click();
+    const editions = page.locator(".download-triple > .download-card-new");
+    await expect(editions).toHaveCount(3);
+    const lite = page.locator('[data-download-product="lite"]');
+    await expect(lite.locator('a[download]')).toHaveAttribute("href", "/downloads/OutPOSt-Lite-Setup-v1.1.1.exe");
+    await lite.locator('a[href="/bezkoshtovna-programa-dlya-magazynu"]').click();
+    await expect(page).toHaveURL(origin + "/bezkoshtovna-programa-dlya-magazynu");
+    await expect(page.locator("#lite-start")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   }
 });
 
