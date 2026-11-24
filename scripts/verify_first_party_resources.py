@@ -165,7 +165,7 @@ class ResourceCollector(HTMLParser):
 
 def check_html(errors: list[str]) -> int:
     count = 0
-    for path in sorted(SITE.glob("*.html")):
+    for path in sorted([*SITE.glob("*.html"), *(SITE / "en").rglob("*.html")]):
         count += 1
         parser = ResourceCollector()
         parser.feed(path.read_text(encoding="utf-8"))

@@ -211,11 +211,116 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest().upper()
 
 
+LITE_PAGE = "bezkoshtovna-programa-dlya-magazynu.html"
+LITE_EN_PAGE = "en/lite.html"
+LITE_ORIGIN = "https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu"
+LITE_INSTALLER_RE = re.compile(rf"OutPOSt-Lite-Setup-v({VERSION_RE})\.exe")
+LITE_CHECKSUM_RE = re.compile(rf"OutPOSt-Lite-Setup-v({VERSION_RE})\.sha256\.txt")
+
+
+def lite_page_errors(text: str, page_name: str, version: str) -> list[str]:
+    """Validate current Lite release references without conflating Retail metadata."""
+    errors: list[str] = []
+    expected = f"https://outpost.com.ua/downloads/OutPOSt-Lite-Setup-v{version}.exe"
+    nodes: list[dict] = []
+
+    def visit(value):
+        if isinstance(value, list):
+            for child in value:
+                visit(child)
+        elif isinstance(value, dict):
+            if value.get("@type") == "SoftwareApplication" and value.get("name") == "OutPOSt Lite":
+                nodes.append(value)
+            for child in value.values():
+                visit(child)
+
+    for raw in re.findall(r'<script\b[^>]*\btype=["\']application/ld\+json["\'][^>]*>([\s\S]*?)</script>', text, re.I):
+        try:
+            visit(json.loads(raw))
+        except json.JSONDecodeError:
+            errors.append(f"site/{page_name}: invalid JSON-LD")
+    if len(nodes) != 1:
+        errors.append(f"site/{page_name}: expected exactly one Lite SoftwareApplication")
+    else:
+        node = nodes[0]
+        expected_fields = {"@id": LITE_ORIGIN + "#lite-software", "url": LITE_ORIGIN,
+                           "softwareVersion": version, "downloadUrl": expected,
+                           "isAccessibleForFree": True}
+        for key, value in expected_fields.items():
+            if node.get(key) != value:
+                errors.append(f"site/{page_name}: Lite {key} differs from reviewed release identity")
+        offer = node.get("offers")
+        if not isinstance(offer, dict) or offer.get("url") != expected or str(offer.get("price")) != "0" or offer.get("priceCurrency") != "UAH":
+            errors.append(f"site/{page_name}: Lite offer is not aligned with free current installer")
+    for pattern in (LITE_INSTALLER_RE, LITE_CHECKSUM_RE):
+        if set(pattern.findall(text)) - {version}:
+            errors.append(f"site/{page_name}: stale Lite artifact reference")
+    # A localized page may use the stable download-section link instead of a
+    # second versioned button; the Ukrainian landing keeps its direct download.
+    direct = f"/downloads/OutPOSt-Lite-Setup-v{version}.exe"
+    hrefs = re.findall(r'<a\b[^>]*\bhref=["\']([^"\']+)["\']', text, re.I)
+    allowed = {direct} if page_name == LITE_PAGE else {direct, "/download#lite-download"}
+    if not allowed.intersection(hrefs):
+        errors.append(f"site/{page_name}: missing current Lite download action")
+    return errors
+
+
+def check_lite_release(download_html: str) -> list[str]:
+    from release_integrity import IntegrityError, load_receipt
+    errors: list[str] = []
+    cards = re.findall(r'<section\b[^>]*data-download-product=["\']lite["\'][^>]*>[\s\S]*?</section>', download_html, re.I)
+    if not cards and not (SITE / LITE_PAGE).exists() and not (SITE / LITE_EN_PAGE).exists():
+        return errors  # Standalone legacy release fixtures without Lite.
+    if len(cards) != 1:
+        return ["site/download.html: expected exactly one Lite download card"]
+    card = cards[0]
+    versions = set(LITE_INSTALLER_RE.findall(card))
+    if len(versions) != 1:
+        return ["site/download.html: expected exactly one current Lite installer version"]
+    version = next(iter(versions))
+    try:
+        receipt = load_receipt(ROOT, "lite", version)
+    except (OSError, ValueError, IntegrityError) as exc:
+        return [f"Lite current release receipt: {exc}"]
+    if set(LITE_CHECKSUM_RE.findall(card)) != {version}:
+        errors.append("site/download.html: Lite checksum link version mismatch")
+    if not re.search(rf"\bOutPOSt Lite\s+{re.escape(version)}\b", card):
+        errors.append("site/download.html: Lite heading version mismatch")
+    if receipt["sha256"].upper() not in {h.upper() for h in HASH_RE.findall(card)}:
+        errors.append("site/download.html: Lite displayed SHA-256 mismatch")
+    for name in (LITE_PAGE, LITE_EN_PAGE):
+        path = SITE / name
+        if not path.is_file():
+            if name == LITE_PAGE:
+                errors.append(f"site/{name}: missing Lite product landing")
+            continue
+        errors.extend(lite_page_errors(read(path), name, version))
+    return errors
+
+
+def check_lite_parity_fixtures() -> list[str]:
+    version = "1.2.3"
+    url = f"https://outpost.com.ua/downloads/OutPOSt-Lite-Setup-v{version}.exe"
+    node = {"@type": "SoftwareApplication", "name": "OutPOSt Lite",
+            "@id": LITE_ORIGIN + "#lite-software", "url": LITE_ORIGIN,
+            "softwareVersion": version, "downloadUrl": url, "isAccessibleForFree": True,
+            "offers": {"url": url, "price": "0", "priceCurrency": "UAH"}}
+    html = '<script type="application/ld+json">' + json.dumps(node) + '</script><a href="/download#lite-download">Download</a>'
+    failures = []
+    if lite_page_errors(html, LITE_EN_PAGE, version):
+        failures.append("Lite parity fixture rejected valid English stable download")
+    for bad in (html.replace("1.2.3", "1.2.2"), html.replace("#lite-software", "#other"),
+                html.replace("/download#lite-download", "/download"), html.replace('"price": "0"', '"price": "1"')):
+        if not lite_page_errors(bad, LITE_EN_PAGE, version):
+            failures.append("Lite parity fixture accepted stale or invalid release data")
+    return failures
+
+
 def full_release_metadata(text: str, page_name: str) -> str:
     """Keep Lite's independently reviewed version out of Full release comparisons."""
-    if page_name != "bezkoshtovna-programa-dlya-magazynu.html":
+    if page_name not in {LITE_PAGE, LITE_EN_PAGE}:
         return text
-    page = "https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu"
+    page = LITE_ORIGIN
 
     def visit(node):
         if isinstance(node, list):
@@ -266,6 +371,8 @@ def main() -> int:
         return 1
 
     download_html = read(DOWNLOAD_PAGE)
+    errors.extend(check_lite_parity_fixtures())
+    errors.extend(check_lite_release(download_html))
     if not CHANGELOG_PAGE.is_file():
         errors.append("site/changelog.html: changelog is missing")
     else:
@@ -378,7 +485,7 @@ def main() -> int:
                     f"site/download.html: structured fileSize is missing for current release {current_version!r}"
                 )
 
-        for html_path in sorted(SITE.glob("*.html")):
+        for html_path in sorted([*SITE.glob("*.html"), *(SITE / "en").rglob("*.html")]):
             text = read(html_path)
 
             visible_current_versions = set(CURRENT_LABEL_RE.findall(text))
@@ -403,7 +510,7 @@ def main() -> int:
                         f"site/{html_path.name}: visible {label} version(s) {stale!r} differ from current {current_version!r}"
                     )
 
-            structured_text = full_release_metadata(text, html_path.name)
+            structured_text = full_release_metadata(text, html_path.relative_to(SITE).as_posix())
             for version in SOFTWARE_VERSION_RE.findall(structured_text):
                 if version != current_version:
                     errors.append(
