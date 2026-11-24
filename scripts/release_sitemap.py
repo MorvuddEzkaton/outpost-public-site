@@ -25,9 +25,18 @@ def _release_date() -> str:
 
 
 def _url_for_html(path: Path) -> str:
-    if path.name == "index.html":
+    # Keep the full public-site-relative path; /en/lite is not /lite.
+    if path.is_absolute():
+        relative = path.relative_to(SITE)
+    elif path.parts and path.parts[0] == "site":
+        relative = path.relative_to("site")
+    else:
+        relative = path
+    if ".." in relative.parts or relative.suffix != ".html":
+        raise ValueError(f"not a public HTML path: {path}")
+    if relative == Path("index.html"):
         return f"{PUBLIC_ORIGIN}/"
-    return f"{PUBLIC_ORIGIN}/{path.stem}"
+    return f"{PUBLIC_ORIGIN}/{relative.with_suffix('').as_posix()}"
 
 
 def _replace_lastmod(text: str, url: str, release_date: str) -> tuple[str, bool]:
