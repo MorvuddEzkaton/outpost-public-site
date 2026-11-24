@@ -799,6 +799,26 @@ def check_demo_runtime_cache(errors: list[str]) -> None:
         errors.append("site/demo.html: demo module cache key must be month-20261018")
 
 
+def check_release_sitemap_route_contract(errors: list[str]) -> None:
+    from release_sitemap import _url_for_html, _replace_lastmod
+
+    cases = {
+        SITE / "index.html": f"{PUBLIC_ORIGIN}/",
+        SITE / "download.html": f"{PUBLIC_ORIGIN}/download",
+        SITE / "en.html": f"{PUBLIC_ORIGIN}/en",
+        SITE / "en/lite.html": f"{PUBLIC_ORIGIN}/en/lite",
+        Path("site/en/lite.html"): f"{PUBLIC_ORIGIN}/en/lite",
+    }
+    for path, expected in cases.items():
+        if _url_for_html(path) != expected:
+            errors.append(f"release sitemap route fixture mismatch: {path} -> {expected}")
+    root_lite = f"<loc>{PUBLIC_ORIGIN}/lite</loc><lastmod>2026-01-01</lastmod>"
+    english_lite = f"<loc>{PUBLIC_ORIGIN}/en/lite</loc><lastmod>2026-01-01</lastmod>"
+    updated, found = _replace_lastmod(root_lite + english_lite, cases[SITE / "en/lite.html"], "2026-02-01")
+    if not found or updated != root_lite + english_lite.replace("2026-01-01", "2026-02-01"):
+        errors.append("release sitemap localized lastmod fixture modified the wrong route")
+
+
 def check_public_html_inventory_contract(errors: list[str]) -> None:
     # Isolated fixture: no real English pages or private files are created.
     with TemporaryDirectory() as directory:
@@ -817,6 +837,7 @@ def main() -> int:
     errors: list[str] = []
 
     check_public_html_inventory_contract(errors)
+    check_release_sitemap_route_contract(errors)
 
     check_required_files(errors)
     html_count = check_html_pages(errors)
