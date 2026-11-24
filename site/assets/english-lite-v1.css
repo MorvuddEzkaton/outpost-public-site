@@ -13,4 +13,14 @@
 .english-lite .lite-section ol{padding-inline-start:24px;line-height:1.7}
 .english-lite .scenario-hero .lite-action.secondary{color:#e3f2ff;border-color:#a7bdd5}
 .english-lite .scenario-hero .lite-action.secondary:hover{color:#102638;background:#e4eef9}
-@media(max-width:600px){.english-lite-nav{align-items:flex-start;flex-direction:column}.english-lite-header nav,.english-lite-footer nav{gap:4px 16px}.english-lite-footer{padding:24px 0}}
+/* Match the shared header's keyboard and mobile toggle contract. */
+.english-lite-header{position:relative;z-index:20}
+.english-lite-nav{flex-wrap:nowrap}
+.english-lite-toggle{display:none;min-height:44px;padding:8px 14px;border:1px solid #a7bdd5;border-radius:8px;background:#17344c;color:#fff;font:inherit;cursor:pointer}
+.english-lite-toggle:focus-visible{outline:3px solid #83cfff;outline-offset:4px}
+@media(max-width:1120px){
+  .english-lite-toggle{display:inline-flex;align-items:center;gap:8px}
+  .english-lite-header nav{display:none}
+  .english-lite-header nav.open{display:flex;position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:stretch;padding:12px 20px;background:#102638;border-bottom:1px solid #47627a;max-height:70vh;overflow-y:auto;box-sizing:border-box}
+}
+@media(max-width:600px){.english-lite-footer nav{gap:4px 16px}.english-lite-footer{padding:24px 0}}
