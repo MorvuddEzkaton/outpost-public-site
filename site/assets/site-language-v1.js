@@ -9,6 +9,7 @@
     "/support": "/en/support",
     "/features": "/en/features",
     "/license": "/en/license",
+    "/oblik-tovariv-u-magazyni": "/en/inventory",
     "/polityka-konfidentsiinosti-lite": "/en/lite-privacy"
   });
   const read = () => { try { return localStorage.getItem(key); } catch (_) { return null; } };
