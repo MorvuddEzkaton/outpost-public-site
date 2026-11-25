@@ -1973,3 +1973,22 @@ test("Utility locale links work when JavaScript or preference storage is unavail
     } finally { await context.close(); }
   }
 });
+
+
+test("English footer navigation keeps translated support and license destinations without JavaScript", async ({browser}) => {
+  const context = await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});
+  try {
+    const page=await context.newPage();
+    for (const route of ["/en","/en/lite","/en/download","/en/support","/en/features","/en/license"]) {
+      await page.goto(origin+route,{waitUntil:"domcontentloaded"});
+      const footer=page.locator("footer");
+      await expect(footer.locator('a[href="/support"],a[href="/license"]')).toHaveCount(0);
+      const links=footer.locator('a[href="/en/support"],a[href="/en/license"]');
+      expect(await links.count(),route).toBeGreaterThan(0);
+      const target=await links.first().getAttribute("href");
+      await links.first().click({timeout:10_000});
+      await expect(page).toHaveURL(origin+target);
+      await expect(page.locator("html")).toHaveAttribute("lang","en");
+    }
+  } finally { await context.close(); }
+});
