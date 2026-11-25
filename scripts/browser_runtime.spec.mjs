@@ -2038,8 +2038,10 @@ for (const width of [320, 390, 1440]) {
       await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
       await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/support");
+      await page.waitForLoadState("load", {timeout:15_000});
       const en = page.locator("main").getByRole("link", { name: "Support in English", exact: true });
-      await en.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await expect(en).toHaveAttribute("href", "/en/support");
+      await expect(en).toBeVisible();
       await en.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/en/support");
     } finally {
