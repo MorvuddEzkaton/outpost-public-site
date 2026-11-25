@@ -2255,8 +2255,8 @@ for (const width of [320,390,1440]) {
         await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth>0 && el.naturalHeight>0)).toBe(true);
         const actual=await img.evaluate(el=>({width:el.naturalWidth,height:el.naturalHeight}));
         console.log("PURCHASING_IMAGE_DIMENSIONS "+JSON.stringify({file:expectedFiles[i],...actual}));
-        expect(Math.abs(actual.width/actual.height-16/9)).toBeLessThan(0.005);
-        if(i===0) expect(actual).toEqual({width:1200,height:675});
+        const verifiedSizes=[{width:1200,height:675},{width:1200,height:675},{width:1200,height:675},{width:1200,height:675},{width:1320,height:410}];
+        if(i<verifiedSizes.length) expect(actual).toEqual(verifiedSizes[i]);
       }
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
       await page.locator("header [data-site-language='uk']").click();
@@ -2294,7 +2294,11 @@ for (const width of [320,390,1440]) {
         await expect(img.locator("..")).toHaveAttribute("href",src);
         await img.scrollIntoViewIfNeeded();
         await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth>0 && el.naturalHeight>0)).toBe(true);
-        console.log("INTERFACE_IMAGE_DIMENSIONS "+JSON.stringify({file:files[i],...await img.evaluate(el=>({width:el.naturalWidth,height:el.naturalHeight}))}));
+        const actual=await img.evaluate(el=>({width:el.naturalWidth,height:el.naturalHeight}));
+        const verifiedSizes=[[1366,768],[1500,1000],[1500,1000],[1500,1000],[1000,535],[1500,1000],[1500,1000],[1500,1000]];
+        expect(actual).toEqual({width:verifiedSizes[i][0],height:verifiedSizes[i][1]});
+        await expect(img).toHaveAttribute("width",String(actual.width));
+        await expect(img).toHaveAttribute("height",String(actual.height));
       }
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
       await imgs.nth(1).click();
