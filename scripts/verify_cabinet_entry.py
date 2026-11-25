@@ -85,7 +85,7 @@ def main() -> int:
         if wrong:
             rendered = ", ".join(repr(href) for href, _ in wrong)
             errors.append(f"{url}: non-canonical Cabinet link(s): {rendered}")
-        label = "customer cabinet" if url in {PUBLIC_ORIGIN + "/en/lite", PUBLIC_ORIGIN + "/en", PUBLIC_ORIGIN + "/en/download", PUBLIC_ORIGIN + "/en/support", PUBLIC_ORIGIN + "/en/features", PUBLIC_ORIGIN + "/en/license"} else "кабінет"
+        label = "customer cabinet" if url in {PUBLIC_ORIGIN + "/en/lite", PUBLIC_ORIGIN + "/en", PUBLIC_ORIGIN + "/en/download", PUBLIC_ORIGIN + "/en/support", PUBLIC_ORIGIN + "/en/features", PUBLIC_ORIGIN + "/en/license", PUBLIC_ORIGIN + "/en/inventory"} else "кабінет"
         if exact and not any(label in text.lower() for _, text in exact):
             errors.append(f"{url}: canonical Cabinet link has no visible {label!r} label")
 

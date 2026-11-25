@@ -2156,3 +2156,39 @@ for (const width of [320, 390, 1440]) {
     }
   });
 }
+
+
+for (const width of [320,390,1440]) {
+  test(`English inventory: stocktake workflow, real screenshots and native flags at ${width}px`, async ({browser}) => {
+    test.setTimeout(60_000);
+    const context=await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
+    try {
+      const page=await context.newPage();
+      const response=await page.goto(origin+"/en/inventory",{waitUntil:"domcontentloaded"});
+      expect(response?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang","en");
+      await expect(page.getByRole("heading",{level:1})).toHaveText("Inventory management and stocktaking for retail shops");
+      await expect(page.locator("#inventory-tour")).toContainText("actual Ukrainian Windows interface");
+      const imgs=page.locator("#inventory-tour img");
+      await expect(imgs).toHaveCount(5);
+      for (let i=0;i<5;i++) {
+        const img=imgs.nth(i);
+        await img.scrollIntoViewIfNeeded();
+        await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth===1000)).toBe(true);
+      }
+      await expect(page.locator("main")).toContainText("Uncounted products are not automatically treated as zero");
+      await expect(page.locator("main")).toContainText("Lot-specific stocktake and physical-package identification are not claimed");
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.locator("header [data-site-language='uk']").click();
+      await expect(page).toHaveURL(origin+"/oblik-tovariv-u-magazyni");
+      await expect(page.locator("header [data-site-language='en']")).toHaveAttribute("href","/en/inventory");
+      await page.locator("header [data-site-language='en']").click();
+      await expect(page).toHaveURL(origin+"/en/inventory");
+      await page.goto(origin+"/en/features");
+      await page.locator('main a[href="/en/inventory#inventory-tour"]').click();
+      await expect(page).toHaveURL(origin+"/en/inventory#inventory-tour");
+    } finally { await context.close(); }
+  });
+}
