@@ -2049,13 +2049,15 @@ for (const width of [320, 390, 1440]) {
 }
 
 
-test("English Retail features retain all ten workflows and native language navigation", async ({ browser }) => {
-  test.setTimeout(90_000);
-  for (const width of [320, 390, 1440]) {
+for (const width of [320, 390, 1440]) {
+  test(`English features: workflows and native language navigation at ${width}px`, async ({ browser }) => {
+    test.setTimeout(60_000);
     const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
     try {
       const page = await context.newPage();
-      const res = await page.goto(origin + "/en/features", { waitUntil: "load" });
+      const res = await page.goto(origin + "/en/features", { waitUntil: "domcontentloaded" });
       expect(res?.status()).toBe(200);
       await expect(page.locator("html")).toHaveAttribute("lang", "en");
       await expect(page.getByRole("heading", { level: 1 })).toHaveText("Explore OutPOSt Retail features");
@@ -2063,15 +2065,19 @@ test("English Retail features retain all ten workflows and native language navig
       await expect(page.getByRole("link", { name: "Explore free Lite", exact: true })).toHaveAttribute("href", "/en/lite");
       await expect(page.locator("section[aria-labelledby='fiscal']")).toContainText("do not establish tax compliance outside Ukraine");
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
-      await page.locator("main").getByRole("link", { name: "Українська", exact: true }).click();
+      const uk = page.locator("main").getByRole("link", { name: "Українська", exact: true });
+      await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/features");
-      await page.locator("main").getByRole("link", { name: "Features in English", exact: true }).click();
+      const en = page.locator("main").getByRole("link", { name: "Features in English", exact: true });
+      await en.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await en.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/en/features");
     } finally {
       await context.close();
     }
-  }
-});
+  });
+}
 
 
 for (const width of [320, 390, 1440]) {
