@@ -1948,3 +1948,36 @@ test("English Lite language links, download and responsive layout work without J
     }
   }
 });
+
+
+test("English homepage edition links, FAQ and language switch work without JavaScript", async ({ browser }) => {
+  test.setTimeout(90_000);
+  for (const width of [320, 390, 1440]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+    try {
+      const page = await context.newPage();
+      const res = await page.goto(origin + "/en", { waitUntil: "load" });
+      expect(res?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("POS and inventory software for everyday retail");
+      await expect(page.locator("#editions article")).toHaveCount(2);
+      await expect(page.locator("#editions article").first()).toContainText("no registration, license key or time limit");
+      await expect(page.locator("#editions article").nth(1)).toContainText("UAH 2,000 per working PC");
+      await expect(page.locator(".lite-faq details")).toHaveCount(16);
+      await page.locator(".lite-faq details summary").first().click();
+      await expect(page.locator(".lite-faq details").first()).toHaveAttribute("open", "");
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.getByRole("link", { name: "Explore free OutPOSt Lite", exact: true }).click();
+      await expect(page).toHaveURL(origin + "/en/lite");
+      await page.locator("main nav.crumbs").getByRole("link", { name: "Home", exact: true }).click();
+      await expect(page).toHaveURL(origin + "/en");
+      await page.locator("main").getByRole("link", { name: "Українська", exact: true }).click();
+      await expect(page).toHaveURL(origin + "/");
+      await expect(page.locator("html")).toHaveAttribute("lang", "uk");
+      await page.locator("main").getByRole("link", { name: "English website", exact: true }).click();
+      await expect(page).toHaveURL(origin + "/en");
+    } finally {
+      await context.close();
+    }
+  }
+});
