@@ -24,3 +24,8 @@
   .english-lite-header nav.open{display:flex;position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:stretch;padding:12px 20px;background:#102638;border-bottom:1px solid #47627a;max-height:70vh;overflow-y:auto;box-sizing:border-box}
 }
 @media(max-width:600px){.english-lite-footer nav{gap:4px 16px}.english-lite-footer{padding:24px 0}}
+
+/* Preserve the actual checkout screenshot's aspect ratio at every viewport. */
+.english-features .feature-preview{margin:0;max-width:900px}
+.english-features .feature-preview img{display:block;width:100%;height:auto;border-radius:12px}
+.english-features .feature-preview figcaption{margin-top:8px;color:#40576c}
