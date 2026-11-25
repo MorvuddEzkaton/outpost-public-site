@@ -16,3 +16,10 @@
 @media(min-width:1121px) and (max-width:1300px){.nav-shell:has(.site-language-switch) .nav{gap:12px;margin-left:0}.nav-shell:has(.site-language-switch) .nav-actions{gap:8px}.nav-shell:has(.site-language-switch) .download-small{padding-inline:12px}}
 @media(max-width:1120px){.nav-shell:has(.site-language-switch){gap:8px}.nav-shell:has(.site-language-switch) .menu-toggle{margin-left:auto}}
 @media(max-width:390px){.site-language-switch{padding:1px}.site-language-switch a{padding:4px}.site-language-flag{width:24px;height:16px}}
+
+/* Utility pages keep their actual language and status; only recovery links follow preference. */
+.modern-demo .demo-webbar>div{flex-wrap:wrap;flex-shrink:1;max-width:100%}
+.modern-demo .demo-webbar .site-language-switch a{min-width:44px;min-height:44px;padding:7px;border-radius:7px}
+.modern-demo .demo-webbar .site-language-switch a[aria-current="true"]{background:#294e6c}
+.modern-demo .demo-webbar .site-language-switch a:hover{background:#315a7a}
+.site-language-error-actions{margin-top:20px;display:flex;justify-content:center}

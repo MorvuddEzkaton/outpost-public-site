@@ -25,7 +25,9 @@
   if (preferred !== "en") return;
   // The actual URL and document language stay authoritative. Preserve deliberate UA links,
   // installer destinations and fragment-specific links. Only map known published pairs.
-  document.querySelectorAll("header a[href], main a[href], footer a[href]").forEach(link => {
+  const recoveryOnly = document.body.hasAttribute("data-site-language-utility");
+  const selector = recoveryOnly ? "a[data-site-language-recovery][href]" : "header a[href], main a[href], footer a[href]";
+  document.querySelectorAll(selector).forEach(link => {
     if (link.hasAttribute("data-site-language") || link.hasAttribute("download") ||
         link.getAttribute("hreflang") === "uk") return;
     const raw = link.getAttribute("href");
