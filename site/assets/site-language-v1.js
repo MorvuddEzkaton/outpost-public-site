@@ -11,6 +11,7 @@
     "/license": "/en/license",
     "/oblik-tovariv-u-magazyni": "/en/inventory",
     "/offline-programa-dlya-magazynu": "/en/offline",
+    "/avtomatyzatsiya-zakupivel-i-skladu": "/en/purchasing",
     "/polityka-konfidentsiinosti-lite": "/en/lite-privacy"
   });
   const read = () => { try { return localStorage.getItem(key); } catch (_) { return null; } };

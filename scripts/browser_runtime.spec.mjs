@@ -2228,3 +2228,39 @@ for (const width of [320,390,1440]) {
     } finally { await context.close(); }
   });
 }
+
+
+for (const width of [320,390,1440]) {
+  test(`English purchasing: partial receipt, six real screens and native flags at ${width}px`, async ({browser}) => {
+    test.setTimeout(60_000);
+    const context=await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
+    try {
+      const page=await context.newPage();
+      const response=await page.goto(origin+"/en/purchasing",{waitUntil:"domcontentloaded"});
+      expect(response?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang","en");
+      await expect(page.getByRole("heading",{level:1})).toHaveText("Purchasing and supplier orders for retail shops");
+      await expect(page.locator("#partial-delivery-example")).toContainText("The other 8 remain outstanding");
+      await expect(page.locator("#replenishment-plan")).toContainText("does not automatically send an order");
+      await expect(page.locator("#purchase-currencies")).toContainText("remain in UAH");
+      const imgs=page.locator("#procurement-workflow img");
+      await expect(imgs).toHaveCount(6);
+      for (let i=0;i<6;i++) {
+        const img=imgs.nth(i);
+        await img.scrollIntoViewIfNeeded();
+        await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth===1920)).toBe(true);
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.locator("header [data-site-language='uk']").click();
+      await expect(page).toHaveURL(origin+"/avtomatyzatsiya-zakupivel-i-skladu");
+      await expect(page.locator("header [data-site-language='en']")).toHaveAttribute("href","/en/purchasing");
+      await page.locator("header [data-site-language='en']").click();
+      await expect(page).toHaveURL(origin+"/en/purchasing");
+      await page.goto(origin+"/en/features");
+      await page.locator('main a[href="/en/purchasing"]').click();
+      await expect(page).toHaveURL(origin+"/en/purchasing");
+    } finally { await context.close(); }
+  });
+}
