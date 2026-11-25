@@ -32,6 +32,8 @@ LICENSE_UK = ORIGIN + "/license"
 LICENSE_EN = ORIGIN + "/en/license"
 INVENTORY_UK = ORIGIN + "/oblik-tovariv-u-magazyni"
 INVENTORY_EN = ORIGIN + "/en/inventory"
+OFFLINE_UK = ORIGIN + "/offline-programa-dlya-magazynu"
+OFFLINE_EN = ORIGIN + "/en/offline"
 LOCALE_PAIRS = (
     {"uk": LITE_UK, "en": LITE_EN},
     {"uk": HOME_UK, "en": HOME_EN},
@@ -40,6 +42,7 @@ LOCALE_PAIRS = (
     {"uk": FEATURES_UK, "en": FEATURES_EN},
     {"uk": LICENSE_UK, "en": LICENSE_EN},
     {"uk": INVENTORY_UK, "en": INVENTORY_EN},
+    {"uk": OFFLINE_UK, "en": OFFLINE_EN},
 )
 OG_LOCALES = {"uk": "uk_UA", "en": "en_US"}
 
@@ -960,7 +963,16 @@ def test_locale_contract() -> None:
     verify(INVENTORY_EN, inventory, ["en"], license_pair, False)
     verify(INVENTORY_EN, inventory - {INVENTORY_UK}, ["en"], inventory_pair, False)
     verify(INVENTORY_EN, inventory, ["uk"], inventory_pair, False)
-    print("  locale contract: 54 synthetic cases passed")
+    offline = inventory | {OFFLINE_UK, OFFLINE_EN}
+    offline_pair = sorted([("uk", OFFLINE_UK), ("en", OFFLINE_EN)])
+    verify(OFFLINE_UK, inventory | {OFFLINE_UK}, ["uk"], [], True)
+    verify(OFFLINE_EN, inventory | {OFFLINE_UK}, ["en"], [], False)
+    verify(OFFLINE_UK, offline, ["uk"], offline_pair, True)
+    verify(OFFLINE_EN, offline, ["en"], offline_pair, True)
+    verify(OFFLINE_EN, offline, ["en"], inventory_pair, False)
+    verify(OFFLINE_EN, offline - {OFFLINE_UK}, ["en"], offline_pair, False)
+    verify(OFFLINE_EN, offline, ["uk"], offline_pair, False)
+    print("  locale contract: 61 synthetic cases passed")
     for url, urls, expected in (
         (LITE_EN, active, HOME_UK),
         (LITE_EN, both, HOME_EN),
