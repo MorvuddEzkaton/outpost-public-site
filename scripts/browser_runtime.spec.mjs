@@ -2013,28 +2013,37 @@ test("English download guide has stable official release destinations and native
 });
 
 
-test("English support has 37 native FAQ answers, safe contacts and language roundtrip", async ({ browser }) => {
-  test.setTimeout(90_000);
-  for (const width of [320, 390, 1440]) {
+for (const width of [320, 390, 1440]) {
+  test(`English support: native FAQ and language roundtrip at ${width}px`, async ({ browser }) => {
+    test.setTimeout(60_000);
     const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
     try {
       const page = await context.newPage();
-      const res = await page.goto(origin + "/en/support", { waitUntil: "load" });
+      const res = await page.goto(origin + "/en/support", { waitUntil: "domcontentloaded" });
       expect(res?.status()).toBe(200);
       await expect(page.locator("html")).toHaveAttribute("lang", "en");
       await expect(page.getByRole("heading", { level: 1 })).toHaveText("OutPOSt support and troubleshooting");
       await expect(page.locator(".lite-faq details")).toHaveCount(37);
       await expect(page.getByRole("link", { name: "Email support", exact: true })).toHaveAttribute("href", "mailto:roman@outpost.com.ua");
       const fiscal = page.locator("details").filter({ hasText: "What if the fiscal result is uncertain?" });
-      await fiscal.locator("summary").click();
+      const summary = fiscal.locator("summary");
+      await summary.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await summary.click({timeout:10_000});
+      await expect(fiscal).toHaveAttribute("open", "");
       await expect(fiscal).toContainText("Do not retry the receipt or return blindly");
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
-      await page.locator("main").getByRole("link", { name: "Українська", exact: true }).click();
+      const uk = page.locator("main").getByRole("link", { name: "Українська", exact: true });
+      await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/support");
-      await page.locator("main").getByRole("link", { name: "Support in English", exact: true }).click();
+      const en = page.locator("main").getByRole("link", { name: "Support in English", exact: true });
+      await en.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await en.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/en/support");
     } finally {
       await context.close();
     }
-  }
-});
+  });
+}
