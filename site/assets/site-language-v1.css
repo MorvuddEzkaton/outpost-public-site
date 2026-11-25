@@ -1,12 +1,12 @@
 /* Shared static language controls: real links, no runtime required. */
-.site-language-switch{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;white-space:nowrap;padding:3px;border:1px solid #668098;border-radius:9px;background:#102638;color:#fff}
-.site-language-switch a{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:38px;padding:5px 7px;border-radius:6px;color:#e3f2ff;text-decoration:none;font:700 12px/1 "Segoe UI",Arial,sans-serif}
+ .site-language-switch{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto;padding:2px;border:1px solid #668098;border-radius:10px;background:#102638;color:#fff}
+.site-language-switch a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:7px;border-radius:7px;color:#e3f2ff;text-decoration:none;box-sizing:border-box}
 .site-language-switch a[aria-current="true"]{background:#294e6c;color:#fff}
 .site-language-switch a:hover{background:#315a7a;color:#fff}
 .site-language-switch a:focus-visible{outline:3px solid #83cfff;outline-offset:2px}
-.site-language-flag{display:block;flex:none;width:17px;height:12px;border-radius:2px;box-shadow:0 0 0 1px #ffffff3b}
-.site-language-flag.ua{background:linear-gradient(#0057b7 0 50%,#ffd700 50% 100%)}
-.site-language-flag.en{background:linear-gradient(90deg,transparent 41%,#c8102e 41% 59%,transparent 59%),linear-gradient(transparent 37%,#c8102e 37% 63%,transparent 63%),linear-gradient(90deg,transparent 33%,#fff 33% 67%,transparent 67%),linear-gradient(transparent 27%,#fff 27% 73%,transparent 73%),linear-gradient(32deg,transparent 42%,#fff 42% 49%,#c8102e 49% 53%,#fff 53% 60%,transparent 60%),linear-gradient(-32deg,transparent 42%,#fff 42% 49%,#c8102e 49% 53%,#fff 53% 60%,transparent 60%),#012169}
+.site-language-flag{display:block;flex:none;width:26px;height:17px;background-size:contain;background-position:center;background-repeat:no-repeat;filter:drop-shadow(0 1px 1px #0005)}
+.site-language-flag.ua{background-image:url("/assets/flag-ua.svg")}
+.site-language-flag.en{background-image:url("/assets/flag-gb.svg")}
 .site-language-privacy{background:#102638;padding:12px 0}
 .site-language-privacy .shell{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .site-language-privacy .brand{color:#fff;text-decoration:none;font-weight:700}
@@ -15,4 +15,4 @@
 .english-lite-header .english-lite-nav:has(.site-language-switch) nav{gap:6px 12px}
 @media(min-width:1121px) and (max-width:1300px){.nav-shell:has(.site-language-switch) .nav{gap:12px;margin-left:0}.nav-shell:has(.site-language-switch) .nav-actions{gap:8px}.nav-shell:has(.site-language-switch) .download-small{padding-inline:12px}}
 @media(max-width:1120px){.nav-shell:has(.site-language-switch){gap:8px}.nav-shell:has(.site-language-switch) .menu-toggle{margin-left:auto}}
-@media(max-width:390px){.site-language-switch a{padding-inline:5px;gap:3px}.site-language-flag{width:15px;height:10px}}
+@media(max-width:390px){.site-language-switch{padding:1px}.site-language-switch a{padding:4px}.site-language-flag{width:24px;height:16px}}
