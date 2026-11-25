@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Read-only production verifier for sitemap canonical/indexability contracts.
 
-Only public outpost.com.ua URLs from the repository sitemap are fetched. The verifier
-checks HTTP 200, exact canonical parity, and absence of noindex in HTML/headers. It
-never calls Cabinet, Director, Sync, D1 or fiscal services.
+Only public outpost.com.ua sitemap URLs and two explicitly reviewed Lite privacy
+policies are fetched. Sitemap pages must return HTTP 200 with their exact canonical
+and no noindex in HTML/headers. Privacy policies must be public but explicitly
+noindex and absent from the sitemap. Never calls protected services.
 """
 
 from __future__ import annotations
@@ -130,6 +131,24 @@ def verify_once(nonce: str) -> tuple[list[str], list[str]]:
         if not errors or not any(item.startswith(f"{url}:") for item in errors):
             verified.append(url)
 
+    # Privacy policies must remain public and readable, but not search landings.
+    for route, lang in (("/polityka-konfidentsiinosti-lite", "uk"), ("/en/lite-privacy", "en")):
+        policy_url = ORIGIN + route
+        if policy_url in urls:
+            errors.append(f"{policy_url}: privacy policy must not be in sitemap")
+        try:
+            status, final, _, html = fetch_public(policy_url, nonce)
+            parser = HeadAudit()
+            parser.feed(html)
+            parsed_final = urlparse(final)
+            if status != 200 or parsed_final.scheme != "https" or parsed_final.netloc != ALLOWED_HOST or parsed_final.path != route:
+                errors.append(f"{policy_url}: expected HTTP 200 at exact public policy route")
+            if parser.languages != [lang] or not any("noindex" in value for value in parser.robots):
+                errors.append(f"{policy_url}: expected {lang} language and HTML noindex")
+            if lang == "en" and parser.canonicals != [policy_url]:
+                errors.append(f"{policy_url}: English policy canonical mismatch")
+        except Exception as exc:
+            errors.append(f"{policy_url}: {exc}")
     return errors, verified
 
 
@@ -146,6 +165,7 @@ def main() -> int:
             print("Live sitemap indexability: PASS")
             print(f"  canonical/indexable public pages verified: {len(last_verified)}")
             print("  HTTP 200 + exact canonical + no noindex in meta/X-Robots-Tag")
+            print("  both Lite policies verified: public, correct language, HTML noindex, outside sitemap")
             print("  cache busting used; protected services were not called")
             return 0
         if attempt < attempts:
