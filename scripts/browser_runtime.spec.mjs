@@ -2038,8 +2038,10 @@ for (const width of [320, 390, 1440]) {
       await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
       await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/support");
+      await page.waitForLoadState("load", {timeout:15_000});
       const en = page.locator("main").getByRole("link", { name: "Support in English", exact: true });
-      await en.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await expect(en).toHaveAttribute("href", "/en/support");
+      await expect(en).toBeVisible();
       await en.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/en/support");
     } finally {
@@ -2069,8 +2071,10 @@ for (const width of [320, 390, 1440]) {
       await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
       await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/features");
+      await page.waitForLoadState("load", {timeout:15_000});
       const en = page.locator("main").getByRole("link", { name: "Features in English", exact: true });
-      await en.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await expect(en).toHaveAttribute("href", "/en/features");
+      await expect(en).toBeVisible();
       await en.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/en/features");
     } finally {
@@ -2102,8 +2106,10 @@ for (const width of [320, 390, 1440]) {
       await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
       await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/license");
+      await page.waitForLoadState("load", {timeout:15_000});
       const en = page.locator("main").getByRole("link", { name: "License in English", exact: true });
-      await en.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await expect(en).toHaveAttribute("href", "/en/license");
+      await expect(en).toBeVisible();
       await en.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/en/license");
     } finally {
