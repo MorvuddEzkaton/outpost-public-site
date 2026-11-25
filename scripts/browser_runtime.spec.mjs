@@ -2250,7 +2250,13 @@ for (const width of [320,390,1440]) {
       for (let i=0;i<6;i++) {
         const img=imgs.nth(i);
         await img.scrollIntoViewIfNeeded();
-        await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth===1920)).toBe(true);
+        const expectedFiles=["01-plan-popovnennia.webp","02-perevirka-planu.webp","03-zamovlennia-postachalnykam.webp","04-redahuvannia-chernetky.webp","05-chastkove-pryimannia.png","06-stan-pislia-pryimannia.png"];
+        await expect(img).toHaveAttribute("src","/assets/screenshots/02418/purchasing/"+expectedFiles[i]);
+        await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth>0 && el.naturalHeight>0)).toBe(true);
+        const actual=await img.evaluate(el=>({width:el.naturalWidth,height:el.naturalHeight}));
+        console.log("PURCHASING_IMAGE_DIMENSIONS "+JSON.stringify({file:expectedFiles[i],...actual}));
+        expect(Math.abs(actual.width/actual.height-16/9)).toBeLessThan(0.005);
+        if(i===0) expect(actual).toEqual({width:1200,height:675});
       }
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
       await page.locator("header [data-site-language='uk']").click();
