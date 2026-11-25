@@ -231,13 +231,13 @@ def main() -> int:
         if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in STALE_PRICE_PATTERNS):
             errors.append(f"{url}: stale 1000-UAH public price marker detected")
 
-        english_page = url in {PUBLIC_ORIGIN + "/en/lite", PUBLIC_ORIGIN + "/en", PUBLIC_ORIGIN + "/en/download", PUBLIC_ORIGIN + "/en/support", PUBLIC_ORIGIN + "/en/features"}
+        english_page = url in {PUBLIC_ORIGIN + "/en/lite", PUBLIC_ORIGIN + "/en", PUBLIC_ORIGIN + "/en/download", PUBLIC_ORIGIN + "/en/support", PUBLIC_ORIGIN + "/en/features", PUBLIC_ORIGIN + "/en/license"}
         price_markers = CURRENT_PRICE_MARKERS + (("UAH 2,000", "UAH 2000", "2,000 UAH", "2000 UAH") if english_page else ())
         support_markers = SUPPORT_MARKERS + (("two years", "2 years") if english_page else ())
         pc_patterns = ONE_PC_PATTERNS + ((r"\b(?:per|one)\s+(?:working\s+)?pc\b",) if english_page else ())
         has_price = any(marker in text for marker in price_markers)
-        if url == PUBLIC_ORIGIN + "/en" and not has_price:
-            errors.append(f"{url}: English homepage must state the current full-edition price")
+        if url in {PUBLIC_ORIGIN + "/en", PUBLIC_ORIGIN + "/en/license"} and not has_price:
+            errors.append(f"{url}: English homepage/license page must state the current full-edition price")
         if has_price:
             price_pages += 1
             if not any(marker in text for marker in support_markers):
