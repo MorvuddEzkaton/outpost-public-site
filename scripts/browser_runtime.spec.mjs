@@ -2038,3 +2038,28 @@ test("English support has 37 native FAQ answers, safe contacts and language roun
     }
   }
 });
+
+
+test("English Retail features retain all ten workflows and native language navigation", async ({ browser }) => {
+  test.setTimeout(90_000);
+  for (const width of [320, 390, 1440]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+    try {
+      const page = await context.newPage();
+      const res = await page.goto(origin + "/en/features", { waitUntil: "load" });
+      expect(res?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Explore OutPOSt Retail features");
+      await expect(page.locator("#feature-topics nav a")).toHaveCount(10);
+      await expect(page.getByRole("link", { name: "Explore free Lite", exact: true })).toHaveAttribute("href", "/en/lite");
+      await expect(page.locator("section[aria-labelledby='fiscal']")).toContainText("do not establish tax compliance outside Ukraine");
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.locator("main").getByRole("link", { name: "Українська", exact: true }).click();
+      await expect(page).toHaveURL(origin + "/features");
+      await page.locator("main").getByRole("link", { name: "Features in English", exact: true }).click();
+      await expect(page).toHaveURL(origin + "/en/features");
+    } finally {
+      await context.close();
+    }
+  }
+});
