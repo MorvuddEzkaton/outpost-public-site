@@ -1,0 +1,24 @@
+{
+  "productId": "9N5K4B1229VC",
+  "locale": "en-US",
+  "productName": "OutPOSt Lite",
+  "fields": {
+    "Description": "OutPOSt Lite helps small shops and independent sellers manage everyday sales and inventory on a Windows PC. Keep products, services, purchases and stock in a local database, without a permanent internet connection.\n\nRecord sales and returns, find products by name, code or barcode, and record cash, card or mixed payments. Track incoming stock and suppliers with purchasing sessions, review basic sales statistics and cash movements, and import or export an Excel product catalog. Create and restore local backups.\n\nLite is free to use with no account, license key or trial deadline. It is designed for one local user and one stock location. Choose an English, Ukrainian or Russian interface, select a base currency and optionally protect access with a PIN.\n\nLite does not print receipts or labels, issue fiscal receipts, integrate card payment terminals, or provide the full edition's online modules and director portal. Recording a payment is not processing it. Check your local fiscal and recordkeeping requirements.\n\nDesigned for Windows 10/11.",
+    "ShortDescription": "Free local POS and inventory software for small shops on Windows. Track sales, returns, stock, purchases and cash without registration or a time limit.",
+    "ProductFeatures1": "Sales and returns with barcode lookup",
+    "ProductFeatures2": "Product and service catalog, prices and stock",
+    "ProductFeatures3": "Supplier purchasing sessions",
+    "ProductFeatures4": "Cash and card payment records and basic statistics",
+    "ProductFeatures5": "Local backup and restore",
+    "ProductFeatures6": "Excel catalog import and export",
+    "ProductFeatures7": "English, Ukrainian and Russian interface; optional PIN",
+    "ProductFeatures8": "One local user and one stock location; no license key or time limit",
+    "SearchTerms1": "point of sale",
+    "SearchTerms2": "inventory management",
+    "SearchTerms3": "retail stock",
+    "SearchTerms4": "sales tracking",
+    "SearchTerms5": "barcode inventory",
+    "SearchTerms6": "purchase management",
+    "SearchTerms7": "offline POS"
+  }
+}
