@@ -1,0 +1,378 @@
+{
+  "schema": 1,
+  "source": "site/support.html",
+  "target": "site/en/support.html",
+  "reviewed": "2026-11-24",
+  "pairs": [
+    {
+      "uk": [
+        "Чи можна користуватися OutPOSt безкоштовно без УБД?",
+        "Так. OutPOSt Lite безкоштовна безстроково для всіх: продажі, закупівлі, товари та послуги, базова статистика, внесення й вилучення готівки, один локальний користувач і склад. Реєстрація та активація не потрібні. Друк, фіскалізація та онлайн-модулі доступні у повному OutPOSt. Можливості й завантаження Lite: https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu"
+      ],
+      "en": [
+        "Can I use OutPOSt for free without Ukrainian veteran status?",
+        "Yes. OutPOSt Lite is free indefinitely for everyone: sales, purchasing, products and services, basic statistics and cash deposits and withdrawals, one local user and one stock location. No registration or activation. Printing, fiscalization and online modules are available in the full edition."
+      ]
+    },
+    {
+      "uk": [
+        "Де налаштувати PIN та як повідомити про помилку Lite?",
+        "PIN можна створити при першому запуску або в налаштуваннях Lite. У зверненні вкажіть назву OutPOSt Lite, номер версії та точний текст помилки. Актуальний інсталятор доступний на сторінці завантаження в окремому блоці OutPOSt Lite."
+      ],
+      "en": [
+        "Where can I set a PIN and how do I report a Lite error?",
+        "Set a PIN on first launch or in Lite settings. Include OutPOSt Lite, its version and the exact error message in your request. The current installer is in the separate Lite download section."
+      ]
+    },
+    {
+      "uk": [
+        "Скільки коштує OutPOSt?",
+        "Повна ліцензія OutPOSt коштує 2000 грн одноразово за один робочий ПК. Ліцензія безстрокова: після завершення періоду підтримки програма не блокується і продовжує працювати."
+      ],
+      "en": [
+        "How much does OutPOSt cost?",
+        "The full license costs UAH 2,000 once per working PC. It is perpetual and remains active after the included support period ends."
+      ]
+    },
+    {
+      "uk": [
+        "Чи безкоштовний OutPOSt для ветеранів війни з УБД?",
+        "Так. Власнику чинного посвідчення УБД надається одна повна безстрокова ліцензія OutPOSt на один робочий ПК безкоштовно. Вона включає ті самі функції та 2 роки технічної підтримки й допомоги. Для додаткових ПК діють стандартні умови. Для отримання пільги потрібно підтвердити статус чинним посвідченням УБД."
+      ],
+      "en": [
+        "Is OutPOSt free for Ukrainian veterans with UBD status?",
+        "A holder of a valid Ukrainian combatant-status certificate (UBD) may receive one free perpetual full license for one working PC after verification. The same functions and two years of technical support are included. Standard terms apply to additional PCs."
+      ]
+    },
+    {
+      "uk": [
+        "На скільки ПК діє ліцензія?",
+        "Одна ліцензія = один робочий ПК. Для кожного додаткового ПК потрібна окрема активація. Для 6 і більше ПК діє знижена ціна, яку погоджуємо індивідуально."
+      ],
+      "en": [
+        "How many computers does a license cover?",
+        "One license covers one working PC. Each additional PC needs its own activation. Discounted terms for six or more PCs are arranged individually."
+      ]
+    },
+    {
+      "uk": [
+        "Чи є щомісячна абонплата?",
+        "За саму ліцензію OutPOSt щомісячної абонплати немає. Сторонні сервіси, якщо вони використовуються, можуть мати власні тарифи та оплачуються окремо."
+      ],
+      "en": [
+        "Is there a monthly subscription?",
+        "There is no monthly subscription for the OutPOSt license itself. Optional third-party services may charge separately."
+      ]
+    },
+    {
+      "uk": [
+        "Скільки діє підтримка?",
+        "Технічна підтримка та допомога включені на 2 роки від видачі стандартної або пільгової ліцензії. Після цього безстрокова ліцензія OutPOSt продовжує працювати."
+      ],
+      "en": [
+        "How long is support included?",
+        "Technical support is included for two years from standard or eligible veteran license issuance. The perpetual license remains valid afterward."
+      ]
+    },
+    {
+      "uk": [
+        "Як перенести ліцензію на інший ПК?",
+        "Активація прив’язана до робочого ПК. Заміна або перенесення активації розглядається індивідуально — натисніть «❓ Не допомогло», оберіть тему звернення та опишіть причину заміни ПК."
+      ],
+      "en": [
+        "How can I move my license to another PC?",
+        "Activation is tied to a working PC. Replacement or transfer is considered individually. Contact support and explain why the PC is being replaced."
+      ]
+    },
+    {
+      "uk": [
+        "Що дає ПРРО в OutPOSt?",
+        "У повній Windows-програмі OutPOSt доступний власний онлайн-ПРРО ДПС: майстер налаштування із шести кроків, файловий КЕП, продажі та повернення, внесення й вилучення готівки, X- і Z-звіти та історія чеків. Підтримуються онлайн-операції у гривні для непідакцизних товарів і послуг. Реєстрація ПРРО та касира в ДПС виконується окремо; офлайн-фіскалізація наразі не підтримується."
+      ],
+      "en": [
+        "What does native PRRO support?",
+        "Full OutPOSt includes an online Ukrainian tax-service PRRO: six-step setup, file-based electronic signature, sales and returns, cash deposits and withdrawals, X/Z reports and receipt history. The supported scenario is online UAH transactions for non-excise goods and services. Register the cash register and cashier separately with the tax service. Offline fiscalization is not supported."
+      ]
+    },
+    {
+      "uk": [
+        "Чи можна працювати з кількома ПРРО / ФОП?",
+        "Архітектура OutPOSt розрахована на роботу з кількома ПРРО та різними суб’єктами господарювання. Конкретну схему кас і правил маршрутизації налаштовуємо під магазин."
+      ],
+      "en": [
+        "Can I use several PRROs or sole proprietorships?",
+        "The architecture supports multiple PRROs and business entities. The specific cash-register arrangement and routing rules are configured for the shop."
+      ]
+    },
+    {
+      "uk": [
+        "Чи потрібен КЕП?",
+        "Так, для власного ПРРО ДПС потрібен файловий КЕП відповідного підписувача та зареєстрована в ДПС каса. У шестиетапному майстрі можна налаштувати ключ і перевірити з’єднання. Підтверджувати кожен чек через Дія.Підпис не потрібно: поточний сценарій використовує файловий ключ. Детальна інструкція доступна на сторінці /prro."
+      ],
+      "en": [
+        "Do I need an electronic signature?",
+        "For native tax-service PRRO, use the appropriate signer's file-based qualified electronic signature and a registered cash register. The six-step wizard allows key configuration and connection checks. The current workflow uses a file key, not a Diia.Signature confirmation for every receipt."
+      ]
+    },
+    {
+      "uk": [
+        "CheckBox чи власний ПРРО OutPOSt?",
+        "Це два окремі способи фіскалізації. Власний ПРРО ДПС уже включений до повної Windows-програми: налаштування за шість кроків, онлайн-чеки, історія та відновлення. CheckBox залишається окремою інтеграцією. Для власного ПРРО потрібні реєстрація в ДПС та файловий КЕП; банківський термінал працює окремо."
+      ],
+      "en": [
+        "CheckBox or native OutPOSt PRRO?",
+        "These are separate fiscal options. Native online PRRO is included in the full Windows application, with setup, history and recovery. CheckBox remains a separate integration. Native PRRO requires tax-service registration and a file-based qualified signature. A bank terminal is separate."
+      ]
+    },
+    {
+      "uk": [
+        "Що робити, якщо фіскалізація не пройшла?",
+        "Спочатку перевірте статус чека в історії ПРРО або черзі РРО. Якщо відповідь ДПС чи апарата невизначена, не створюйте новий чек і не повторюйте відправлення навмання: OutPOSt зберігає стан для звірки й відновлення. За потреби відкрийте «Повідомити про помилку», додайте версію програми, точний текст помилки й статус операції."
+      ],
+      "en": [
+        "What if fiscalization fails?",
+        "Check receipt history or the hardware queue first. If the tax service or device result is uncertain, do not create a new receipt or resend blindly. OutPOSt retains state for reconciliation and recovery. Report the version, exact error and operation status."
+      ]
+    },
+    {
+      "uk": [
+        "Чи підтримує OutPOSt MINI-T400ME?",
+        "Так. OutPOSt керує апаратним MINI-T400ME через USB/COM, підтримує товарні картки, фіскальні продажі, повернення та X/Z-звіти. Якщо потрібно змінити спосіб оплати вже підтвердженого чека, програма проводить пов’язане повернення й автоматично продовжує новий продаж після підтвердження; невідомий результат РРО спочатку потребує звірки."
+      ],
+      "en": [
+        "Does OutPOSt support MINI-T400ME?",
+        "Full OutPOSt controls MINI-T400ME via USB/COM, including products, fiscal sales, returns and X/Z reports. Changing the payment method of a confirmed receipt involves a linked return followed by a new sale after confirmation. Reconcile an unknown device result first."
+      ]
+    },
+    {
+      "uk": [
+        "Що робити, якщо MINI-T400 не визначається?",
+        "Перевірте живлення, кабель і COM-порт. OutPOSt уміє шукати MINI-T400 на доступних COM-портах і типових швидкостях. Якщо підключення не знаходиться — використайте «Повідомити про помилку» і надішліть скріншот."
+      ],
+      "en": [
+        "What if MINI-T400 is not detected?",
+        "Check power, cable and COM port. OutPOSt can search available COM ports and typical connection speeds. If no connection is found, report the error and include a screenshot."
+      ]
+    },
+    {
+      "uk": [
+        "Чи синхронізуються товари та ціни?",
+        "Так. Контур MINI-T400 в OutPOSt передбачає запис товарних даних і перевірку результату після синхронізації, щоб зменшити ризик розбіжностей між програмою та РРО."
+      ],
+      "en": [
+        "Are products and prices synchronized?",
+        "The MINI-T400 workflow writes product data and checks the result after synchronization to reduce discrepancies between software and hardware."
+      ]
+    },
+    {
+      "uk": [
+        "Бухгалтерія вже готова?",
+        "OutPOSt Бухгалтерія доступна для Windows: Windows RC, регресійні перевірки, перевірки інсталятора та відновлення бази — PASS. Файл поки не має Authenticode-підпису, тому можливе попередження SmartScreen."
+      ],
+      "en": [
+        "Is OutPOSt Accounting ready?",
+        "A separate Windows Accounting pre-release is available with successful Windows RC, regression, installer and database recovery checks. The installer is not Authenticode-signed; SmartScreen may warn. Real PC and database acceptance is separate."
+      ]
+    },
+    {
+      "uk": [
+        "За Бухгалтерію буде окрема оплата?",
+        "OutPOSt Бухгалтерія входить до основного пакета OutPOSt без окремої ліцензії на модуль і встановлюється окремою Windows-програмою."
+      ],
+      "en": [
+        "Does Accounting cost extra?",
+        "OutPOSt Accounting is included in the main package without a separate module license and installs as a separate Windows application."
+      ]
+    },
+    {
+      "uk": [
+        "Чи можна передавати дані з OutPOSt?",
+        "Так. Бухгалтерія входить до основного пакета OutPOSt і передбачає імпорт та обмін даними з основною програмою магазину. Є контрольований пакетний імпорт і добровільний фоновий режим, поки відкрита програма; отримані дані проводяться окремою дією бухгалтера, неоднозначні події залишаються на перевірці."
+      ],
+      "en": [
+        "Can data be transferred from Retail?",
+        "Yes. The separate Accounting application supports import and exchange with Retail through controlled batch import and optional background operation while the application is open. Received records require a separate posting action by the accountant; ambiguous events stay under review."
+      ]
+    },
+    {
+      "uk": [
+        "Чи підходить Бухгалтерія для ФОП?",
+        "Так, Бухгалтерія призначена також для обліку ФОП і роздрібного магазину. Вона не є повним комплексом української регламентованої звітності, КЕП чи подання декларацій: потрібні форми й спосіб звітування перевіряйте окремо."
+      ],
+      "en": [
+        "Is Accounting suitable for Ukrainian sole proprietors?",
+        "It is intended for accounting records of Ukrainian sole proprietors and retail shops as well. It is not a complete regulated reporting, electronic signature or tax-return filing suite; verify required forms and reporting methods separately."
+      ]
+    },
+    {
+      "uk": [
+        "Що таке локальний Кабінет директора?",
+        "У OutPOSt є окремий локальний робочий простір для активного Головного адміністратора. Він має 10 розділів: огляд, динаміка, товари, категорії, продавці, каса, залишки, борги, зарплатня та локальний стан мережі."
+      ],
+      "en": [
+        "What is the local director workspace?",
+        "A separate local workspace inside OutPOSt for the active chief administrator, with ten areas: overview, trends, products, categories, cashiers, cash, stock, debts, payroll and local network status."
+      ]
+    },
+    {
+      "uk": [
+        "Кабінет директора і вебкабінет — це одне й те саме?",
+        "Ні. Локальний Кабінет директора працює всередині Windows-програми. Окремий вебкабінет і мережевий контур призначені для read-only перегляду агрегованого стану та не замінюють локальний директорський робочий простір."
+      ],
+      "en": [
+        "Are the local director workspace and web cabinet the same?",
+        "No. The local director workspace is part of the Windows application. The separate web cabinet and network workflow provide read-only aggregate viewing and do not replace it."
+      ]
+    },
+    {
+      "uk": [
+        "Як працює зарплатня продавців?",
+        "Управлінська зарплатня може поєднувати ставку за період, місяць, день, годину або зміну, відсоток від чистої виручки, валового прибутку чи оплат, прогресивні діапазони, план, премії, утримання, аванси та межі. Робочий час прив’язаний до працівника, який відкрив касову зміну. Це не податковий або регламентований кадровий розрахунок."
+      ],
+      "en": [
+        "How does cashier payroll work?",
+        "Managerial payroll can combine period, monthly, daily, hourly or shift rates; percentages of net revenue, gross profit or payments; progressive ranges, targets, bonuses, deductions, advances and limits. Work time is tied to the employee who opened the cash shift. This is not statutory payroll or tax calculation."
+      ]
+    },
+    {
+      "uk": [
+        "Чи може продавець сам виплатити собі зарплатню з каси?",
+        "За замовчуванням — ні. Самовиплату може окремо дозволити лише Головний адміністратор. Тоді потрібні власна відкрита зміна та право вилучення коштів; продавцю доступний лише власний сьогоднішній розрахунок. Зміна суми потребує причини, а виплата — явного підтвердження."
+      ],
+      "en": [
+        "Can cashiers pay themselves from the cash register?",
+        "Not by default. Only the chief administrator can separately permit self-payment. The cashier then needs their own open shift and cash-withdrawal permission, and can view only their own current-day calculation. A changed amount needs a reason, and payment requires explicit confirmation."
+      ]
+    },
+    {
+      "uk": [
+        "Що таке еАкциз / XTrace в OutPOSt?",
+        "У OutPOSt є необов’язковий read-only Sandbox-модуль еАкциз / XTrace: контрольоване читання ЕО, об’єктів, довідників і одинична інформаційна перевірка електронної марки. Production і віддалені записи заблоковані."
+      ],
+      "en": [
+        "What is eExcise / XTrace in OutPOSt?",
+        "An optional read-only Sandbox module for controlled reading of economic operators, objects and reference data, plus single-mark informational verification. Production and remote writes are blocked."
+      ]
+    },
+    {
+      "uk": [
+        "Чи працюватиме сканування Data Matrix?",
+        "Одинична перевірка електронної марки інтегрована у вікно марок. Вона працює як інформаційна read-only перевірка й не активує або погашає марку та не надсилає АЕД."
+      ],
+      "en": [
+        "Does Data Matrix scanning work?",
+        "Single electronic-mark verification is integrated in the mark window. It is informational and read-only; it does not activate or redeem a mark or send an electronic excise document."
+      ]
+    },
+    {
+      "uk": [
+        "Чи вже можна підключати еАкциз?",
+        "Не як production-підключення. Є локальний read-only Sandbox-контур; для повного авторизованого приймання потрібен свіжий Sandbox-токен. POST/PUT/PATCH/DELETE і production-середовище залишаються заблокованими."
+      ],
+      "en": [
+        "Can I connect eExcise now?",
+        "Not as a production connection. A local read-only Sandbox workflow is available; full authorized acceptance requires a current Sandbox token. POST, PUT, PATCH, DELETE and production remain blocked."
+      ]
+    },
+    {
+      "uk": [
+        "Де завантажити останню версію?",
+        "Офіційні інсталятори повного OutPOSt, безкоштовної OutPOSt Lite та Бухгалтерії є на https://outpost.com.ua/download. Для повного OutPOSt також працює універсальне посилання https://outpost.com.ua/setup/OutPOSt-Setup.exe, яке отримує актуальну збірку. У Telegram-боті можна відкрити «⬇️ Поточні версії» й перейти до завантаження відповідного продукту."
+      ],
+      "en": [
+        "Where can I download the latest version?",
+        "The official download page provides Retail, free Lite and separate Accounting installers. The universal Retail downloader retrieves the current build. The Telegram bot also has a current versions menu."
+      ]
+    },
+    {
+      "uk": [
+        "Як дізнаватися про нові версії?",
+        "У повній Windows-програмі OutPOSt натисніть номер версії, щоб відкрити Центр оновлення. Нові версії перевіряються за підписаними метаданими; за сумісності завантажуються тільки змінені файли, а повний інсталятор залишається резервним способом встановлення. Автооновлення можна вимкнути; застосування відбувається під час безпечного штатного виходу. Також доступна сторінка https://outpost.com.ua/download, а в Telegram-боті можна натиснути «🔔 Оновлення програм» → «🔔 Підписатися», щоб отримувати повідомлення про нові версії."
+      ],
+      "en": [
+        "How do I learn about new versions?",
+        "In full OutPOSt, click the version number to open the Update Center. It checks signed metadata and downloads changed files when compatible, retaining a full installer fallback. Automatic updates can be disabled; application takes place during safe normal exit. Official downloads and optional Telegram update notifications are also available."
+      ]
+    },
+    {
+      "uk": [
+        "Чи варто робити резервну копію перед оновленням?",
+        "Так, для власного відновлення й відкату це правильна практика. В актуальному OutPOSt механізм встановлення більше не вимагає створення додаткової повної копії бази перед оновленням. Звичайні резервні копії працюють окремо й не скасовуються. Після оновлення база й локальна безстрокова ліцензія залишаються на ПК."
+      ],
+      "en": [
+        "Should I back up before updating?",
+        "Yes. Keep a verified backup for recovery and rollback. Current Retail installation no longer requires an additional full database archive before updating; ordinary backups remain separate. The local database and perpetual license remain on the PC."
+      ]
+    },
+    {
+      "uk": [
+        "Що робити, якщо вимкнули світло й основний касовий ПК недоступний?",
+        "Якщо резервна каса OutPOSt була підготовлена заздалегідь, на телефоні можна знайти товари за локальним каталогом, перевірити останню синхронізовану ціну, сформувати кошик і зберегти резервний запис. Коли Windows-каса знову працюватиме, записи потрібно звірити й опрацювати в основній програмі."
+      ],
+      "en": [
+        "What if a power cut makes the main checkout PC unavailable?",
+        "If reserve checkout was prepared in advance, a phone can search the local catalog, show the last synchronized price, build a basket and save a reserve record. Reconcile and process records in the main application when the Windows checkout returns."
+      ]
+    },
+    {
+      "uk": [
+        "Чи працює резервна каса без мобільного Інтернету?",
+        "Після попереднього завантаження каталог зберігається на телефоні й може бути доступний при тимчасовій втраті зв’язку. Резервні записи зберігаються локально до синхронізації. Без попередньої підготовки гарантувати наявність каталогу не можна; після відновлення зв’язку перевірте час останнього оновлення."
+      ],
+      "en": [
+        "Does reserve checkout work without mobile internet?",
+        "After prior preparation, the catalog is stored on the phone and may remain available during temporary connectivity loss. Reserve records stay local until synchronization. Availability is not guaranteed without prior preparation. Check the last update time when connectivity returns."
+      ]
+    },
+    {
+      "uk": [
+        "Чи є резервний запис фіскальним чеком?",
+        "Ні. Резервний запис із телефона не є фіскальним чеком і не замінює РРО або ПРРО. Перш ніж переносити чи проводити операцію після відновлення основної каси, звірте її стан та фіскальний статус, щоб уникнути дублювання продажу або повторної фіскалізації."
+      ],
+      "en": [
+        "Is a reserve checkout record a fiscal receipt?",
+        "No. A phone reserve record is not a fiscal receipt and does not replace RRO or PRRO. Reconcile transaction and fiscal status before processing it in the main checkout to avoid duplicate sales or fiscalization."
+      ]
+    },
+    {
+      "uk": [
+        "Як правильно повідомити про помилку?",
+        "Натисніть «Повідомити про помилку» і одним повідомленням вкажіть версію OutPOSt, що саме робили та точний текст помилки. Скріншот або файл можна прикріпити до повідомлення."
+      ],
+      "en": [
+        "How do I report an error?",
+        "Use the report-error option or contact official support. In one message include the version, what you were doing and the exact error text. Attach a screenshot or diagnostic file if useful, after checking for sensitive information."
+      ]
+    },
+    {
+      "uk": [
+        "Які дані корисно додати до звернення?",
+        "Вкажіть версію OutPOSt, точний текст помилки, що саме робили безпосередньо перед нею, і за можливості додайте скріншот. Для MINI‑T400ME також корисні COM-порт і результат перевірки зв’язку."
+      ],
+      "en": [
+        "What information should I include?",
+        "Provide the OutPOSt edition and version, exact error text, actions immediately before it and a screenshot if possible. For MINI-T400ME also include the COM port and connection-check result."
+      ]
+    },
+    {
+      "uk": [
+        "Чи потрібно надсилати робочу базу магазину?",
+        "Зазвичай ні. Діагностичний пакет і текстове звернення мають спочатку дати достатньо технічної інформації без передачі товарів, клієнтів, PIN, секретів або повної SQLite-бази."
+      ],
+      "en": [
+        "Do I need to send my shop database?",
+        "Usually no. Start with a diagnostic package and technical description. Do not send products, customer records, PINs, secrets or a complete SQLite database unless a specific need and secure transfer have been agreed."
+      ]
+    },
+    {
+      "uk": [
+        "Що робити при невизначеному фіскальному результаті?",
+        "Не повторюйте чек або повернення навмання. Спочатку перевірте стан черги/recovery та зафіксуйте текст помилки. Для фіскальних інтеграцій важливо встановити, чи документ уже був створений зовнішнім сервісом або РРО."
+      ],
+      "en": [
+        "What if the fiscal result is uncertain?",
+        "Do not retry the receipt or return blindly. Check the queue or recovery state and record the error. First determine whether the external fiscal service or hardware already created the document."
+      ]
+    }
+  ]
+}

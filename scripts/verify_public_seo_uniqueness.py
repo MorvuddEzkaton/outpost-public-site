@@ -24,10 +24,13 @@ HOME_UK = ORIGIN + "/"
 HOME_EN = ORIGIN + "/en"
 DOWNLOAD_UK = ORIGIN + "/download"
 DOWNLOAD_EN = ORIGIN + "/en/download"
+SUPPORT_UK = ORIGIN + "/support"
+SUPPORT_EN = ORIGIN + "/en/support"
 LOCALE_PAIRS = (
     {"uk": LITE_UK, "en": LITE_EN},
     {"uk": HOME_UK, "en": HOME_EN},
     {"uk": DOWNLOAD_UK, "en": DOWNLOAD_EN},
+    {"uk": SUPPORT_UK, "en": SUPPORT_EN},
 )
 OG_LOCALES = {"uk": "uk_UA", "en": "en_US"}
 
@@ -68,6 +71,59 @@ def breadcrumb_home(url: str, sitemap_urls: set[str]) -> str:
     if url != HOME_EN and urlparse(url).path.startswith("/en/") and HOME_EN in sitemap_urls:
         return HOME_EN
     return HOME_UK
+
+
+def support_faq_review_errors(manifest: dict, source_pairs: list[tuple[str, str]],
+                              target_pairs: list[tuple[str, str]]) -> list[str]:
+    """Require explicit one-to-one review of both languages, not just equal counts."""
+    if not isinstance(manifest, dict) or manifest.get("schema") != 1 or (
+        manifest.get("source"), manifest.get("target")
+    ) != ("site/support.html", "site/en/support.html"):
+        return ["support FAQ review manifest schema or paths are invalid"]
+    entries = manifest.get("pairs")
+    if not isinstance(entries, list) or not entries:
+        return ["support FAQ review manifest has no pairs"]
+    reviewed = {"uk": [], "en": []}
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {"uk", "en"}:
+            return ["support FAQ review manifest contains an invalid entry"]
+        for lang in reviewed:
+            pair = entry[lang]
+            if not isinstance(pair, list) or len(pair) != 2 or not all(
+                isinstance(value, str) and value.strip() for value in pair
+            ):
+                return ["support FAQ review manifest contains an invalid question/answer"]
+            reviewed[lang].append(tuple(re.sub(r"\s+", " ", value).strip() for value in pair))
+    errors = []
+    for lang, actual in (("uk", source_pairs), ("en", target_pairs)):
+        if len({question for question, _ in reviewed[lang]}) != len(reviewed[lang]):
+            errors.append(f"support FAQ review: duplicate {lang} question")
+        if Counter(reviewed[lang]) != Counter(actual):
+            errors.append(f"support FAQ review: {lang} content changed; review and update the paired translation manifest")
+    return errors
+
+
+def test_support_faq_review() -> None:
+    sample = {"schema": 1, "source": "site/support.html", "target": "site/en/support.html",
+              "pairs": [{"uk": ["Q1", "A1"], "en": ["E1", "T1"]},
+                        {"uk": ["Q2", "A2"], "en": ["E2", "T2"]}]}
+    uk = [("Q1", "A1"), ("Q2", "A2")]
+    en = [("E1", "T1"), ("E2", "T2")]
+    cases = [
+        (sample, uk, en, True),
+        (sample, uk[::-1], en[::-1], True),
+        (sample, [("Q1", "new"), uk[1]], en, False),
+        (sample, uk, [("E1", "new"), en[1]], False),
+        (sample, uk + [("Q3", "A3")], en, False),
+        (sample, uk, en[:1], False),
+        ({**sample, "pairs": [sample["pairs"][0]] * 2}, uk, en, False),
+        ({**sample, "schema": 2}, uk, en, False),
+        ({**sample, "pairs": [{"uk": ["Q1"], "en": ["E1", "T1"]}]}, uk, en, False),
+    ]
+    for manifest, source, target, valid in cases:
+        if bool(support_faq_review_errors(manifest, source, target)) == valid:
+            raise AssertionError("support FAQ review fixture mismatch")
+    print("  support FAQ review: 9 synthetic cases passed")
 
 
 def is_lite_software(node: dict, page_url: str) -> bool:
@@ -313,6 +369,7 @@ def main() -> int:
     errors: list[str] = []
     routes = sitemap_routes(errors)
     sitemap_urls = {url for url, _ in routes}
+    support_pairs: dict[str, list[tuple[str, str]]] = {}
 
     canonical_website: dict | None = None
     canonical_software: dict | None = None
@@ -681,6 +738,9 @@ def main() -> int:
                         )
                     )
 
+            if url in {SUPPORT_UK, SUPPORT_EN}:
+                support_pairs[url] = structured_pairs
+
             visible_pairs = [
                 (
                     re.sub(r"\s+", " ", question).strip(),
@@ -772,6 +832,16 @@ def main() -> int:
         if LITE_UK not in lite_nodes or LITE_EN not in lite_nodes or lite_nodes[LITE_UK] != lite_nodes[LITE_EN]:
             errors.append("English Lite SoftwareApplication must exactly reuse the Ukrainian Lite product entity")
 
+    if SUPPORT_EN in sitemap_urls:
+        try:
+            manifest = json.loads((ROOT / "docs/localization/support-faq-reviewed.json").read_text(encoding="utf-8"))
+            if SUPPORT_UK not in support_pairs or SUPPORT_EN not in support_pairs:
+                errors.append("support FAQ review: both languages require structured FAQ content")
+            else:
+                errors.extend(support_faq_review_errors(manifest, support_pairs[SUPPORT_UK], support_pairs[SUPPORT_EN]))
+        except (OSError, ValueError) as exc:
+            errors.append(f"support FAQ review manifest cannot be read: {exc}")
+
     guard_unique("title", titles, errors)
     guard_unique("meta description", descriptions, errors)
     guard_unique("H1", h1s, errors)
@@ -848,7 +918,15 @@ def test_locale_contract() -> None:
     verify(DOWNLOAD_EN, downloads, ["en"], download_pair, True)
     verify(DOWNLOAD_EN, downloads, ["en"], home_pair, False)
     verify(DOWNLOAD_EN, downloads - {DOWNLOAD_UK}, ["en"], download_pair, False)
-    print("  locale contract: 29 synthetic cases passed")
+    support = downloads | {SUPPORT_UK, SUPPORT_EN}
+    support_pair = sorted([("uk", SUPPORT_UK), ("en", SUPPORT_EN)])
+    verify(SUPPORT_UK, downloads | {SUPPORT_UK}, ["uk"], [], True)
+    verify(SUPPORT_EN, downloads | {SUPPORT_UK}, ["en"], [], False)
+    verify(SUPPORT_UK, support, ["uk"], support_pair, True)
+    verify(SUPPORT_EN, support, ["en"], support_pair, True)
+    verify(SUPPORT_EN, support, ["en"], download_pair, False)
+    verify(SUPPORT_EN, support - {SUPPORT_UK}, ["en"], support_pair, False)
+    print("  locale contract: 35 synthetic cases passed")
     for url, urls, expected in (
         (LITE_EN, active, HOME_UK),
         (LITE_EN, both, HOME_EN),
@@ -861,5 +939,6 @@ def test_locale_contract() -> None:
 
 
 if __name__ == "__main__":
+    test_support_faq_review()
     test_locale_contract()
     sys.exit(main())
