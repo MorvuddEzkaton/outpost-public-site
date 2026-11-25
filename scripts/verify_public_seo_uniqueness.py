@@ -36,6 +36,8 @@ OFFLINE_UK = ORIGIN + "/offline-programa-dlya-magazynu"
 OFFLINE_EN = ORIGIN + "/en/offline"
 PURCHASING_UK = ORIGIN + "/avtomatyzatsiya-zakupivel-i-skladu"
 PURCHASING_EN = ORIGIN + "/en/purchasing"
+INTERFACE_UK = ORIGIN + "/interfeis"
+INTERFACE_EN = ORIGIN + "/en/interface"
 LOCALE_PAIRS = (
     {"uk": LITE_UK, "en": LITE_EN},
     {"uk": HOME_UK, "en": HOME_EN},
@@ -46,6 +48,7 @@ LOCALE_PAIRS = (
     {"uk": INVENTORY_UK, "en": INVENTORY_EN},
     {"uk": OFFLINE_UK, "en": OFFLINE_EN},
     {"uk": PURCHASING_UK, "en": PURCHASING_EN},
+    {"uk": INTERFACE_UK, "en": INTERFACE_EN},
 )
 OG_LOCALES = {"uk": "uk_UA", "en": "en_US"}
 
@@ -984,7 +987,16 @@ def test_locale_contract() -> None:
     verify(PURCHASING_EN, purchasing, ["en"], offline_pair, False)
     verify(PURCHASING_EN, purchasing - {PURCHASING_UK}, ["en"], purchasing_pair, False)
     verify(PURCHASING_EN, purchasing, ["uk"], purchasing_pair, False)
-    print("  locale contract: 68 synthetic cases passed")
+    interface = purchasing | {INTERFACE_UK, INTERFACE_EN}
+    interface_pair = sorted([("uk", INTERFACE_UK), ("en", INTERFACE_EN)])
+    verify(INTERFACE_UK, purchasing | {INTERFACE_UK}, ["uk"], [], True)
+    verify(INTERFACE_EN, purchasing | {INTERFACE_UK}, ["en"], [], False)
+    verify(INTERFACE_UK, interface, ["uk"], interface_pair, True)
+    verify(INTERFACE_EN, interface, ["en"], interface_pair, True)
+    verify(INTERFACE_EN, interface, ["en"], purchasing_pair, False)
+    verify(INTERFACE_EN, interface - {INTERFACE_UK}, ["en"], interface_pair, False)
+    verify(INTERFACE_EN, interface, ["uk"], interface_pair, False)
+    print("  locale contract: 75 synthetic cases passed")
     for url, urls, expected in (
         (LITE_EN, active, HOME_UK),
         (LITE_EN, both, HOME_EN),

@@ -187,7 +187,7 @@ def validate_page(path: Path) -> list[str]:
     except Exception as exc:
         return [f"site/{path.name}: HTML parser error: {exc}"]
 
-    expected_lang = "en" if path in {SITE / "en.html", SITE / "en/lite.html", SITE / "en/lite-privacy.html", SITE / "en/download.html", SITE / "en/support.html", SITE / "en/features.html", SITE / "en/license.html", SITE / "en/inventory.html", SITE / "en/offline.html", SITE / "en/purchasing.html"} else "uk"
+    expected_lang = "en" if path in {SITE / "en.html", SITE / "en/lite.html", SITE / "en/lite-privacy.html", SITE / "en/download.html", SITE / "en/support.html", SITE / "en/features.html", SITE / "en/license.html", SITE / "en/inventory.html", SITE / "en/offline.html", SITE / "en/purchasing.html", SITE / "en/interface.html"} else "uk"
     if parser.html_lang != expected_lang:
         errors.append(f"site/{path.name}: <html lang> must be {expected_lang!r}, got {parser.html_lang!r}")
 

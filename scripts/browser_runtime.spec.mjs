@@ -2270,3 +2270,43 @@ for (const width of [320,390,1440]) {
     } finally { await context.close(); }
   });
 }
+
+
+for (const width of [320,390,1440]) {
+  test(`English interface: eight native screenshot links and flags at ${width}px`, async ({browser}) => {
+    test.setTimeout(60_000);
+    const context=await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
+    try {
+      const page=await context.newPage();
+      const response=await page.goto(origin+"/en/interface",{waitUntil:"domcontentloaded"});
+      expect(response?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang","en");
+      await expect(page.getByRole("heading",{level:1})).toHaveText("See OutPOSt Retail in action");
+      await expect(page.locator("main")).toContainText("historical screenshots show the Ukrainian Windows interface");
+      const imgs=page.locator("#interface-gallery img");
+      const files=["02410/overview.webp","02410/sales.webp","02410/products.webp","02410/purchases.webp","02415/inventory/03-filtered-count.webp","02410/customers.webp","02410/finance.webp","02410/reports.webp"];
+      await expect(imgs).toHaveCount(files.length);
+      for(let i=0;i<files.length;i++){
+        const img=imgs.nth(i), src="/assets/screenshots/"+files[i];
+        await expect(img).toHaveAttribute("src",src);
+        await expect(img.locator("..")).toHaveAttribute("href",src);
+        await img.scrollIntoViewIfNeeded();
+        await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth>0 && el.naturalHeight>0)).toBe(true);
+        console.log("INTERFACE_IMAGE_DIMENSIONS "+JSON.stringify({file:files[i],...await img.evaluate(el=>({width:el.naturalWidth,height:el.naturalHeight}))}));
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await imgs.nth(1).click();
+      await expect(page).toHaveURL(origin+"/assets/screenshots/"+files[1]);
+      await page.goto(origin+"/en/interface");
+      await page.locator("header [data-site-language='uk']").click();
+      await expect(page).toHaveURL(origin+"/interfeis");
+      await page.locator("header [data-site-language='en']").click();
+      await expect(page).toHaveURL(origin+"/en/interface");
+      await page.goto(origin+"/en/features");
+      await page.locator('main a[href="/en/interface"]').click();
+      await expect(page).toHaveURL(origin+"/en/interface");
+    } finally { await context.close(); }
+  });
+}
