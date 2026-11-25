@@ -4,7 +4,7 @@
 Read-only safety model:
 - reads local site/sitemap.xml;
 - performs GET requests only to public https://outpost.com.ua sitemap pages;
-- requires HTTP 200 and a direct href="/support" marker on every page;
+- requires HTTP 200 and a direct locale-matched Support Center anchor on every page;
 - retries briefly for Cloudflare deployment/cache propagation;
 - does not call Cabinet, Worker APIs, D1, Director, Sync, PRRO or fiscal services.
 """
@@ -23,7 +23,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 SITEMAP = ROOT / "site" / "sitemap.xml"
-SUPPORT_MARKER = 'href="/support"'
+from verify_support_discovery import has_support_link, support_target, check_contract
 USER_AGENT = "OutPOSt-Live-Support-Discovery-Verifier/1.0"
 
 
@@ -101,8 +101,8 @@ def verify_once(urls: list[str]) -> list[str]:
     for url in urls:
         try:
             html = fetch_page(url)
-            if SUPPORT_MARKER not in html:
-                issues.append(f"missing direct /support link: {url}")
+            if not has_support_link(url, html):
+                issues.append(f"missing direct {support_target(url)} link: {url}")
         except VerifyError as exc:
             issues.append(str(exc))
     return issues
@@ -110,6 +110,7 @@ def verify_once(urls: list[str]) -> list[str]:
 
 def main() -> int:
     try:
+        check_contract()
         urls = sitemap_urls()
         attempts = int_env("OUTPOST_LIVE_SUPPORT_ATTEMPTS", 4, 1)
         delay_seconds = int_env("OUTPOST_LIVE_SUPPORT_DELAY_SECONDS", 5, 0)
@@ -120,7 +121,7 @@ def main() -> int:
             if not last_issues:
                 print("OutPOSt live Support Center discovery verifier: PASS")
                 print(f"  public sitemap pages checked: {len(urls)}")
-                print(f"  direct /support links present: {len(urls)}/{len(urls)}")
+                print(f"  direct locale-matched support links present: {len(urls)}/{len(urls)}")
                 print("  protected application services were not called")
                 return 0
 

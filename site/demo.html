@@ -10,16 +10,19 @@
 <title>OutPOSt — онлайн-демо</title>
 <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png"/>
 <link rel="stylesheet" href="/assets/outpost-demo-v1.css?v=month-20261018"/>
+<link rel="stylesheet" href="/assets/site-language-v1.css"/>
+<script defer src="/assets/site-language-v1.js"></script>
 </head>
-<body class="modern-demo">
+<body class="modern-demo" data-site-language-utility>
 <a class="skip-link" href="#demo-main">До демо</a>
 
 <div class="demo-webbar">
   <span><strong>Онлайн-демо OutPOSt</strong> · preview, не версія Windows · зміни зберігаються тільки у браузері</span>
   <div>
-    <a href="/">На сайт</a>
-    <a href="/download">Версії Windows</a>
+    <a href="/" data-site-language-recovery>На сайт</a>
+    <a href="/download" data-site-language-recovery>Версії Windows</a>
     <button type="button" data-reset-demo>Скинути демо</button>
+    <div class="site-language-switch" role="group" aria-label="Мова сайту"><a href="/demo" lang="uk" hreflang="uk" data-site-language="uk" aria-label="Українська" aria-current="true"><span class="site-language-flag ua" aria-hidden="true"></span></a><a href="/en" lang="en" hreflang="en" data-site-language="en" aria-label="English"><span class="site-language-flag en" aria-hidden="true"></span></a></div>
   </div>
 </div>
 

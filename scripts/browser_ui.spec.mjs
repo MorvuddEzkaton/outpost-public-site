@@ -1893,3 +1893,102 @@ test("priority landings preserve Windows download and expose contextual browser 
     }
   } finally {await noJs.close();}
 });
+
+
+for (const width of [320, 390, 1440]) {
+  test(`Locale recovery from Ukrainian demo and HTTP 404 at ${width}px`, async ({browser}) => {
+    test.setTimeout(90_000);
+    const context = await browser.newContext({viewport:{width,height:900}});
+    try {
+      const page = await context.newPage();
+      await page.goto(origin + "/en");
+      context.setDefaultTimeout(10_000);
+      context.setDefaultNavigationTimeout(15_000);
+      const demoLink = page.locator('main a[href="/demo"]').first();
+      await expect(demoLink).toBeVisible();
+      await demoLink.click();
+      await expect(page).toHaveURL(origin + "/demo");
+      await expect(page.locator("html")).toHaveAttribute("lang","uk");
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+      await expect(page.locator(".demo-stability-notice")).toBeVisible();
+      const top = page.locator(".demo-webbar");
+      await expect(top.locator('a[data-site-language-recovery][href="/en"]')).toBeVisible();
+      await expect(top.locator('a[data-site-language-recovery][href="/en/download"]')).toBeVisible();
+      await expect(top.locator('[data-site-language="en"]')).toHaveAttribute("href","/en");
+      await expect(top.locator('[data-reset-demo]')).toBeVisible();
+      const fit = await top.evaluate(el => [...el.querySelectorAll("a,button")].every(a => {
+        const box = a.getBoundingClientRect();
+        return box.left >= -1 && box.right <= innerWidth + 1;
+      }));
+      expect(fit).toBe(true);
+      await top.locator('a[data-site-language-recovery][href="/en/download"]').click();
+      await expect(page).toHaveURL(origin + "/en/download");
+      await page.goto(origin + "/demo");
+      await Promise.all([
+        page.waitForNavigation({waitUntil:"load"}),
+        top.locator('[data-site-language="uk"]').click()
+      ]);
+      await expect(page).toHaveURL(origin + "/demo");
+      await expect(top.locator('a[data-site-language-recovery][href="/download"]')).toBeVisible();
+      expect(await page.evaluate(() => localStorage.getItem("outpost.site.language.v1"))).toBe("uk");
+      await top.locator('[data-site-language="en"]').click();
+      await expect(page).toHaveURL(origin + "/en");
+      const missing = origin + "/locale-recovery-not-found-test";
+      const response = await page.goto(missing);
+      expect(response?.status()).toBe(404);
+      await expect(page).toHaveURL(missing);
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+      await expect(page.locator("html")).toHaveAttribute("lang","uk");
+      await expect(page.locator('main .button[data-site-language-recovery]')).toHaveAttribute("href","/en");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.locator('main .button[data-site-language-recovery]').click();
+      await expect(page).toHaveURL(origin + "/en");
+      await page.goto(missing);
+      await page.locator('[data-site-language="uk"]').click();
+      await expect(page).toHaveURL(origin + "/");
+      expect(await page.evaluate(() => localStorage.getItem("outpost.site.language.v1"))).toBe("uk");
+    } finally { await context.close(); }
+  });
+}
+
+test("Utility locale links work when JavaScript or preference storage is unavailable", async ({browser}) => {
+  for (const javaScriptEnabled of [false,true]) {
+    const context = await browser.newContext({javaScriptEnabled,viewport:{width:390,height:844}});
+    try {
+      if (javaScriptEnabled) await context.addInitScript(() => {
+        Object.defineProperty(window, "localStorage", {get(){throw new Error("Storage unavailable");}});
+      });
+      const page = await context.newPage();
+      const response = await page.goto(origin + "/locale-recovery-not-found-test");
+      expect(response?.status()).toBe(404);
+      await expect(page.locator('main .button[data-site-language-recovery]')).toHaveAttribute("href","/");
+      await page.locator('[data-site-language="en"]').click();
+      await expect(page).toHaveURL(origin + "/en");
+      if (!javaScriptEnabled) {
+        await page.goto(origin + "/demo");
+        await expect(page.locator('.demo-webbar [data-site-language="en"]')).toHaveAttribute("href","/en");
+        await page.locator('.demo-webbar [data-site-language="en"]').click();
+        await expect(page).toHaveURL(origin + "/en");
+      }
+    } finally { await context.close(); }
+  }
+});
+
+
+test("English footer navigation keeps translated support and license destinations without JavaScript", async ({browser}) => {
+  const context = await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});
+  try {
+    const page=await context.newPage();
+    for (const route of ["/en","/en/lite","/en/download","/en/support","/en/features","/en/license"]) {
+      await page.goto(origin+route,{waitUntil:"domcontentloaded"});
+      const footer=page.locator("footer");
+      await expect(footer.locator('a[href="/support"],a[href="/license"]')).toHaveCount(0);
+      const links=footer.locator('a[href="/en/support"],a[href="/en/license"]');
+      expect(await links.count(),route).toBeGreaterThan(0);
+      const target=await links.first().getAttribute("href");
+      await links.first().click({timeout:10_000});
+      await expect(page).toHaveURL(origin+target);
+      await expect(page.locator("html")).toHaveAttribute("lang","en");
+    }
+  } finally { await context.close(); }
+});

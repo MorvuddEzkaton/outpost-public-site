@@ -11,16 +11,19 @@
   <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
   <link rel="shortcut icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/site-language-v1.css"/>
+  <script defer src="/assets/site-language-v1.js"></script>
 </head>
-<body class="error-page">
+<body class="error-page" data-site-language-utility>
   <main id="main">
-    <a href="/" aria-label="OutPOSt — на головну">
+    <a href="/" data-site-language-recovery aria-label="OutPOSt — на головну">
       <img src="/assets/outpost-logo.png" width="72" height="72" alt="Логотип OutPOSt">
     </a>
     <span>Помилка 404</span>
     <h1>Сторінку не знайдено</h1>
     <p>Можливо, адресу введено з помилкою або сторінку було переміщено. Поверніться на головну сторінку OutPOSt.</p>
-    <a class="button button-primary" href="/">Повернутися на головну</a>
+    <a class="button button-primary" href="/" data-site-language-recovery>Повернутися на головну</a>
+    <div class="site-language-error-actions"><div class="site-language-switch" role="group" aria-label="Мова сайту"><a href="/" lang="uk" hreflang="uk" data-site-language="uk" aria-label="Українська"><span class="site-language-flag ua" aria-hidden="true"></span></a><a href="/en" lang="en" hreflang="en" data-site-language="en" aria-label="English"><span class="site-language-flag en" aria-hidden="true"></span></a></div></div>
   </main>
 </body>
 </html>

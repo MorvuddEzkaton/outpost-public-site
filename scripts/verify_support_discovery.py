@@ -2,13 +2,14 @@
 """Require every public sitemap page to expose the Support Center directly.
 
 Read-only guard. It parses site/sitemap.xml, maps each public URL to its static
-HTML source and requires an href="/support" marker. It does not call production,
+HTML source and requires a native link to the matching language Support Center. It does not call production,
 Cabinet, Worker APIs, D1, Director, Sync, PRRO or fiscal services.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from html.parser import HTMLParser
 import sys
 import re
 from urllib.parse import urlparse
@@ -18,7 +19,45 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 SITEMAP = SITE / "sitemap.xml"
-SUPPORT_MARKER = 'href="/support"'
+def support_target(url: str) -> str:
+    path = urlparse(url).path
+    return "/en/support" if path == "/en" or path.startswith("/en/") else "/support"
+
+
+class SupportLinkCollector(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.links: set[str] = set()
+
+    def handle_starttag(self, tag, attrs) -> None:
+        values = dict(attrs)
+        if tag == "a" and "data-site-language" not in values and values.get("href"):
+            self.links.add(values["href"])
+
+
+def has_support_link(url: str, html: str) -> bool:
+    collector = SupportLinkCollector()
+    collector.feed(html)
+    return support_target(url) in collector.links
+
+
+def check_contract() -> None:
+    root = "https://outpost.com.ua"
+    cases = (
+        ("/", '<a href="/support">Підтримка</a>', True),
+        ("/download", '<a href="/en/support">Support</a>', False),
+        ("/en", '<a href="/en/support">Support</a>', True),
+        ("/en/features", '<a href="/support">Support (Ukrainian)</a>', False),
+        ("/en/support", '<a href="/en/support" aria-current="page">Support</a>', True),
+        ("/en/support", '<a href="/en/support" data-site-language="en">English</a>', False),
+        ("/en/lite", '<!-- <a href="/en/support">Support</a> -->', False),
+        ("/en/lite", '<script>const x = \'href="/en/support"\';</script>', False),
+        ("/en/lite", '<a href="/en/support-extra">Support</a>', False),
+    )
+    for path, html, expected in cases:
+        if has_support_link(root + path, html) != expected:
+            raise GuardError(f"Support Center locale contract failed: {path} {html!r}")
+
 
 
 class GuardError(RuntimeError):
@@ -70,22 +109,23 @@ def sitemap_pages() -> list[tuple[str, Path]]:
 
 def main() -> int:
     try:
+        check_contract()
         pages = sitemap_pages()
         missing: list[str] = []
 
         for loc, html_path in pages:
             html = html_path.read_text(encoding="utf-8")
-            if SUPPORT_MARKER not in html:
-                missing.append(f"{loc} ({html_path.relative_to(ROOT)})")
+            if not has_support_link(loc, html):
+                missing.append(f"{loc} ({html_path.relative_to(ROOT)}): expected {support_target(loc)}")
 
         if missing:
             print(f"Support Center discovery guard: FAIL ({len(missing)} page(s))", file=sys.stderr)
             for item in missing:
-                print(f"  - missing href=\"/support\": {item}", file=sys.stderr)
+                print(f"  - missing direct localized support link: {item}", file=sys.stderr)
             return 1
 
         print("Support Center discovery guard: PASS")
-        print(f"  sitemap pages with direct /support discovery: {len(pages)}/{len(pages)}")
+        print(f"  sitemap pages with direct locale-matched support discovery: {len(pages)}/{len(pages)}")
         print("  protected application services were not called")
         return 0
 
