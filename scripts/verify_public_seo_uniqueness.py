@@ -28,12 +28,15 @@ SUPPORT_UK = ORIGIN + "/support"
 SUPPORT_EN = ORIGIN + "/en/support"
 FEATURES_UK = ORIGIN + "/features"
 FEATURES_EN = ORIGIN + "/en/features"
+LICENSE_UK = ORIGIN + "/license"
+LICENSE_EN = ORIGIN + "/en/license"
 LOCALE_PAIRS = (
     {"uk": LITE_UK, "en": LITE_EN},
     {"uk": HOME_UK, "en": HOME_EN},
     {"uk": DOWNLOAD_UK, "en": DOWNLOAD_EN},
     {"uk": SUPPORT_UK, "en": SUPPORT_EN},
     {"uk": FEATURES_UK, "en": FEATURES_EN},
+    {"uk": LICENSE_UK, "en": LICENSE_EN},
 )
 OG_LOCALES = {"uk": "uk_UA", "en": "en_US"}
 
@@ -937,7 +940,15 @@ def test_locale_contract() -> None:
     verify(FEATURES_EN, features, ["en"], feature_pair, True)
     verify(FEATURES_EN, features, ["en"], support_pair, False)
     verify(FEATURES_EN, features - {FEATURES_UK}, ["en"], feature_pair, False)
-    print("  locale contract: 41 synthetic cases passed")
+    licenses = features | {LICENSE_UK, LICENSE_EN}
+    license_pair = sorted([("uk", LICENSE_UK), ("en", LICENSE_EN)])
+    verify(LICENSE_UK, features | {LICENSE_UK}, ["uk"], [], True)
+    verify(LICENSE_EN, features | {LICENSE_UK}, ["en"], [], False)
+    verify(LICENSE_UK, licenses, ["uk"], license_pair, True)
+    verify(LICENSE_EN, licenses, ["en"], license_pair, True)
+    verify(LICENSE_EN, licenses, ["en"], feature_pair, False)
+    verify(LICENSE_EN, licenses - {LICENSE_UK}, ["en"], license_pair, False)
+    print("  locale contract: 47 synthetic cases passed")
     for url, urls, expected in (
         (LITE_EN, active, HOME_UK),
         (LITE_EN, both, HOME_EN),
