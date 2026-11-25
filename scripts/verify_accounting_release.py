@@ -133,16 +133,17 @@ def guard_primary_accounting_navigation(errors: list[str]) -> int:
         page_text = target.read_text(encoding="utf-8")
         if f'src="{SCRIPT_SRC}"' not in page_text:
             errors.append(f"{pathname}: primary page does not load cache-busted Accounting-safe shared runtime {SCRIPT_SRC}")
-        english_lite = pathname == "/en/lite"
-        # English Lite has its own responsive primary header with the same direct product links.
-        nav_pattern = re.compile(r'<nav\b(?=[^>]*\bid="english-lite-nav")(?=[^>]*\bdata-nav\b)[^>]*>.*?</nav>', re.DOTALL) if english_lite else NAV_RE
+        english_nav_id = {"/en/lite": "english-lite-nav", "/en": "english-home-nav"}.get(pathname)
+        english_page = english_nav_id is not None
+        # Reviewed English pages have responsive primary headers with the same direct product links.
+        nav_pattern = re.compile(r'<nav\b(?=[^>]*\bid="' + re.escape(english_nav_id) + r'")(?=[^>]*\bdata-nav\b)[^>]*>.*?</nav>', re.DOTALL) if english_page else NAV_RE
         nav_match = nav_pattern.search(page_text)
         if not nav_match:
             errors.append(f"{pathname}: primary site-nav not found")
             continue
         nav = nav_match.group(0)
-        accounting_pattern = re.compile(r'<a\b(?=[^>]*\bhref="/buhgalteriya")(?=[^>]*\bhreflang="uk")[^>]*>\s*Accounting \(UA\)\s*</a>') if english_lite else ACCOUNTING_NAV_RE
-        prro_pattern = re.compile(r'<a\b(?=[^>]*\bhref="/prro")(?=[^>]*\bhreflang="uk")[^>]*>\s*Fiscal \(UA\)\s*</a>') if english_lite else PRIMARY_PRRO_RE
+        accounting_pattern = re.compile(r'<a\b(?=[^>]*\bhref="/buhgalteriya")(?=[^>]*\bhreflang="uk")[^>]*>\s*Accounting \(UA\)\s*</a>') if english_page else ACCOUNTING_NAV_RE
+        prro_pattern = re.compile(r'<a\b(?=[^>]*\bhref="/prro")(?=[^>]*\bhreflang="uk")[^>]*>\s*Fiscal \(UA\)\s*</a>') if english_page else PRIMARY_PRRO_RE
         accounting = list(accounting_pattern.finditer(nav))
         prro = list(prro_pattern.finditer(nav))
         if len(accounting) != 1:
@@ -156,7 +157,7 @@ def guard_primary_accounting_navigation(errors: list[str]) -> int:
         more_pos = nav.find('class="nav-more')
         if more_pos >= 0 and accounting[0].start() > more_pos:
             errors.append(f"{pathname}: Бухгалтерія is hidden inside/after Ще instead of primary navigation")
-        has_current = (bool(re.search(r'<a\b(?=[^>]*\bhref="/buhgalteriya")(?=[^>]*\baria-current="page")[^>]*>', nav)) if english_lite else bool(CURRENT_ACCOUNTING_NAV_RE.search(nav)))
+        has_current = (bool(re.search(r'<a\b(?=[^>]*\bhref="/buhgalteriya")(?=[^>]*\baria-current="page")[^>]*>', nav)) if english_page else bool(CURRENT_ACCOUNTING_NAV_RE.search(nav)))
         if has_current != (pathname == "/buhgalteriya"):
             errors.append(f"{pathname}: Бухгалтерія aria-current='page' state is incorrect")
         checked += 1

@@ -98,7 +98,7 @@ def verify_once(urls: list[str]) -> list[str]:
         if wrong:
             rendered = ", ".join(repr(href) for href, _ in wrong)
             errors.append(f"{url}: non-canonical Cabinet link(s): {rendered}")
-        label = "customer cabinet" if url == PUBLIC_ORIGIN + "/en/lite" else "кабінет"
+        label = "customer cabinet" if url in {PUBLIC_ORIGIN + "/en/lite", PUBLIC_ORIGIN + "/en"} else "кабінет"
         if exact and not any(label in text.lower() for _, text in exact):
             errors.append(f"{url}: canonical Cabinet link has no visible {label!r} label")
     return errors
