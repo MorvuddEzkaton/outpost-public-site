@@ -1934,7 +1934,7 @@ test("English Lite language links, download and responsive layout work without J
       await expect(download).toBeVisible();
       await expect(download).toHaveAttribute("href", "/download#lite-download");
       await expect(page.locator('link[rel="alternate"][hreflang="uk"]')).toHaveAttribute("href", "https://outpost.com.ua/bezkoshtovna-programa-dlya-magazynu");
-      const langLink = page.locator("main").getByRole("link", { name: "Українська", exact: true });
+      const langLink = page.locator("header [data-site-language='uk']");
       await expect(langLink).toBeVisible();
       // DOM geometry is measured through the test runner, not site runtime code.
       const widthInfo = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
@@ -1942,7 +1942,7 @@ test("English Lite language links, download and responsive layout work without J
       await langLink.click();
       await expect(page).toHaveURL(origin + "/bezkoshtovna-programa-dlya-magazynu");
       await expect(page.locator("html")).toHaveAttribute("lang", "uk");
-      await expect(page.getByRole("link", { name: "English version", exact: true })).toHaveAttribute("href", "/en/lite");
+      await expect(page.locator("header [data-site-language='en']")).toHaveAttribute("href", "/en/lite");
     } finally {
       await context.close();
     }
@@ -1971,10 +1971,10 @@ test("English homepage edition links, FAQ and language switch work without JavaS
       await expect(page).toHaveURL(origin + "/en/lite");
       await page.locator("main nav.crumbs").getByRole("link", { name: "Home", exact: true }).click();
       await expect(page).toHaveURL(origin + "/en");
-      await page.locator("main").getByRole("link", { name: "Українська", exact: true }).click();
+      await page.locator("header [data-site-language='uk']").click();
       await expect(page).toHaveURL(origin + "/");
       await expect(page.locator("html")).toHaveAttribute("lang", "uk");
-      await page.locator("main").getByRole("link", { name: "English website", exact: true }).click();
+      await page.locator("header [data-site-language='en']").click();
       await expect(page).toHaveURL(origin + "/en");
     } finally {
       await context.close();
@@ -2000,9 +2000,9 @@ test("English download guide has stable official release destinations and native
       await expect(page.locator("#accounting-download a[href='/buhgalteriya#accounting-download']")).toHaveCount(1);
       await expect(page.locator(".lite-faq details")).toHaveCount(6);
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
-      await page.locator("main").getByRole("link", { name: "Українська", exact: true }).click();
+      await page.locator("header [data-site-language='uk']").click();
       await expect(page).toHaveURL(origin + "/download");
-      await page.locator("main").getByRole("link", { name: "Downloads in English", exact: true }).click();
+      await page.locator("header [data-site-language='en']").click();
       await expect(page).toHaveURL(origin + "/en/download");
       await page.locator("#lite-download a[href='/download#lite-download']").click();
       await expect(page).toHaveURL(origin + "/download#lite-download");
@@ -2034,12 +2034,11 @@ for (const width of [320, 390, 1440]) {
       await expect(fiscal).toHaveAttribute("open", "");
       await expect(fiscal).toContainText("Do not retry the receipt or return blindly");
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
-      const uk = page.locator("main").getByRole("link", { name: "Українська", exact: true });
-      await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      const uk = page.locator("header [data-site-language='uk']");
       await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/support");
       await page.waitForLoadState("load", {timeout:15_000});
-      const en = page.locator("main").getByRole("link", { name: "Support in English", exact: true });
+      const en = page.locator("header [data-site-language='en']");
       await expect(en).toHaveAttribute("href", "/en/support");
       await expect(en).toBeVisible();
       await en.click({timeout:10_000});
@@ -2067,12 +2066,11 @@ for (const width of [320, 390, 1440]) {
       await expect(page.getByRole("link", { name: "Explore free Lite", exact: true })).toHaveAttribute("href", "/en/lite");
       await expect(page.locator("section[aria-labelledby='fiscal']")).toContainText("do not establish tax compliance outside Ukraine");
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
-      const uk = page.locator("main").getByRole("link", { name: "Українська", exact: true });
-      await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      const uk = page.locator("header [data-site-language='uk']");
       await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/features");
       await page.waitForLoadState("load", {timeout:15_000});
-      const en = page.locator("main").getByRole("link", { name: "Features in English", exact: true });
+      const en = page.locator("header [data-site-language='en']");
       await expect(en).toHaveAttribute("href", "/en/features");
       await expect(en).toBeVisible();
       await en.click({timeout:10_000});
@@ -2102,16 +2100,57 @@ for (const width of [320, 390, 1440]) {
       await expect(page.locator("#license-options article").nth(2)).toContainText("valid Ukrainian combatant-status certificate");
       await expect(page.locator(".lite-faq details")).toHaveCount(7);
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
-      const uk = page.locator("main").getByRole("link", { name: "Українська", exact: true });
-      await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      const uk = page.locator("header [data-site-language='uk']");
       await uk.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/license");
       await page.waitForLoadState("load", {timeout:15_000});
-      const en = page.locator("main").getByRole("link", { name: "License in English", exact: true });
+      const en = page.locator("header [data-site-language='en']");
       await expect(en).toHaveAttribute("href", "/en/license");
       await expect(en).toBeVisible();
       await en.click({timeout:10_000});
       await expect(page).toHaveURL(origin + "/en/license");
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+
+for (const width of [320, 390, 1440]) {
+  test(`Shared flag language choice persists across translated and untranslated pages at ${width}px`, async ({ browser }) => {
+    test.setTimeout(90_000);
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    try {
+      const page = await context.newPage();
+      await page.goto(origin + "/");
+      const en = page.locator("header [data-site-language='en']");
+      await expect(en).toBeVisible();
+      await expect(en).toHaveAttribute("href", "/en");
+      await expect(en).toHaveAttribute("aria-label", "English");
+      await expect(en).toHaveText("");
+      await expect(en.locator(".site-language-flag")).toHaveCSS("background-image", /flag-gb\.svg/);
+      await en.click();
+      await expect(page).toHaveURL(origin + "/en");
+      await expect(page.locator("header [data-site-language='en']")).toHaveAttribute("aria-current", "true");
+      await expect.poll(() => page.evaluate(() => localStorage.getItem("outpost.site.language.v1"))).toBe("en");
+      await page.locator("main a[href='/en/features']").first().click();
+      await expect(page).toHaveURL(origin + "/en/features");
+      await page.goto(origin + "/prro");
+      await expect(page.locator("html")).toHaveAttribute("lang", "uk");
+      await expect.poll(() => page.evaluate(() => localStorage.getItem("outpost.site.language.v1"))).toBe("en");
+      const translatedNav = page.locator("header [data-nav] a[href='/en/features']").first();
+      await expect(translatedNav).toHaveAttribute("href", "/en/features");
+      await page.reload();
+      await expect.poll(() => page.evaluate(() => localStorage.getItem("outpost.site.language.v1"))).toBe("en");
+      await page.locator("header [data-site-language='uk']").click();
+      await expect(page).toHaveURL(origin + "/prro");
+      await expect.poll(() => page.evaluate(() => localStorage.getItem("outpost.site.language.v1"))).toBe("uk");
+      await expect(page.locator("header [data-nav] a[href='/features']").first()).toHaveAttribute("href", "/features");
+      await page.goto(origin + "/en/lite-privacy");
+      await expect(page.locator("header [data-site-language='uk']")).toHaveAttribute("href", "/polityka-konfidentsiinosti-lite");
+      await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", "noindex");
+      await page.locator("header [data-site-language='uk']").click();
+      await expect(page).toHaveURL(origin + "/polityka-konfidentsiinosti-lite");
     } finally {
       await context.close();
     }
