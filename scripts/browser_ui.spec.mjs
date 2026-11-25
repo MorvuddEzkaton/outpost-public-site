@@ -1902,7 +1902,11 @@ for (const width of [320, 390, 1440]) {
     try {
       const page = await context.newPage();
       await page.goto(origin + "/en");
-      await page.locator('footer a[href="/demo"]').first().click();
+      context.setDefaultTimeout(10_000);
+      context.setDefaultNavigationTimeout(15_000);
+      const demoLink = page.locator('main a[href="/demo"]').first();
+      await expect(demoLink).toBeVisible();
+      await demoLink.click();
       await expect(page).toHaveURL(origin + "/demo");
       await expect(page.locator("html")).toHaveAttribute("lang","uk");
       await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
@@ -1920,7 +1924,10 @@ for (const width of [320, 390, 1440]) {
       await top.locator('a[data-site-language-recovery][href="/en/download"]').click();
       await expect(page).toHaveURL(origin + "/en/download");
       await page.goto(origin + "/demo");
-      await top.locator('[data-site-language="uk"]').click();
+      await Promise.all([
+        page.waitForNavigation({waitUntil:"load"}),
+        top.locator('[data-site-language="uk"]').click()
+      ]);
       await expect(page).toHaveURL(origin + "/demo");
       await expect(top.locator('a[data-site-language-recovery][href="/download"]')).toBeVisible();
       expect(await page.evaluate(() => localStorage.getItem("outpost.site.language.v1"))).toBe("uk");
