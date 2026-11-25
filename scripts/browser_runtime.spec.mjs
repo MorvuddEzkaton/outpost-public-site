@@ -1981,3 +1981,33 @@ test("English homepage edition links, FAQ and language switch work without JavaS
     }
   }
 });
+
+
+test("English download guide has stable official release destinations and native language navigation", async ({ browser }) => {
+  test.setTimeout(90_000);
+  for (const width of [320, 390, 1440]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+    try {
+      const page = await context.newPage();
+      const res = await page.goto(origin + "/en/download", { waitUntil: "load" });
+      expect(res?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Download OutPOSt for Windows");
+      await expect(page.locator("#download-editions article")).toHaveCount(3);
+      await expect(page.locator("#lite-download a[href='/download#lite-download']")).toHaveCount(1);
+      await expect(page.locator("#retail-download a[href='/setup/OutPOSt-Setup.exe']")).toHaveCount(1);
+      await expect(page.locator("#retail-download a[href='/setup/OutPOSt-Setup.sha256.txt']")).toHaveCount(1);
+      await expect(page.locator("#accounting-download a[href='/buhgalteriya#accounting-download']")).toHaveCount(1);
+      await expect(page.locator(".lite-faq details")).toHaveCount(6);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.locator("main").getByRole("link", { name: "Українська", exact: true }).click();
+      await expect(page).toHaveURL(origin + "/download");
+      await page.locator("main").getByRole("link", { name: "Downloads in English", exact: true }).click();
+      await expect(page).toHaveURL(origin + "/en/download");
+      await page.locator("#lite-download a[href='/download#lite-download']").click();
+      await expect(page).toHaveURL(origin + "/download#lite-download");
+    } finally {
+      await context.close();
+    }
+  }
+});

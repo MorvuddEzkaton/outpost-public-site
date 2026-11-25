@@ -22,9 +22,12 @@ LITE_EN = ORIGIN + "/en/lite"
 # Reviewed pairs activate independently only when their English URL enters the sitemap.
 HOME_UK = ORIGIN + "/"
 HOME_EN = ORIGIN + "/en"
+DOWNLOAD_UK = ORIGIN + "/download"
+DOWNLOAD_EN = ORIGIN + "/en/download"
 LOCALE_PAIRS = (
     {"uk": LITE_UK, "en": LITE_EN},
     {"uk": HOME_UK, "en": HOME_EN},
+    {"uk": DOWNLOAD_UK, "en": DOWNLOAD_EN},
 )
 OG_LOCALES = {"uk": "uk_UA", "en": "en_US"}
 
@@ -837,7 +840,15 @@ def test_locale_contract() -> None:
     verify(HOME_UK, both, ["en"], home_pair, False)
     verify(HOME_EN, both, ["en"], home_pair + [("en", HOME_EN)], False)
     verify(HOME_EN, both - {LITE_EN}, ["en"], home_pair, True)
-    print("  locale contract: 23 synthetic cases passed")
+    downloads = both | {DOWNLOAD_UK, DOWNLOAD_EN}
+    download_pair = sorted([("uk", DOWNLOAD_UK), ("en", DOWNLOAD_EN)])
+    verify(DOWNLOAD_UK, both | {DOWNLOAD_UK}, ["uk"], [], True)
+    verify(DOWNLOAD_EN, both | {DOWNLOAD_UK}, ["en"], [], False)
+    verify(DOWNLOAD_UK, downloads, ["uk"], download_pair, True)
+    verify(DOWNLOAD_EN, downloads, ["en"], download_pair, True)
+    verify(DOWNLOAD_EN, downloads, ["en"], home_pair, False)
+    verify(DOWNLOAD_EN, downloads - {DOWNLOAD_UK}, ["en"], download_pair, False)
+    print("  locale contract: 29 synthetic cases passed")
     for url, urls, expected in (
         (LITE_EN, active, HOME_UK),
         (LITE_EN, both, HOME_EN),
