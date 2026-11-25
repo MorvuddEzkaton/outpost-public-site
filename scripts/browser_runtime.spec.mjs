@@ -2072,3 +2072,36 @@ test("English Retail features retain all ten workflows and native language navig
     }
   }
 });
+
+
+for (const width of [320, 390, 1440]) {
+  test(`English license: commercial scope, FAQ and language roundtrip at ${width}px`, async ({ browser }) => {
+    test.setTimeout(60_000);
+    const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
+    try {
+      const page = await context.newPage();
+      const res = await page.goto(origin + "/en/license", { waitUntil: "domcontentloaded" });
+      expect(res?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("OutPOSt Retail license — UAH 2,000 per PC");
+      await expect(page.locator("#license-options article")).toHaveCount(3);
+      await expect(page.locator("#license-options article").first()).toContainText("two years of support");
+      await expect(page.locator("#license-options article").nth(1)).toContainText("Free indefinitely for everyone");
+      await expect(page.locator("#license-options article").nth(2)).toContainText("valid Ukrainian combatant-status certificate");
+      await expect(page.locator(".lite-faq details")).toHaveCount(7);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      const uk = page.locator("main").getByRole("link", { name: "Українська", exact: true });
+      await uk.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await uk.click({timeout:10_000});
+      await expect(page).toHaveURL(origin + "/license");
+      const en = page.locator("main").getByRole("link", { name: "License in English", exact: true });
+      await en.evaluate(el => el.scrollIntoView({block:"center",behavior:"instant"}));
+      await en.click({timeout:10_000});
+      await expect(page).toHaveURL(origin + "/en/license");
+    } finally {
+      await context.close();
+    }
+  });
+}
