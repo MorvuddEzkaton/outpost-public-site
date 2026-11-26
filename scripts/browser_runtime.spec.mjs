@@ -2192,3 +2192,39 @@ for (const width of [320,390,1440]) {
     } finally { await context.close(); }
   });
 }
+
+
+for (const width of [320,390,1440]) {
+  test(`English offline: recovery boundaries, five real screens and native flags at ${width}px`, async ({browser}) => {
+    test.setTimeout(60_000);
+    const context=await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
+    try {
+      const page=await context.newPage();
+      const response=await page.goto(origin+"/en/offline",{waitUntil:"domcontentloaded"});
+      expect(response?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang","en");
+      await expect(page.getByRole("heading",{level:1})).toHaveText("Offline POS software for retail shops");
+      await expect(page.locator("#reserve-cash")).toContainText("A reserve record is not a fiscal receipt.");
+      await expect(page.locator("main")).toContainText("Local checkout does not imply offline fiscalization");
+      await expect(page.locator("main")).toContainText("keep an independent verified backup");
+      const imgs=page.locator("#offline-tour img");
+      await expect(imgs).toHaveCount(5);
+      for (let i=0;i<5;i++) {
+        const img=imgs.nth(i);
+        await img.scrollIntoViewIfNeeded();
+        await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth===(Number(el.getAttribute("width"))))).toBe(true);
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.locator("header [data-site-language='uk']").click();
+      await expect(page).toHaveURL(origin+"/offline-programa-dlya-magazynu");
+      await expect(page.locator("header [data-site-language='en']")).toHaveAttribute("href","/en/offline");
+      await page.locator("header [data-site-language='en']").click();
+      await expect(page).toHaveURL(origin+"/en/offline");
+      await page.goto(origin+"/en/support");
+      await page.locator('main a[href="/en/offline#reserve-cash"]').click();
+      await expect(page).toHaveURL(origin+"/en/offline#reserve-cash");
+    } finally { await context.close(); }
+  });
+}
