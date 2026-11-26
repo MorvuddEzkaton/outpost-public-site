@@ -2255,8 +2255,10 @@ for (const width of [320,390,1440]) {
         await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth>0 && el.naturalHeight>0)).toBe(true);
         const actual=await img.evaluate(el=>({width:el.naturalWidth,height:el.naturalHeight}));
         console.log("PURCHASING_IMAGE_DIMENSIONS "+JSON.stringify({file:expectedFiles[i],...actual}));
-        const verifiedSizes=[{width:1200,height:675},{width:1200,height:675},{width:1200,height:675},{width:1200,height:675},{width:1320,height:410}];
-        if(i<verifiedSizes.length) expect(actual).toEqual(verifiedSizes[i]);
+        const verifiedSizes=[{width:1200,height:675},{width:1200,height:675},{width:1200,height:675},{width:1200,height:675},{width:1320,height:410},{width:1320,height:400}];
+        expect(actual).toEqual(verifiedSizes[i]);
+        await expect(img).toHaveAttribute("width",String(actual.width));
+        await expect(img).toHaveAttribute("height",String(actual.height));
       }
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
       await page.locator("header [data-site-language='uk']").click();
