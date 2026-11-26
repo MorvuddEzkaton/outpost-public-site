@@ -834,9 +834,102 @@ def check_public_html_inventory_contract(errors: list[str]) -> None:
             errors.append(f"public HTML inventory fixture mismatch: {sorted(actual)!r}")
 
 
+def webp_header_dimensions(data: bytes) -> tuple[int, int] | None:
+    """Read declared WebP canvas dimensions, not decoded image quality."""
+    if len(data) < 20 or data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+        return None
+    if int.from_bytes(data[4:8], "little") + 8 != len(data):
+        return None
+    offset = 12
+    canvas = None
+    while offset + 8 <= len(data):
+        kind = data[offset:offset + 4]
+        size = int.from_bytes(data[offset + 4:offset + 8], "little")
+        start = offset + 8
+        end = start + size
+        next_offset = end + (size & 1)
+        if next_offset > len(data):
+            return None
+        chunk = data[start:end]
+        dims = None
+        if kind == b"VP8X" and len(chunk) == 10:
+            dims = (1 + int.from_bytes(chunk[4:7], "little"),
+                    1 + int.from_bytes(chunk[7:10], "little"))
+        elif kind == b"VP8 " and len(chunk) >= 10 and chunk[3:6] == b"\x9d\x01\x2a":
+            dims = (int.from_bytes(chunk[6:8], "little") & 0x3fff,
+                    int.from_bytes(chunk[8:10], "little") & 0x3fff)
+        elif kind == b"VP8L" and len(chunk) >= 5 and chunk[0] == 0x2f:
+            bits = int.from_bytes(chunk[1:5], "little")
+            dims = (1 + (bits & 0x3fff), 1 + ((bits >> 14) & 0x3fff))
+        if dims is not None and canvas is None:
+            canvas = dims
+        offset = next_offset
+    if offset != len(data) or canvas is None or min(canvas) < 1:
+        return None
+    return canvas
+
+
+class InterfaceScreenshotCollector(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.images: list[dict[str, str | None]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        src = values.get("src") or ""
+        if tag == "img" and src.startswith("/assets/screenshots/") and src.endswith(".webp"):
+            self.images.append(values)
+
+
+def check_interface_screenshot_dimensions(errors: list[str]) -> None:
+    # Limit the regression contract to the two galleries audited in PR #177.
+    # Other historical tours may have intentionally sized preview crops.
+    for relative, minimum in (("interfeis.html", 19), ("en/interface.html", 8)):
+        page = SITE / relative
+        if not page.is_file():
+            errors.append(f"{relative}: missing interface gallery")
+            continue
+        parser = InterfaceScreenshotCollector()
+        parser.feed(page.read_text(encoding="utf-8"))
+        if len(parser.images) < minimum:
+            errors.append(f"{relative}: expected at least {minimum} screenshot tags")
+        for attrs in parser.images:
+            src = attrs["src"] or ""
+            path = SITE / src.lstrip("/")
+            if not path.is_file():
+                errors.append(f"{relative}: missing screenshot {src}")
+                continue
+            actual = webp_header_dimensions(path.read_bytes())
+            try:
+                declared = (int(attrs.get("width") or ""), int(attrs.get("height") or ""))
+            except ValueError:
+                declared = None
+            if actual is None or actual != declared:
+                errors.append(f"{relative}: screenshot {src} dimensions {declared} != WebP header {actual}")
+
+
+def check_webp_header_contract(errors: list[str]) -> None:
+    def riff(kind: bytes, payload: bytes) -> bytes:
+        body = b"WEBP" + kind + len(payload).to_bytes(4, "little") + payload
+        if len(payload) & 1:
+            body += b"\x00"
+        return b"RIFF" + len(body).to_bytes(4, "little") + body
+
+    vp8 = riff(b"VP8 ", b"\x00\x00\x00\x9d\x01\x2a" + (1366).to_bytes(2, "little") + (768).to_bytes(2, "little"))
+    vp8l = riff(b"VP8L", b"\x2f" + ((1500 - 1) | ((1000 - 1) << 14)).to_bytes(4, "little"))
+    vp8x = riff(b"VP8X", b"\x00" * 4 + (759).to_bytes(3, "little") + (426).to_bytes(3, "little"))
+    cases = ((vp8, (1366, 768)), (vp8l, (1500, 1000)), (vp8x, (760, 427)),
+             (vp8[:-1], None), (b"not-webp", None), (riff(b"JUNK", b"abc"), None))
+    for data, expected in cases:
+        if webp_header_dimensions(data) != expected:
+            errors.append(f"WebP header fixture failed: expected {expected}")
+
+
 def main() -> int:
     errors: list[str] = []
 
+    check_webp_header_contract(errors)
+    check_interface_screenshot_dimensions(errors)
     check_public_html_inventory_contract(errors)
     check_release_sitemap_route_contract(errors)
 
@@ -864,6 +957,7 @@ def main() -> int:
     print(f"  checked {sitemap_count} sitemap URL entries")
     print("  sitemap entries have one loc/lastmod/changefreq/priority with valid ISO/range values")
     print("  local PNG og:image assets exist and declared dimensions match PNG IHDR")
+    print("  UA/EN interface gallery screenshot dimensions match original WebP headers")
     print("  all sitemap pages have exact canonical, indexable robots and shared script.js exactly once")
     print("  all sitemap pages retain description + Open Graph URL/image/title/description + Twitter large-card metadata")
     print("  sitemap-page JSON-LD parses cleanly and FAQ Question.name values are unique per page")
