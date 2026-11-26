@@ -48,7 +48,7 @@
   </url>
   <url>
     <loc>https://outpost.com.ua/offline-programa-dlya-magazynu</loc>
-    <lastmod>2026-11-25</lastmod>
+    <lastmod>2026-11-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -65,9 +65,9 @@
   <url><loc>https://outpost.com.ua/avtomatyzatsiya-zakupivel-i-skladu</loc><lastmod>2026-11-25</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
   <url><loc>https://outpost.com.ua/avtomatyzatsiya-rozdribnoi-torgivli</loc><lastmod>2026-11-25</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
   <url><loc>https://outpost.com.ua/support</loc><lastmod>2026-11-25</lastmod><changefreq>monthly</changefreq><priority>0.78</priority></url>
-  <url><loc>https://outpost.com.ua/en/support</loc><lastmod>2026-11-25</lastmod><changefreq>monthly</changefreq><priority>0.78</priority></url>
-  <url><loc>https://outpost.com.ua/en/features</loc><lastmod>2026-11-25</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://outpost.com.ua/en/license</loc><lastmod>2026-11-25</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://outpost.com.ua/en/support</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.78</priority></url>
+  <url><loc>https://outpost.com.ua/en/features</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://outpost.com.ua/en/license</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://outpost.com.ua/en/inventory</loc><lastmod>2026-11-25</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://outpost.com.ua/en/offline</loc><lastmod>2026-11-25</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://outpost.com.ua/en/offline</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
 </urlset>
