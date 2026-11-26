@@ -29,3 +29,6 @@
 .english-features .feature-preview{margin:0;max-width:900px}
 .english-features .feature-preview img{display:block;width:100%;height:auto;border-radius:12px}
 .english-features .feature-preview figcaption{margin-top:8px;color:#40576c}
+
+/* Native fragment jumps must settle immediately before the next action. */
+html[lang="en"]{scroll-behavior:auto}
