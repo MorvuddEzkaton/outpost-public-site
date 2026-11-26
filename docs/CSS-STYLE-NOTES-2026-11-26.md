@@ -1,0 +1,97 @@
+# Shared stylesheet design notes — 2026-11-26
+
+Issue #175. The deployed `site/assets/site.css` had only 233 bytes of headroom below the 128 KiB ceiling. This change removes exactly 89 standalone, top-level developer-comment lines/blocks, and preserves every other byte, including indentation, selectors, declarations, order, strings and media queries. The notes below preserve all design rationale; they are not loaded by the website. Original file: [0eba24ed, site.css](https://github.com/MorvuddEzkaton/outpost-public-site/blob/0eba24ed5394a1c6f49dfbfa9c4dbda3d1f95a73/site/assets/site.css). Comments were verified outside strings and all CSS blocks; the exact original was reconstructed byte-for-byte before creating the commit. No CSS rule or asset changed. Existing comments on future rules remain useful; do not treat this as a blanket instruction to remove comments or change CSS syntax.
+
+Original bytes: 130839. New bytes: 124562. Saved: 6277 bytes per page using the stylesheet (raw resource budget, not measured network transfer or CWV). Actual compressed response savings may differ. Gallery image recompression remains pending verified access to originals; do not remove images or raise limits.
+
+## Preserved notes in original order
+
+- Original line 12: Production-content pass
+- Original line 21: v6 typography + brand stability
+- Original line 28: ===== v7 internal pages =====
+- Original line 40: ===== v8 density system ===== Compact-by-default for short informational blocks. Numbers/tags stay attached to their labels; whitespace grows only when content needs it.
+- Original line 45: Compact navigation / status rails
+- Original line 59: Number belongs to heading instead of occupying its own visual column
+- Original line 70: Dense short process rows
+- Original line 82: Feature fiscal strip: content-sized, not poster-sized
+- Original line 90: MINI-T400: one compact process line rather than a 2x2 board
+- Original line 115: PRRO: short information stays in compact strips
+- Original line 129: Accounting: compact status, rows and module matrix
+- Original line 165: ===== v9 readability baseline ===== Compact layout does not mean tiny typography. Secondary copy stays readable on large desktop displays and at normal zoom.
+- Original line 170: Shared navigation and footer
+- Original line 180: Home: preserve approved composition, only improve legibility
+- Original line 190: Internal page rails: large enough to scan, still compact
+- Original line 200: General internal-page body text
+- Original line 207: Compact process rows
+- Original line 218: MINI-T400ME
+- Original line 234: Native PRRO
+- Original line 243: Accounting
+- Original line 253: Small status/UI labels inside visual mockups stay secondary, but not microscopic
+- Original line 268: v10 — information-rich compact baseline
+- Original line 280: v11 — next core pages: service/product pages on the v10 readable-density baseline
+- Original line 293: v11 readability guard: compact layout never uses microscopic footer/support text
+- Original line 298: ===== v12 top navigation: eАкциз is a first-level product direction =====
+- Original line 313: ===== v13 scenario pages: dense, readable, distinct per use case =====
+- Original line 327: hero visual: small shop
+- Original line 329: inventory
+- Original line 331: debt
+- Original line 333: FOP
+- Original line 335: automation
+- Original line 337: offline
+- Original line 339: keyboard
+- Original line 341: procurement
+- Original line 346: v14 final sitemap-page visuals
+- Original line 356: ===== v15 global production-candidate polish =====
+- Original line 417: ===== v16 unified design system ===== One visual language across product, service and scenario pages. Use width and composition to gain density; never tiny type.
+- Original line 423: Section rhythm is shared across the previously separate component generations.
+- Original line 428: Never split a short intro into two artificial half-page columns.
+- Original line 435: Cards consume the space they actually need. 1 card = full width, 2 = half, 3 = thirds.
+- Original line 444: Text-only material must use the available canvas instead of piling up in the left half.
+- Original line 450: Compact process rows stay compact but have readable copy.
+- Original line 456: Fact/status strips are labels + answers, not anonymous tiles.
+- Original line 463: Unify the visual transition between the service/scenario generations.
+- Original line 470: Veteran page: intentional identity, not an unstyled spreadsheet.
+- Original line 491: Keep long readable copy broad, but not edge-to-edge.
+- Original line 507: ===== v17 interaction + contact + license polish =====
+- Original line 526: License cards: standard and UBD are equal, dark and visually balanced.
+- Original line 537: Long activation copy must fit; veteran flow gets a readable 2x2 desktop layout.
+- Original line 544: Contact form copied from the production interaction, restyled for redesign.
+- Original line 570: Floating Telegram contact is intentionally visible in the prototype and production design.
+- Original line 595: ========================================================== v18 — READABILITY + DENSITY CORRECTION Compact does not mean tiny. Emptypx;lineis removed by layout, not by shrinking copy. ==========================================================
+- Original line 601: Homepage capability rail: readable text, less dead vertical area.
+- Original line 611: Homepage compact informational strips.
+- Original line 623: License/trust strip is informative, not fine print.
+- Original line 631: Homepage activation: number belongs to the title, description uses full card width.
+- Original line 640: Support hero: give contact data room instead of clipping it into equal thirds.
+- Original line 647: License: two equal visual options, both dark. Veteran receives UA accent, not a smaller white card.
+- Original line 659: Generic compact blocks: ensure readable lower bound across the site.
+- Original line 680: === v19: homepage density + veteran flag polish ===
+- Original line 681: Scenario cards: number belongs to title; compact content must not create emptypvertical space.
+- Original line 729: Homepage veteran card: explicit Ukrainian flag accent made with CSS, no image asset.
+- Original line 766: v20 SEO/pre-production polish
+- Original line 774: Production changelog bridge: deployment keeps the complete existing archive and only changes the shell/styles.
+- Original line 787: v20 final readiness: preserve production-style internal-link graph without reloading the header.
+- Original line 794: Keep real informational copy readable even where older component generations had 9–11px defaults.
+- Original line 804: v20 production-contract bridge
+- Original line 807: production release contract presentation
+- Original line 812: ===== v20 staging browser accessibility hardening =====
+- Original line 813: Final stylesheet layer: page-specific legacy CSS loads after parts of the shared design, so WCAG-critical declarations intentionally use !important.
+- Original line 820: Interactive controls: white text must remain AA on every page-specific variant.
+- Original line 831: Light/soft surfaces: normalize secondary text that legacy page sheets made too pale.
+- Original line 869: Brand blue used as text on white/soft surfaces.
+- Original line 878: Dark surfaces: secondary copy and section codes need a light counterpart.
+- Original line 904: Accounting/eАкциз visual mockups have their own legacy palettes.
+- Original line 910: Footer and other navy surfaces.
+- Original line 933: ===== v20 rendered contrast pass 2 =====
+- Original line 934: Target only elements reported by the real Chromium/axe pass.
+- Original line 938: Hero/dark surfaces use the inverse accessible color.
+- Original line 950: Outline actions must not inherit a translucent dark/blue background.
+- Original line 954: Runtime disclosure affordance: make the label a high-contrast pill on any details surface.
+- Original line 960: Accounting visual is a light simulated application window.
+- Original line 972: Remaining light-surface secondary text reported by axe.
+- Original line 976: ===== v20 responsive UI contract pass =====
+- Original line 977: At the last desktop pixel the 620px mega menu must stay inside the viewport.
+- Original line 986: The full changelog contains long technical identifiers; allow them to wrap on the narrowest phones.
+- Original line 1008: ===== v20 desktop-edge mega-menu clamp =====
+- Original line 1009: Keep the two-column "Ще" menu inside the viewport immediately above the mobile breakpoint. v6 switched the menu to left alignment; a 600px cap leaves safe room for the widest page-specific navigation geometry (/features and /buhgalteriya) at 1121px.
+- Original line 1020: approved homepage hero panorama
