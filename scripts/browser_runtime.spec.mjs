@@ -2316,3 +2316,39 @@ for (const width of [320,390,1440]) {
     } finally { await context.close(); }
   });
 }
+
+
+for (const width of [320,390,1440]) {
+  test(`English acquisition: native license, eligibility and mobile preview at ${width}px`, async ({browser}) => {
+    test.setTimeout(90_000);
+    const context=await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
+    try {
+      const page=await context.newPage();
+      await page.goto(origin+"/en");
+      await page.locator('main a[href="/en/lite#ubd"]').click();
+      await expect(page).toHaveURL(origin+"/en/lite#ubd");
+      await expect(page.locator("#ubd")).toBeVisible();
+      await expect(page.locator("main")).toContainText("primary download button opens the official Ukrainian release page");
+      await page.locator('main a[href="/en/support#license-faq"]').click();
+      await expect(page).toHaveURL(origin+"/en/support#license-faq");
+      await expect(page.locator("#license-faq")).toBeVisible();
+      await page.locator('main a[href="/en/interface"]').click();
+      await expect(page).toHaveURL(origin+"/en/interface");
+      await page.goto(origin+"/en/lite");
+      await page.locator('main a[href="/en/license"]').first().click();
+      await expect(page).toHaveURL(origin+"/en/license");
+      await page.locator('main a[href="/en/lite#ubd"]').click();
+      await expect(page).toHaveURL(origin+"/en/lite#ubd");
+      await page.goto(origin+"/en/download");
+      await expect(page.locator("main .scenario-hero")).toContainText("Browsing on a phone or tablet?");
+      await expect(page.locator("#lite-download a[href='/download#lite-download']")).toHaveCount(1);
+      await expect(page.locator("#retail-download a[href='/setup/OutPOSt-Setup.exe']")).toHaveCount(1);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.locator('main a[href="/demo"]').click();
+      await expect(page).toHaveURL(origin+"/demo");
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content",/noindex/);
+    } finally { await context.close(); }
+  });
+}
