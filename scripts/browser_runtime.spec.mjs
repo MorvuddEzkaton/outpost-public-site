@@ -2228,3 +2228,47 @@ for (const width of [320,390,1440]) {
     } finally { await context.close(); }
   });
 }
+
+
+for (const width of [320,390,1440]) {
+  test(`English purchasing: partial receipt, six real screens and native flags at ${width}px`, async ({browser}) => {
+    test.setTimeout(60_000);
+    const context=await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
+    context.setDefaultTimeout(10_000);
+    context.setDefaultNavigationTimeout(15_000);
+    try {
+      const page=await context.newPage();
+      const response=await page.goto(origin+"/en/purchasing",{waitUntil:"domcontentloaded"});
+      expect(response?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang","en");
+      await expect(page.getByRole("heading",{level:1})).toHaveText("Purchasing and supplier orders for retail shops");
+      await expect(page.locator("#partial-delivery-example")).toContainText("The other 8 remain outstanding");
+      await expect(page.locator("#replenishment-plan")).toContainText("does not automatically send an order");
+      await expect(page.locator("#purchase-currencies")).toContainText("remain in UAH");
+      const imgs=page.locator("#procurement-workflow img");
+      await expect(imgs).toHaveCount(6);
+      for (let i=0;i<6;i++) {
+        const img=imgs.nth(i);
+        await img.scrollIntoViewIfNeeded();
+        const expectedFiles=["01-plan-popovnennia.webp","02-perevirka-planu.webp","03-zamovlennia-postachalnykam.webp","04-redahuvannia-chernetky.webp","05-chastkove-pryimannia.png","06-stan-pislia-pryimannia.png"];
+        await expect(img).toHaveAttribute("src","/assets/screenshots/02418/purchasing/"+expectedFiles[i]);
+        await expect.poll(()=>img.evaluate(el=>el.complete && el.naturalWidth>0 && el.naturalHeight>0)).toBe(true);
+        const actual=await img.evaluate(el=>({width:el.naturalWidth,height:el.naturalHeight}));
+        console.log("PURCHASING_IMAGE_DIMENSIONS "+JSON.stringify({file:expectedFiles[i],...actual}));
+        const verifiedSizes=[{width:1200,height:675},{width:1200,height:675},{width:1200,height:675},{width:1200,height:675},{width:1320,height:410},{width:1320,height:400}];
+        expect(actual).toEqual(verifiedSizes[i]);
+        await expect(img).toHaveAttribute("width",String(actual.width));
+        await expect(img).toHaveAttribute("height",String(actual.height));
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.locator("header [data-site-language='uk']").click();
+      await expect(page).toHaveURL(origin+"/avtomatyzatsiya-zakupivel-i-skladu");
+      await expect(page.locator("header [data-site-language='en']")).toHaveAttribute("href","/en/purchasing");
+      await page.locator("header [data-site-language='en']").click();
+      await expect(page).toHaveURL(origin+"/en/purchasing");
+      await page.goto(origin+"/en/features");
+      await page.locator('main a[href="/en/purchasing"]').click();
+      await expect(page).toHaveURL(origin+"/en/purchasing");
+    } finally { await context.close(); }
+  });
+}

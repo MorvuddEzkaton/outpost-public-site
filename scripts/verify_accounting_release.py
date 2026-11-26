@@ -133,7 +133,7 @@ def guard_primary_accounting_navigation(errors: list[str]) -> int:
         page_text = target.read_text(encoding="utf-8")
         if f'src="{SCRIPT_SRC}"' not in page_text:
             errors.append(f"{pathname}: primary page does not load cache-busted Accounting-safe shared runtime {SCRIPT_SRC}")
-        english_nav_id = {"/en/lite": "english-lite-nav", "/en": "english-home-nav", "/en/download": "english-download-nav", "/en/support": "english-support-nav", "/en/features": "english-features-nav", "/en/license": "english-license-nav", "/en/inventory": "english-inventory-nav", "/en/offline": "english-offline-nav"}.get(pathname)
+        english_nav_id = {"/en/lite": "english-lite-nav", "/en": "english-home-nav", "/en/download": "english-download-nav", "/en/support": "english-support-nav", "/en/features": "english-features-nav", "/en/license": "english-license-nav", "/en/inventory": "english-inventory-nav", "/en/offline": "english-offline-nav", "/en/purchasing": "english-purchasing-nav"}.get(pathname)
         english_page = english_nav_id is not None
         # Reviewed English pages have responsive primary headers with the same direct product links.
         nav_pattern = re.compile(r'<nav\b(?=[^>]*\bid="' + re.escape(english_nav_id) + r'")(?=[^>]*\bdata-nav\b)[^>]*>.*?</nav>', re.DOTALL) if english_page else NAV_RE
