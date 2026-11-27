@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths:
+      # Match the protected publisher on every main push, including test-only changes.
+      - "**"
       - "site/**"
       - "wrangler.jsonc"
       - "scripts/verify_site_identity.py"
