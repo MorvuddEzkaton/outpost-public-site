@@ -908,6 +908,62 @@ def check_interface_screenshot_dimensions(errors: list[str]) -> None:
                 errors.append(f"{relative}: screenshot {src} dimensions {declared} != WebP header {actual}")
 
 
+class AuditedScreenshotCollector(HTMLParser):
+    """Collect only the explicitly audited image references, not preview crops."""
+
+    def __init__(self, expected: dict[str, int]) -> None:
+        super().__init__()
+        self.expected = expected
+        self.images: list[dict[str, str | None]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "img" and values.get("src") in self.expected:
+            self.images.append(values)
+
+
+def check_purchasing_and_writeoff_dimensions(errors: list[str]) -> None:
+    purchasing = {
+        "/assets/screenshots/02418/purchasing/01-plan-popovnennia.webp": 1,
+        "/assets/screenshots/02418/purchasing/02-perevirka-planu.webp": 1,
+        "/assets/screenshots/02418/purchasing/03-zamovlennia-postachalnykam.webp": 1,
+        "/assets/screenshots/02418/purchasing/04-redahuvannia-chernetky.webp": 1,
+        "/assets/screenshots/02418/purchasing/05-chastkove-pryimannia.png": 1,
+        "/assets/screenshots/02418/purchasing/06-stan-pislia-pryimannia.png": 1,
+    }
+    writeoff = "/assets/screenshots/02426/writeoff/02-vybir-konkretnykh-partii.webp"
+    contracts = (
+        ("avtomatyzatsiya-zakupivel-i-skladu.html", purchasing),
+        ("en/purchasing.html", purchasing),
+        ("modules.html", {writeoff: 2}),
+        ("oblik-tovariv-u-magazyni.html", {writeoff: 1}),
+    )
+    for relative, expected in contracts:
+        page = SITE / relative
+        if not page.is_file():
+            errors.append(f"{relative}: missing audited screenshot page")
+            continue
+        parser = AuditedScreenshotCollector(expected)
+        parser.feed(page.read_text(encoding="utf-8"))
+        for src, count in expected.items():
+            actual_count = sum(attrs.get("src") == src for attrs in parser.images)
+            if actual_count != count:
+                errors.append(f"{relative}: expected {count} audited screenshot tags for {src}, got {actual_count}")
+        for attrs in parser.images:
+            src = attrs["src"] or ""
+            path = SITE / src.lstrip("/")
+            if not path.is_file():
+                errors.append(f"{relative}: missing screenshot {src}")
+                continue
+            actual = png_dimensions(path) if src.endswith(".png") else webp_header_dimensions(path.read_bytes())
+            try:
+                declared = (int(attrs.get("width") or ""), int(attrs.get("height") or ""))
+            except ValueError:
+                declared = None
+            if actual is None or actual != declared:
+                errors.append(f"{relative}: screenshot {src} dimensions {declared} != image header {actual}")
+
+
 def check_webp_header_contract(errors: list[str]) -> None:
     def riff(kind: bytes, payload: bytes) -> bytes:
         body = b"WEBP" + kind + len(payload).to_bytes(4, "little") + payload
@@ -930,6 +986,7 @@ def main() -> int:
 
     check_webp_header_contract(errors)
     check_interface_screenshot_dimensions(errors)
+    check_purchasing_and_writeoff_dimensions(errors)
     check_public_html_inventory_contract(errors)
     check_release_sitemap_route_contract(errors)
 
@@ -958,6 +1015,7 @@ def main() -> int:
     print("  sitemap entries have one loc/lastmod/changefreq/priority with valid ISO/range values")
     print("  local PNG og:image assets exist and declared dimensions match PNG IHDR")
     print("  UA/EN interface gallery screenshot dimensions match original WebP headers")
+    print("  audited purchasing and write-off screenshots match original WebP/PNG headers")
     print("  all sitemap pages have exact canonical, indexable robots and shared script.js exactly once")
     print("  all sitemap pages retain description + Open Graph URL/image/title/description + Twitter large-card metadata")
     print("  sitemap-page JSON-LD parses cleanly and FAQ Question.name values are unique per page")
