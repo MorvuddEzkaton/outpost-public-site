@@ -141,3 +141,56 @@ test("modern demo sale, dashboard and settings pass WCAG checks in all themes", 
   }
   expect(failures,failures.join('\n')).toEqual([]);
 });
+
+
+// Diagnostic only: Lighthouse's touch-target heuristic and WCAG 2.2 target-size
+// are not equivalent. Keep existing WCAG A/AA assertions unchanged.
+test("mobile download touch-target diagnostic (WCAG 2.2 and geometry)", async ({ browser }) => {
+  test.setTimeout(120_000);
+  for (const width of [320, 360, 390]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 844 }, isMobile: true, hasTouch: true,
+      deviceScaleFactor: 1
+    });
+    try {
+      const page = await context.newPage();
+      for (const route of ["/download", "/en/download"]) {
+        const response = await page.goto(origin + route, { waitUntil: "load", timeout: 20_000 });
+        expect(response?.ok(), route).toBe(true);
+        await page.evaluate(() => document.fonts.ready);
+        const results = await new AxeBuilder({ page }).withRules(["target-size"]).analyze();
+        const resultGroups = ["violations", "incomplete", "passes", "inapplicable"];
+        const matched = resultGroups.flatMap(group => results[group]
+          .filter(rule => rule.id === "target-size")
+          .map(rule => ({
+            group, id: rule.id, count: rule.nodes.length,
+            nodes: (group === "violations" || group === "incomplete")
+              ? rule.nodes.map(node => ({
+                  target: node.target, html: node.html.slice(0, 240),
+                  summary: node.failureSummary || ""
+                })) : []
+          })));
+        expect(matched.length, "target-size must actually execute").toBeGreaterThan(0);
+        console.log("MOBILE_TOUCH_AXE " + JSON.stringify({ route, width, matched }));
+        const geometry = await page.evaluate(() => {
+          const round = v => Math.round(v * 10) / 10;
+          return [...document.querySelectorAll("main a[href], main button, main summary")]
+            .flatMap(el => {
+              const style = getComputedStyle(el);
+              if (style.visibility !== "visible" || style.display === "none" ||
+                  !el.getClientRects().length || el.closest("[inert]")) return [];
+              const rects = [...el.getClientRects()].filter(r => r.width > 0 && r.height > 0);
+              if (!rects.length || !rects.some(r => r.width < 48 || r.height < 48)) return [];
+              return [{
+                tag: el.tagName.toLowerCase(), href: el.getAttribute("href"),
+                label: (el.getAttribute("aria-label") || el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 100),
+                rects: rects.map(r => ({ width: round(r.width), height: round(r.height),
+                  x: round(r.left + scrollX), y: round(r.top + scrollY) }))
+              }];
+            });
+        });
+        console.log("MOBILE_TOUCH_GEOMETRY " + JSON.stringify({ route, width, candidates: geometry }));
+      }
+    } finally { await context.close(); }
+  }
+});
