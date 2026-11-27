@@ -882,9 +882,13 @@ class InterfaceScreenshotCollector(HTMLParser):
 
 
 def check_interface_screenshot_dimensions(errors: list[str]) -> None:
-    # Limit the regression contract to the two galleries audited in PR #177.
-    # Other historical tours may have intentionally sized preview crops.
-    for relative, minimum in (("interfeis.html", 19), ("en/interface.html", 8)):
+    # Limit the contract to audited galleries with full original image sources.
+    # Intentional CSS preview aspect ratios remain independent of intrinsic attributes.
+    for relative, minimum in (
+        ("interfeis.html", 19),
+        ("en/interface.html", 8),
+        ("bezkoshtovna-programa-dlya-magazynu.html", 4),
+    ):
         page = SITE / relative
         if not page.is_file():
             errors.append(f"{relative}: missing interface gallery")
@@ -957,7 +961,7 @@ def main() -> int:
     print(f"  checked {sitemap_count} sitemap URL entries")
     print("  sitemap entries have one loc/lastmod/changefreq/priority with valid ISO/range values")
     print("  local PNG og:image assets exist and declared dimensions match PNG IHDR")
-    print("  UA/EN interface gallery screenshot dimensions match original WebP headers")
+    print("  UA/EN interface and UA Lite veteran gallery dimensions match original WebP headers")
     print("  all sitemap pages have exact canonical, indexable robots and shared script.js exactly once")
     print("  all sitemap pages retain description + Open Graph URL/image/title/description + Twitter large-card metadata")
     print("  sitemap-page JSON-LD parses cleanly and FAQ Question.name values are unique per page")
