@@ -46,6 +46,7 @@ on:
     branches:
       - main
     paths:
+      - "**"
       - "site/**"
       - "wrangler.jsonc"
       - "scripts/verify_release_metadata.py"
@@ -248,7 +249,7 @@ def test_valid_live_fixture_passes() -> None:
 
 def test_live_missing_push_fails() -> None:
     mutated = VALID_LIVE.replace(
-        '  push:\n    branches:\n      - main\n    paths:\n      - "site/**"\n',
+        '  push:\n    branches:\n      - main\n    paths:\n      - "**"\n      - "site/**"\n',
         "",
         1,
     )
@@ -263,6 +264,45 @@ def test_live_wrong_push_branch_fails() -> None:
     require(
         any("must run on push to main" in item for item in live_errors(mutated)),
         "live workflow wrong push branch must fail",
+    )
+
+
+def test_live_missing_catchall_fails() -> None:
+    mutated = VALID_LIVE.replace('      - "**"\n', "", 1)
+    require(
+        any("must include all paths" in item for item in live_errors(mutated)),
+        "test-only or docs-only main pushes must not be skipped",
+    )
+
+
+def test_live_negative_paths_fail() -> None:
+    for pattern in ('      - "!scripts/browser_a11y.spec.mjs"\n', "      - '!docs/**'\n"):
+        mutated = VALID_LIVE.replace('      - "site/**"\n', '      - "site/**"\n' + pattern, 1)
+        require(
+            any("must not exclude changed paths" in item for item in live_errors(mutated)),
+            "negative live path filters must fail",
+        )
+    unquoted = VALID_LIVE.replace('      - "site/**"\n', '      - "site/**"\n      - !docs/**\n', 1)
+    require(
+        any("explicit quoted patterns" in item for item in live_errors(unquoted)),
+        "ambiguous unquoted path patterns must fail",
+    )
+
+
+def test_live_additional_filters_fail() -> None:
+    for field in ("paths-ignore", "branches-ignore", "types", "tags", "tags-ignore"):
+        mutated = VALID_LIVE.replace('    paths:\n', f'    {field}:\n      - "fixture"\n    paths:\n', 1)
+        require(
+            any("must not have additional filters" in item for item in live_errors(mutated)),
+            f"additional live push filter {field} must fail",
+        )
+
+
+def test_live_commented_catchall_fails() -> None:
+    mutated = VALID_LIVE.replace('      - "**"\n', '      # - "**"\n', 1)
+    require(
+        any("must include all paths" in item for item in live_errors(mutated)),
+        "commented catchall does not trigger the live workflow",
     )
 
 
@@ -500,6 +540,10 @@ def main() -> int:
         test_valid_live_fixture_passes,
         test_live_missing_push_fails,
         test_live_wrong_push_branch_fails,
+        test_live_missing_catchall_fails,
+        test_live_negative_paths_fail,
+        test_live_additional_filters_fail,
+        test_live_commented_catchall_fails,
         test_live_missing_helper_trigger_path_fails,
         test_live_direct_python_run_requires_trigger_path,
         test_live_direct_python_run_with_trigger_path_passes,

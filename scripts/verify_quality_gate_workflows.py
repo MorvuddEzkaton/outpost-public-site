@@ -193,8 +193,31 @@ def validate_live_production_workflow(relative: str, text: str) -> list[str]:
             f"{relative}: pull_request trigger is forbidden; live production verification is post-merge only"
         )
 
-    if not re.search(r"(?ms)^  push:\s*\n.*?^    paths:\s*$", text):
-        errors.append(f"{relative}: push.paths filter is missing")
+    push_event = re.search(
+        r"(?m)^  push:[^\S\n]*\n((?:(?:    [^\n]*|[ \t]*)\n)*)", text
+    )
+    push_text = push_event.group(1) if push_event else ""
+    if re.search(r"(?m)^    (?:paths-ignore|branches-ignore|types|tags|tags-ignore):", push_text):
+        errors.append(f"{relative}: live-production push must not have additional filters")
+    path_filter = re.search(
+        r"(?m)^    paths:[^\S\n]*\n((?:(?:      [^\n]*|[ \t]*)\n)*)", push_text
+    )
+    if not path_filter:
+        errors.append(f"{relative}: push.paths filter is missing or not auditable")
+    else:
+        entries = []
+        for line in path_filter.group(1).splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            entry = re.fullmatch(r"""      - ["']([^"']+)["'][ \t]*(?:#.*)?""", line)
+            if not entry:
+                errors.append(f"{relative}: live-production push.paths must use explicit quoted patterns")
+                continue
+            entries.append(entry.group(1))
+        if "**" not in entries:
+            errors.append(f"{relative}: live-production push.paths must include all paths ('**')")
+        if any(entry.startswith("!") for entry in entries):
+            errors.append(f"{relative}: live-production push.paths must not exclude changed paths")
 
     if not re.search(r"(?m)^concurrency:\s*$", text):
         errors.append(f"{relative}: concurrency block is missing")
@@ -298,7 +321,7 @@ def main() -> int:
     print("  all six required checks run on every main PR, including docs/release/installer-only changes")
     print("  required path/activity exclusions forbidden; manual runs are diagnostic, not PR acceptance")
     print("  post-merge automatic execution: live-production push -> main only")
-    print("  live-production trigger paths cover verifier/helper/manifest dependencies")
+    print("  live-production trigger covers every main push and explicit verifier/helper/manifest dependencies")
     print("  every directly executed Python verifier is also present in push.paths")
     print("  mandatory host-normalization and Cloudflare privacy run commands are present")
     print("  manual execution: workflow_dispatch")
